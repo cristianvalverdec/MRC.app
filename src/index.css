@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Barlow+Condensed:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Design Tokens ─────────────────────────────────────────────── */
+:root {
+  /* Brand primarios */
+  --color-navy:        #1B2A4A;
+  --color-navy-mid:    #243357;
+  --color-navy-light:  #2E3F6E;
+
+  /* Accent corporativo */
+  --color-orange:      #F57C20;
+  --color-orange-dark: #D4640F;
+
+  /* Botones */
+  --color-blue-btn:    #1A52B8;
+  --color-blue-dark:   #153FA0;
+
+  /* Semánticos */
+  --color-success:     #27AE60;
+  --color-warning:     #F2994A;
+  --color-danger:      #EB5757;
+  --color-info:        #2F80ED;
+
+  /* Neutros */
+  --color-text-primary:   #FFFFFF;
+  --color-text-secondary: rgba(255, 255, 255, 0.70);
+  --color-text-muted:     rgba(255, 255, 255, 0.45);
+  --color-border:         rgba(255, 255, 255, 0.12);
+  --color-surface:        rgba(255, 255, 255, 0.06);
+
+  /* Tipografía */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body:    'Barlow', sans-serif;
+
+  /* Espaciado */
+  --screen-padding: 16px;
+  --gap-cards:      12px;
+  --radius-card:    12px;
+  --radius-btn:     8px;
+  --radius-pill:    999px;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-navy);
+  color: var(--color-text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Scrollbar (hide) ──────────────────────────────────────────────── */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* ─── Selection ─────────────────────────────────────────────────────── */
+::selection {
+  background: var(--color-orange);
+  color: #fff;
+}
+
+/* ─── Noise texture overlay ─────────────────────────────────────────── */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px;
+  /* Sin animación grain — evita repaints constantes */
+}
+
+/* ─── Gradient backgrounds ──────────────────────────────────────────── */
+.bg-splash {
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 80%,
+    #1e3260 0%,
+    var(--color-navy) 60%,
+    #111d33 100%
+  );
+}
+
+/* ─── Shimmer button effect ─────────────────────────────────────────── */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 80%
+  );
+  animation: shimmer-move 2.5s linear infinite;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────── */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 56px;
+  background: var(--color-blue-btn);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  min-height: 44px;
+}
+.btn-primary:active { background: var(--color-blue-dark); }
+
+.btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 56px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1.5px solid rgba(255,255,255,0.30);
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  min-height: 44px;
+}
+.btn-outline:active { background: var(--color-surface); }
+
+/* ─── Menu Card ─────────────────────────────────────────────────────── */
+.menu-card {
+  background: var(--color-navy-mid);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+/* ─── Animations (keyframes) ────────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+@keyframes shimmer-move {
+  0%   { left: -100%; }
+  100% { left: 150%; }
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10%  { transform: translate(-2%, -3%); }
+  20%  { transform: translate(3%, 1%); }
+  30%  { transform: translate(-1%, 4%); }
+  40%  { transform: translate(2%, -2%); }
+  50%  { transform: translate(-3%, 2%); }
+  60%  { transform: translate(1%, -4%); }
+  70%  { transform: translate(-2%, 3%); }
+  80%  { transform: translate(3%, -1%); }
+  90%  { transform: translate(-1%, 2%); }
+}
