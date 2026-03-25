@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 function AgrosuperLogo({ height = 28 }) {
   return (
     <img
-      src="/agrosuper-logo.png"
+      src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
       alt="Agrosuper"
       style={{ height, width: 'auto', display: 'block' }}
     />

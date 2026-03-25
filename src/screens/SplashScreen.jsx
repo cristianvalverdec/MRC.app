@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 function AgrosuperShield({ height = 36 }) {
   return (
     <img
-      src="/agrosuper-logo.png"
+      src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
       alt="Agrosuper"
       style={{ height, width: 'auto', display: 'block' }}
     />
@@ -18,7 +18,7 @@ function AgrosuperShield({ height = 36 }) {
 function TeamIllustration() {
   return (
     <img
-      src="/mrc-logo.png"
+      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',

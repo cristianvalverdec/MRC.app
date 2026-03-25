@@ -7,7 +7,7 @@ import useUserStore from '../store/userStore'
 function TeamIllustration() {
   return (
     <img
-      src="/mrc-logo.png"
+      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',
@@ -92,7 +92,7 @@ export default function SelectUnitScreen() {
 
         {/* Centro: logo Agrosuper */}
         <motion.img
-          src="/agrosuper-logo.png"
+          src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
           alt="Agrosuper"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
