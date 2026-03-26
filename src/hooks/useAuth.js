@@ -27,22 +27,11 @@ export function useAuth() {
     }
 
     try {
-      const result = await instance.loginPopup(loginRequest)
-      const account = result.account
-
-      setUser({
-        rut: account.idTokenClaims?.rut || '',
-        name: account.name || account.username,
-        email: account.username,
-        msalAccount: account,
-        isAuthenticated: true,
-      })
-
-      return { success: true, account }
+      // loginRedirect: redirige a Microsoft login y regresa a la app
+      // Evita el bloqueo de popups de Chrome y es el patrón correcto para PWAs
+      await instance.loginRedirect(loginRequest)
+      return { success: true }
     } catch (error) {
-      if (error.errorCode === 'user_cancelled') {
-        return { success: false, cancelled: true }
-      }
       console.error('Login error:', error)
       return { success: false, error }
     }

@@ -2,7 +2,7 @@
 // Usado por QuestionPeoplePicker para consultar Azure AD en producción.
 // En dev mode (sin CLIENT_ID real) este módulo no hace llamadas reales.
 
-import { msalInstance } from '../config/msalInstance'
+import { msal } from '../config/msalInstance'
 import { peopleSearchScopes } from '../config/msalConfig'
 
 const IS_DEV_MODE =
@@ -13,11 +13,11 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0'
 
 // ── Token helper ──────────────────────────────────────────────────────────
 async function getPeopleToken() {
-  const accounts = msalInstance.getAllAccounts()
+  const accounts = msal.instance.getAllAccounts()
   if (!accounts.length) return null
 
   try {
-    const result = await msalInstance.acquireTokenSilent({
+    const result = await msal.instance.acquireTokenSilent({
       ...peopleSearchScopes,
       account: accounts[0],
     })
@@ -25,7 +25,7 @@ async function getPeopleToken() {
   } catch {
     // Silent failed → intentar con popup (solo como último recurso)
     try {
-      const result = await msalInstance.acquireTokenPopup(peopleSearchScopes)
+      const result = await msal.instance.acquireTokenPopup(peopleSearchScopes)
       return result.accessToken
     } catch (err) {
       console.warn('[graphService] No se pudo obtener token para búsqueda de personas:', err)

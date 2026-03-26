@@ -1,8 +1,11 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
+import { useMsal, useIsAuthenticated } from '@azure/msal-react'
+import { InteractionStatus } from '@azure/msal-browser'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import useFormEditorStore from './store/formEditorStore'
+import useUserStore from './store/userStore'
 
 // ── Lazy-loaded screens (performance: code splitting per route) ───────
 const SplashScreen          = lazy(() => import('./screens/SplashScreen'))
@@ -66,6 +69,37 @@ function AnimatedRoutes() {
   )
 }
 
+// Maneja el retorno del redirect de Microsoft y sincroniza el usuario en el store
+function AuthHandler() {
+  const { instance, accounts, inProgress } = useMsal()
+  const isAuthenticated = useIsAuthenticated()
+  const setUser = useUserStore((s) => s.setUser)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (inProgress !== InteractionStatus.None) return
+    if (isAuthenticated && accounts.length > 0) {
+      const account = accounts[0]
+      setUser({
+        name: account.name || account.username,
+        email: account.username,
+        msalAccount: account,
+        isAuthenticated: true,
+      })
+      // Si estamos en la raíz (splash), redirigir al selector de unidad
+      if (window.location.pathname === '/' || window.location.pathname === '/MRC.app/' || window.location.pathname === '/MRC.app') {
+        navigate('/select-unit')
+      }
+    }
+  }, [isAuthenticated, accounts, inProgress, setUser, navigate])
+
+  return null
+}
+
+const IS_DEV_MODE =
+  !import.meta.env.VITE_AZURE_CLIENT_ID ||
+  import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+
 export default function App() {
   // Al iniciar la app: descarga la configuración más reciente de formularios
   // desde SharePoint. En dev mode esto es un no-op silencioso.
@@ -76,6 +110,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<PageFallback />}>
+        {!IS_DEV_MODE && <AuthHandler />}
         <AnimatedRoutes />
       </Suspense>
     </BrowserRouter>

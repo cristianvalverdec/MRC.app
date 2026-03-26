@@ -4,7 +4,7 @@ import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle } from 'lucid
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
-import { msalInstance } from '../config/msalInstance'
+import { msal } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
 
 const ROLE_META = {
@@ -78,7 +78,7 @@ export default function ProfileScreen() {
     clearUser()
     if (!IS_DEV_MODE) {
       try {
-        await msalInstance.logoutRedirect()
+        await msal.instance.logoutRedirect()
       } catch {
         // redirect fallback
       }
