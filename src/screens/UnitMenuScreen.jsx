@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ShieldCheck, BarChart2, TrendingUp, Target, UserCircle } from 'lucide-react'
+import { ShieldCheck, BarChart2, TrendingUp, Target, UserCircle, Users, HeartPulse } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/MenuCard'
@@ -11,7 +11,7 @@ const menuItems = {
     {
       icon: <ShieldCheck size={22} color="#fff" />,
       label: 'Herramientas Gestión Preventiva',
-      sublabel: '4 herramientas disponibles',
+      sublabel: '5 herramientas disponibles',
       accentColor: 'var(--color-orange)',
       route: (unitType) => `/unit/${unitType}/tools`,
     },
@@ -35,6 +35,20 @@ const menuItems = {
       sublabel: 'Metas mensuales por Factor Accidentabilidad',
       accentColor: '#27AE60',
       route: (unitType) => `/unit/${unitType}/goals`,
+    },
+    {
+      icon: <Users size={22} color="#fff" />,
+      label: 'Gestión de CPHS',
+      sublabel: 'Comité Paritario de Higiene y Seguridad',
+      accentColor: '#7B3FE4',
+      route: (unitType) => `/unit/${unitType}/cphs`,
+    },
+    {
+      icon: <HeartPulse size={22} color="#fff" />,
+      label: 'Gestión Salud',
+      sublabel: 'Vigilancia y salud ocupacional',
+      accentColor: '#E53E3E',
+      route: (unitType) => `/unit/${unitType}/salud`,
     },
   ],
   'fuerza-de-ventas': [
