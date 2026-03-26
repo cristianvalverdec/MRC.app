@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react'
+import { CheckCircle2, AlertCircle, ChevronRight, Users } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import QuestionYesNo    from '../components/form/QuestionYesNo'
 import QuestionRating   from '../components/form/QuestionRating'
@@ -169,7 +169,7 @@ const slideVariants = {
   exit: (dir) => ({ x: dir > 0 ? -48 : 48, opacity: 0, transition: { duration: 0.16, ease: 'easeIn' } }),
 }
 
-function WizardMode({ form, formType }) {
+function WizardMode({ form, formType, cphsMode }) {
   const navigate = useNavigate()
   const { saveDraft, clearDraft, addToPendingQueue, drafts } = useFormStore()
 
@@ -225,7 +225,7 @@ function WizardMode({ form, formType }) {
   const handleSubmit = async () => {
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers, formTitle: form.title })
+    addToPendingQueue({ formType, answers: { ...answers, ...(cphsMode ? { cphsRepresentante: true } : {}) }, formTitle: form.title })
     clearDraft(formType)
     setSubmitting(false)
     setSubmitted(true)
@@ -263,6 +263,24 @@ function WizardMode({ form, formType }) {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       {/* Header */}
       <AppHeader title={form.title} onBack={handleBack} />
+
+      {/* Banner CPHS */}
+      {cphsMode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 16px',
+          background: 'rgba(245,124,32,0.12)',
+          borderBottom: '1px solid rgba(245,124,32,0.30)',
+        }}>
+          <Users size={14} color="#F57C20" />
+          <span style={{
+            fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+            color: '#F57C20', letterSpacing: '0.02em',
+          }}>
+            Actividad realizada por Representante CPHS
+          </span>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div style={{ height: 3, background: 'var(--color-border)', flexShrink: 0 }}>
@@ -625,6 +643,8 @@ function SectionsMode({ form, formType }) {
 export default function FormScreen() {
   const { formType } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const cphsMode = searchParams.get('cphs') === 'true'
 
   // Orden de prioridad para cargar la definición:
   // 1. Override de editedForms (admin editó un formulario estático)
@@ -652,7 +672,7 @@ export default function FormScreen() {
   }
 
   if (form.mode === 'wizard') {
-    return <WizardMode form={form} formType={formType} />
+    return <WizardMode form={form} formType={formType} cphsMode={cphsMode} />
   }
 
   return <SectionsMode form={form} formType={formType} />

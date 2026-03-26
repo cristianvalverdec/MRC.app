@@ -20,6 +20,7 @@ const FADataEntryScreen          = lazy(() => import('./screens/FADataEntryScree
 const CierreCondicionesScreen    = lazy(() => import('./screens/CierreCondicionesScreen'))
 const GestionCPHSScreen          = lazy(() => import('./screens/GestionCPHSScreen'))
 const GestionSaludScreen         = lazy(() => import('./screens/GestionSaludScreen'))
+const ProgramaTrabajoScreen      = lazy(() => import('./screens/ProgramaTrabajoScreen'))
 
 function PageFallback() {
   return (
@@ -50,7 +51,8 @@ function AnimatedRoutes() {
         <Route path="/form/:formType"                element={<FormScreen />} />
         <Route path="/unit/:unitType/goals"              element={<ProgramGoalsScreen />} />
         <Route path="/unit/:unitType/cierre-condiciones" element={<CierreCondicionesScreen />} />
-        <Route path="/unit/:unitType/cphs"              element={<GestionCPHSScreen />} />
+        <Route path="/unit/:unitType/cphs"                       element={<GestionCPHSScreen />} />
+        <Route path="/unit/:unitType/cphs/programa-trabajo"    element={<ProgramaTrabajoScreen />} />
         <Route path="/unit/:unitType/salud"             element={<GestionSaludScreen />} />
         <Route path="/profile"                           element={<ProfileScreen />} />
         {/* Admin routes */}
