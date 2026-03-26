@@ -474,7 +474,11 @@ function SectionsMode({ form, formType }) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
   }, [])
 
-  const allQuestions = form.sections.flatMap((s) => s.questions)
+  // Filtrar secciones y preguntas según visibleWhen(answers)
+  const visibleSections = form.sections.filter(s => !s.visibleWhen || s.visibleWhen(answers))
+  const allQuestions = visibleSections.flatMap(s =>
+    s.questions.filter(q => !q.visibleWhen || q.visibleWhen(answers))
+  )
   const requiredQuestions = allQuestions.filter((q) => q.required)
   const answeredRequired = requiredQuestions.filter((q) => answers[q.id] != null && answers[q.id] !== '')
   const progress = requiredQuestions.length > 0 ? answeredRequired.length / requiredQuestions.length : 0
@@ -540,12 +544,12 @@ function SectionsMode({ form, formType }) {
       </div>
 
       <div style={{ flex: 1, padding: '16px 16px 0', overflowY: 'auto' }}>
-        {form.sections.map((section, si) => (
+        {visibleSections.map((section, si) => (
           <motion.div
             key={section.id}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: si * 0.06, duration: 0.35, ease: 'easeOut' }}
+            transition={{ delay: si * 0.04, duration: 0.3, ease: 'easeOut' }}
             style={{ marginBottom: 24 }}
           >
             <div
@@ -559,7 +563,7 @@ function SectionsMode({ form, formType }) {
               {section.title}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {section.questions.map((question) => {
+              {section.questions.filter(q => !q.visibleWhen || q.visibleWhen(answers)).map((question) => {
                 const hasError = unansweredIds.has(question.id)
                 const isFirstError = hasError && firstErrorRef.current === null
                 return (
