@@ -1,7 +1,24 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronLeft, Building2, TrendingUp, UserCircle } from 'lucide-react'
+import { ChevronLeft, Building2, TrendingUp } from 'lucide-react'
 import useUserStore from '../store/userStore'
+
+function MiniAvatar({ name, photoUrl }) {
+  const initials = name ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() : '?'
+  return (
+    <div style={{
+      width: 32, height: 32, borderRadius: '50%',
+      overflow: 'hidden', border: '2px solid rgba(255,255,255,0.25)',
+      background: 'rgba(255,255,255,0.1)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      {photoUrl
+        ? <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.8)' }}>{initials}</span>
+      }
+    </div>
+  )
+}
 
 // MRC 2026 PNG — mismo asset que splash
 function TeamIllustration() {
@@ -41,7 +58,9 @@ const unitCards = [
 
 export default function SelectUnitScreen() {
   const navigate = useNavigate()
-  const setUnit = useUserStore((s) => s.setUnit)
+  const setUnit   = useUserStore((s) => s.setUnit)
+  const name      = useUserStore((s) => s.name)
+  const photoUrl  = useUserStore((s) => s.photoUrl)
 
   const handleSelectUnit = (unit) => {
     setUnit(unit.id)
@@ -114,7 +133,7 @@ export default function SelectUnitScreen() {
             }}
             aria-label="Mi perfil"
           >
-            <UserCircle size={20} />
+            <MiniAvatar name={name} photoUrl={photoUrl} />
           </motion.button>
         </div>
       </div>

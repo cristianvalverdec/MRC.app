@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ShieldCheck, BarChart2, TrendingUp, Target, UserCircle, Users, HeartPulse } from 'lucide-react'
+import { ShieldCheck, BarChart2, TrendingUp, Target, Users, HeartPulse } from 'lucide-react'
+import useUserStore from '../store/userStore'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/MenuCard'
@@ -76,26 +77,39 @@ const menuItems = {
   ],
 }
 
+function MiniAvatar({ name, photoUrl }) {
+  const initials = name ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() : '?'
+  return (
+    <div style={{
+      width: 32, height: 32, borderRadius: '50%',
+      overflow: 'hidden', border: '2px solid rgba(245,124,32,0.5)',
+      background: 'rgba(245,124,32,0.15)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      {photoUrl
+        ? <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, color: 'var(--color-orange)' }}>{initials}</span>
+      }
+    </div>
+  )
+}
+
 export default function UnitMenuScreen() {
   const navigate = useNavigate()
   const { unitType } = useParams()
-  const items = menuItems[unitType] || menuItems.sucursales
-  const label = unitLabels[unitType] || unitType
+  const items    = menuItems[unitType] || menuItems.sucursales
+  const label    = unitLabels[unitType] || unitType
+  const name     = useUserStore((s) => s.name)
+  const photoUrl = useUserStore((s) => s.photoUrl)
 
   const profileAction = (
     <motion.button
       whileTap={{ scale: 0.88 }}
       onClick={() => navigate('/profile')}
-      style={{
-        background: 'rgba(255,255,255,0.06)', border: '1px solid var(--color-border)',
-        borderRadius: 8, padding: 6, cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--color-text-muted)',
-        minWidth: 36, minHeight: 36,
-      }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
       aria-label="Mi perfil"
     >
-      <UserCircle size={20} />
+      <MiniAvatar name={name} photoUrl={photoUrl} />
     </motion.button>
   )
 
