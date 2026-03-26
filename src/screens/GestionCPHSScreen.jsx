@@ -57,7 +57,7 @@ export default function GestionCPHSScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           style={{
-            background: 'linear-gradient(135deg, #4A1DB5 0%, #7B3FE4 100%)',
+            background: 'linear-gradient(135deg, #B85C00 0%, #F57C20 100%)',
             borderRadius: 16,
             padding: '20px 20px',
             display: 'flex',
@@ -178,13 +178,13 @@ export default function GestionCPHSScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.55 }}
           style={{
-            background: 'rgba(123,63,228,0.08)',
-            border: '1px solid rgba(123,63,228,0.25)',
+            background: 'rgba(245,124,32,0.08)',
+            border: '1px solid rgba(245,124,32,0.25)',
             borderRadius: 12,
             padding: '12px 16px',
             fontFamily: 'var(--font-body)',
             fontSize: 12,
-            color: 'rgba(167,139,250,0.9)',
+            color: 'rgba(253,186,116,0.9)',
             lineHeight: 1.6,
             marginTop: 4,
           }}

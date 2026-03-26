@@ -57,7 +57,7 @@ export default function GestionSaludScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           style={{
-            background: 'linear-gradient(135deg, #9B1C1C 0%, #E53E3E 100%)',
+            background: 'linear-gradient(135deg, #0369A1 0%, #0EA5E9 100%)',
             borderRadius: 16,
             padding: '20px 20px',
             display: 'flex',
@@ -178,13 +178,13 @@ export default function GestionSaludScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.55 }}
           style={{
-            background: 'rgba(229,62,62,0.08)',
-            border: '1px solid rgba(229,62,62,0.25)',
+            background: 'rgba(14,165,233,0.08)',
+            border: '1px solid rgba(14,165,233,0.25)',
             borderRadius: 12,
             padding: '12px 16px',
             fontFamily: 'var(--font-body)',
             fontSize: 12,
-            color: 'rgba(252,165,165,0.9)',
+            color: 'rgba(125,211,252,0.9)',
             lineHeight: 1.6,
             marginTop: 4,
           }}
