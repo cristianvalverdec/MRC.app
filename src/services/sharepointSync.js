@@ -15,7 +15,7 @@
 //   VITE_SHAREPOINT_SITE_ID — ID del sitio SharePoint
 //                            (GET https://graph.microsoft.com/v1.0/sites/{host}:/sites/{name})
 
-import { msal } from '../config/msalInstance'
+import { msalInstance } from '../config/msalInstance'
 import { graphScopes } from '../config/msalConfig'
 
 // En modo dev (sin credenciales reales) se simula el sync localmente
@@ -28,9 +28,9 @@ const CONFIG_FILE_PATH = '/mrc-app/forms-config.json'
 
 // ── Obtener token Graph silenciosamente ──────────────────────────────────
 async function getGraphToken() {
-  const accounts = msal.instance.getAllAccounts()
+  const accounts = msalInstance.getAllAccounts()
   if (!accounts.length) throw new Error('Sin cuenta autenticada')
-  const result = await msal.instance.acquireTokenSilent({
+  const result = await msalInstance.acquireTokenSilent({
     ...graphScopes,
     account: accounts[0],
   })

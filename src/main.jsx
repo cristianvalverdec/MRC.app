@@ -1,17 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MsalProvider } from '@azure/msal-react'
-import { msalInstancePromise, msal } from './config/msalInstance'
+import { msalInstance } from './config/msalInstance'
 import './index.css'
 import App from './App.jsx'
 
-// MSAL v5: inicializar de forma asíncrona antes de montar la app
-msalInstancePromise.then((instance) => {
-  msal.instance = instance   // disponible para sharepointData.js
-
+// MSAL v3+: initialize() debe completarse antes de montar la app
+msalInstance.initialize().then(() => {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
-      <MsalProvider instance={instance}>
+      <MsalProvider instance={msalInstance}>
         <App />
       </MsalProvider>
     </StrictMode>,

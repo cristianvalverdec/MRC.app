@@ -11,7 +11,7 @@
 //   Difusiones SSO MRC            2097a931-5615-472b-afc7-b2d2fc6fe805
 //   Maestro de Cierre Condiciones 00b25970-34f1-4026-9cc8-0df3f59c3383
 
-import { msal }        from '../config/msalInstance'
+import { msalInstance } from '../config/msalInstance'
 import { graphScopes } from '../config/msalConfig'
 
 export const IS_DEV_MODE =
@@ -31,7 +31,7 @@ const LIST_IDS = {
 // ── Helpers Graph API ─────────────────────────────────────────────────────
 
 async function getGraphToken() {
-  const instance = msal.instance
+  const instance = msalInstance
   if (!instance) throw new Error('MSAL no inicializado')
   const accounts = instance.getAllAccounts()
   if (!accounts.length) throw new Error('Sin cuenta autenticada')
