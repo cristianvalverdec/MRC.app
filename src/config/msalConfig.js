@@ -20,5 +20,5 @@ export const peopleSearchScopes = {
 }
 
 export const loginRequest = {
-  scopes: ['User.Read'],
+  scopes: ['User.Read', 'User.ReadBasic.All', 'Sites.ReadWrite.All', 'Files.ReadWrite.All'],
 }

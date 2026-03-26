@@ -3,7 +3,7 @@
 // Enruta cada envío a su lista SharePoint real, preservando los flujos
 // de Power Automate y la generación automática de documentos PDF.
 //
-// Listas y GUIDs (sitio: SSOASCOMERCIAL)
+// Listas y GUIDs (sitio: https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL)
 //   Reglas de Oro - Sucursales    d123a245-0aeb-4f51-9b20-693639c963b6
 //   Caminata de Seguridad         04730b19-b235-4eef-b487-0234326fd4ac
 //   Inspección Simple             de766ded-0d14-4e50-8254-710c533a2106
@@ -41,9 +41,13 @@ async function getGraphToken() {
 }
 
 function getSiteUrl() {
-  const siteId = import.meta.env.VITE_SHAREPOINT_SITE_ID
-  if (!siteId) throw new Error('VITE_SHAREPOINT_SITE_ID no configurado')
-  return `https://graph.microsoft.com/v1.0/sites/${siteId}`
+  const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL
+  if (!raw) throw new Error('VITE_SHAREPOINT_SITE_URL no configurado')
+  // Convierte https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL
+  // → https://graph.microsoft.com/v1.0/sites/agrosuper.sharepoint.com:/sites/SSOASCOMERCIAL
+  const url  = new URL(raw)
+  const path = url.pathname.replace(/\/$/, '')   // quita trailing slash
+  return `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${path}`
 }
 
 function todayISO() {
