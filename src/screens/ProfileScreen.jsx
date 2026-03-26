@@ -17,22 +17,39 @@ const UNIT_LABEL = {
   'fuerza-de-ventas': 'Fuerza de Ventas',
 }
 
-// ── Avatar con iniciales ───────────────────────────────────────────────────
-function Avatar({ name, role }) {
+// ── Avatar con foto real o iniciales ──────────────────────────────────────
+function Avatar({ name, role, photoUrl, size = 72 }) {
   const initials = name
     ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
     : '?'
   const roleMeta = ROLE_META[role] || ROLE_META.user
+
+  if (photoUrl) {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: '50%',
+        border: `2.5px solid ${roleMeta.border}`,
+        overflow: 'hidden', flexShrink: 0,
+      }}>
+        <img
+          src={photoUrl}
+          alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div style={{
-      width: 72, height: 72, borderRadius: '50%',
+      width: size, height: size, borderRadius: '50%',
       background: roleMeta.bg,
       border: `2px solid ${roleMeta.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
     }}>
       <span style={{
-        fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 800,
+        fontFamily: 'var(--font-display)', fontSize: size * 0.36, fontWeight: 800,
         color: roleMeta.color, letterSpacing: '0.02em',
       }}>
         {initials}
@@ -68,7 +85,7 @@ function ProfileRow({ icon, label, value }) {
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const navigate  = useNavigate()
-  const { name, email, role, unit, branch, clearUser } = useUserStore()
+  const { name, email, role, unit, branch, photoUrl, clearUser } = useUserStore()
   const pendingQueue = useFormStore((s) => s.pendingQueue)
 
   const pendingCount = pendingQueue.filter((i) => !i.synced).length
@@ -107,7 +124,7 @@ export default function ProfileScreen() {
             display: 'flex', alignItems: 'center', gap: 16,
           }}
         >
-          <Avatar name={displayName} role={role} />
+          <Avatar name={displayName} role={role} photoUrl={photoUrl} size={72} />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
               {displayName || 'Sin nombre'}

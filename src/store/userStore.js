@@ -7,6 +7,7 @@ const useUserStore = create(
       rut: '',
       name: '',
       email: '',
+      photoUrl: '',   // base64 foto de perfil de Azure AD
       unit: '',       // 'sucursales' | 'fuerza-de-ventas'
       branch: '',     // nombre de la sucursal
       role: 'user',   // 'admin' | 'user'
@@ -17,8 +18,9 @@ const useUserStore = create(
       setUnit: (unit) => set({ unit }),
       setBranch: (branch) => set({ branch }),
       setRole: (role) => set({ role }),
+      setPhotoUrl: (photoUrl) => set({ photoUrl }),
       clearUser: () => set({
-        rut: '', name: '', email: '', unit: '', branch: '',
+        rut: '', name: '', email: '', photoUrl: '', unit: '', branch: '',
         role: 'user', isAuthenticated: false, msalAccount: null,
       }),
     }),
@@ -28,6 +30,7 @@ const useUserStore = create(
         rut: state.rut,
         name: state.name,
         email: state.email,
+        photoUrl: state.photoUrl,
         unit: state.unit,
         branch: state.branch,
         role: state.role,

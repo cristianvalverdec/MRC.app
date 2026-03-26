@@ -6,6 +6,7 @@ import { InteractionStatus } from '@azure/msal-browser'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
+import { useBootstrap } from './hooks/useBootstrap'
 
 // ── Lazy-loaded screens (performance: code splitting per route) ───────
 const SplashScreen          = lazy(() => import('./screens/SplashScreen'))
@@ -100,6 +101,11 @@ const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
   import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
+function BootstrapHandler() {
+  useBootstrap()
+  return null
+}
+
 export default function App() {
   // Al iniciar la app: descarga la configuración más reciente de formularios
   // desde SharePoint. En dev mode esto es un no-op silencioso.
@@ -111,6 +117,7 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<PageFallback />}>
         {!IS_DEV_MODE && <AuthHandler />}
+        {!IS_DEV_MODE && <BootstrapHandler />}
         <AnimatedRoutes />
       </Suspense>
     </BrowserRouter>

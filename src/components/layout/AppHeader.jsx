@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
+import useUserStore from '../../store/userStore'
 
 function AgrosuperLogo({ height = 28 }) {
   return (
@@ -12,8 +13,39 @@ function AgrosuperLogo({ height = 28 }) {
   )
 }
 
+function MiniAvatar({ name, photoUrl }) {
+  const initials = name
+    ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+    : '?'
+  return (
+    <motion.div
+      whileTap={{ scale: 0.88 }}
+      style={{
+        width: 32, height: 32, borderRadius: '50%',
+        overflow: 'hidden', cursor: 'pointer',
+        border: '2px solid rgba(245,124,32,0.5)',
+        background: 'rgba(245,124,32,0.15)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {photoUrl ? (
+        <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800,
+          color: 'var(--color-orange)', letterSpacing: '0.02em',
+        }}>
+          {initials}
+        </span>
+      )}
+    </motion.div>
+  )
+}
+
 export default function AppHeader({ title, showBack = true, onBack, rightAction }) {
   const navigate = useNavigate()
+  const { name, photoUrl, isAuthenticated } = useUserStore()
 
   const handleBack = () => {
     if (onBack) {
@@ -88,9 +120,15 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
         )}
       </div>
 
-      {/* Right: action slot o spacer */}
+      {/* Right: avatar de perfil o action custom */}
       <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-        {rightAction || null}
+        {rightAction || (
+          isAuthenticated && (
+            <div onClick={() => navigate('/profile')}>
+              <MiniAvatar name={name} photoUrl={photoUrl} />
+            </div>
+          )
+        )}
       </div>
     </header>
   )
