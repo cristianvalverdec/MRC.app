@@ -1,0 +1,31 @@
+{
+  "name": "Misión Riesgo Cero",
+  "short_name": "MRC",
+  "description": "Herramientas SST - Agrosuper Comercial",
+  "start_url": "/MRC.app/",
+  "display": "standalone",
+  "background_color": "#08123A",
+  "theme_color": "#1B2A4A",
+  "lang": "es",
+  "scope": "/MRC.app/",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/MRC.app/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/MRC.app/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/MRC.app/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
