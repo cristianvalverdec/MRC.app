@@ -46,10 +46,11 @@ function getSiteUrl() {
   const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL
   if (!raw) throw new Error('VITE_SHAREPOINT_SITE_URL no configurado')
   // Convierte https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL
-  // → https://graph.microsoft.com/v1.0/sites/agrosuper.sharepoint.com:/sites/SSOASCOMERCIAL
+  // → https://graph.microsoft.com/v1.0/sites/agrosuper.sharepoint.com:/sites/SSOASCOMERCIAL:
+  // El segundo ":" al final es obligatorio para que Graph API resuelva sub-recursos correctamente
   const url  = new URL(raw)
   const path = url.pathname.replace(/\/$/, '')   // quita trailing slash
-  return `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${path}`
+  return `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${path}:`
 }
 
 function todayISO() {
@@ -60,6 +61,11 @@ function todayISO() {
 
 // Extrae email de un valor de persona Azure AD
 // (puede ser string, { email } o { mail } o { userPrincipalName })
+// Normaliza nombre de sucursal quitando prefijo "Sucursal " para comparar
+function normBranch(v = '') {
+  return v.replace(/^sucursal\s+/i, '').trim().toLowerCase()
+}
+
 function extractEmail(v) {
   if (!v) return ''
   if (typeof v === 'string') return v.includes('@') ? v : ''
@@ -83,7 +89,7 @@ function isoWeekNumber(date) {
 
 // ── 1. Reglas de Oro - Sucursales (wizard pauta-verificacion-reglas-oro) ──
 function mapReglasOroSucursales(sub) {
-  const d = sub.data || {}
+  const d = sub.answers || sub.data || {}
 
   // Desviación: alguna pregunta de selección de ruta respondida CON_OBSERVACIONES
   const hasDeviation = Object.values(d).some((v) => v === 'CON_OBSERVACIONES')
@@ -97,10 +103,10 @@ function mapReglasOroSucursales(sub) {
 
   return {
     // Campos estructurales
-    Title:                               d.Q12 || sub.userName || '',
+    Title:                               sub.userName || '',
     Instalaci_x00f3_n:                   d.Q1  || sub.branch   || '',
-    Cargo:                               d.Q2  || '',
-    Nombre:                              d.Q12 || sub.userName || '',
+    Cargo:                               sub.userJobTitle || '',
+    Nombre:                              sub.userName || '',
     _x00c1_rea:                          d.Q18 || '',
     Turno:                               d.Q19 || '',
     Regla_x0020_de_x0020_Oro:           d.Q20 || d.Q21 || '',
@@ -129,7 +135,7 @@ function mapReglasOroSucursales(sub) {
 
 // ── 2. Reglas de Oro - Ventas (observacion-conductual) ───────────────────
 function mapReglasOroVentas(sub) {
-  const d = sub.data || {}
+  const d = sub.answers || sub.data || {}
 
   const hasDeviation = Object.values(d).some((v) => v === 'CON_OBSERVACIONES')
 
@@ -140,10 +146,10 @@ function mapReglasOroVentas(sub) {
   }).join(' | ')
 
   return {
-    Title:                               d.Q12 || sub.userName || '',
+    Title:                               sub.userName || '',
     Instalaci_x00f3_n:                   d.Q1  || sub.branch   || '',
-    Cargo:                               d.Q2  || '',
-    Nombre:                              d.Q12 || sub.userName || '',
+    Cargo:                               sub.userJobTitle || '',
+    Nombre:                              sub.userName || '',
     _x00c1_rea:                          d.Q18 || '',
     Turno:                               d.Q19 || '',
     Equipo_x0020_de_x0020_Venta:        d.Q9  || '',
@@ -170,7 +176,7 @@ function mapReglasOroVentas(sub) {
 
 // ── 3. Caminata de Seguridad ──────────────────────────────────────────────
 function mapCaminataSeguridad(sub) {
-  const d = sub.data || {}
+  const d = sub.answers || sub.data || {}
 
   const hayDesviacionConductual  = d.cs_3 === 'Si' || d.cs_4 === 'Si'
   const hayDesviacionCondiciones = d.cs_3 === 'Si'
@@ -194,7 +200,7 @@ function mapCaminataSeguridad(sub) {
 
 // ── 4. Inspección Simple ──────────────────────────────────────────────────
 function mapInspeccionSimple(sub) {
-  const d = sub.data || {}
+  const d = sub.answers || sub.data || {}
 
   // Código de reporte único: IS-{3 letras sucursal}-{timestamp 6 dígitos}
   const prefix  = (sub.branch || 'XX').replace(/\s+/g, '').substring(0, 3).toUpperCase()
@@ -218,7 +224,7 @@ function mapInspeccionSimple(sub) {
 
 // ── 5. Difusiones SSO MRC ─────────────────────────────────────────────────
 function mapDifusiones(sub) {
-  const d   = sub.data || {}
+  const d   = sub.answers || sub.data || {}
   const now = new Date()
 
   return {
@@ -236,7 +242,7 @@ function mapDifusiones(sub) {
 
 // ── 6. Maestro de Cierre Condiciones ─────────────────────────────────────
 function mapCierreCondiciones(sub) {
-  const d = sub.data || {}
+  const d = sub.answers || sub.data || {}
   return {
     Title:     d.codigoReporte         || '',   // ID del hallazgo a cerrar
     field_1:   sub.createdAt           || new Date().toISOString(), // Fecha de cierre
@@ -263,6 +269,37 @@ function getListConfig(formType) {
 }
 
 // ── Enviar un registro a SharePoint ──────────────────────────────────────
+// Convierte base64 dataURL a Uint8Array binario
+function base64ToBytes(dataUrl) {
+  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+  const binary  = atob(base64)
+  const bytes   = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+// Sube una foto como adjunto al ítem SharePoint recién creado
+async function uploadPhotoAttachment(listId, itemId, photoBase64, fileName, token) {
+  const siteBase = import.meta.env.VITE_SHAREPOINT_SITE_URL
+  if (!siteBase) return
+  // SharePoint REST API para adjuntos de ítems de lista
+  const url = `${siteBase}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${fileName}')`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/octet-stream',
+    },
+    body: base64ToBytes(photoBase64),
+  })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    console.warn(`[MRC] Adjunto ${fileName} falló ${res.status}:`, txt)
+  } else {
+    console.info(`[MRC] Adjunto ${fileName} subido OK`)
+  }
+}
+
 export async function submitFormToSharePoint(submission) {
   if (IS_DEV_MODE) {
     console.info('[MRC Data] Modo dev — envío simulado:', submission.formType)
@@ -275,9 +312,13 @@ export async function submitFormToSharePoint(submission) {
     return { success: false, error: 'Tipo de formulario no mapeado' }
   }
 
-  const token  = await getGraphToken()
-  const url    = `${getSiteUrl()}/lists/${config.listId}/items`
-  const fields = config.mapFields(submission)
+  const token   = await getGraphToken()
+  const siteUrl = getSiteUrl()
+  const url     = `${siteUrl}/lists/${config.listId}/items`
+  const fields  = config.mapFields(submission)
+
+  console.info('[MRC] POST →', url)
+  console.info('[MRC] fields →', fields)
 
   const res = await fetch(url, {
     method: 'POST',
@@ -290,7 +331,27 @@ export async function submitFormToSharePoint(submission) {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
+    console.error('[MRC] SharePoint error', res.status, errText)
     throw new Error(`SharePoint POST falló: ${res.status} — ${errText}`)
+  }
+
+  const result = await res.json().catch(() => ({}))
+  console.info('[MRC] Registro creado OK →', result?.id)
+
+  // Subir fotos adjuntas si las hay (ej. Inspección Simple)
+  const photos = submission.answers?.is_photo
+  if (Array.isArray(photos) && photos.length > 0 && result?.id) {
+    await Promise.allSettled(
+      photos.map((photoBase64, idx) =>
+        uploadPhotoAttachment(
+          config.listId,
+          result.id,
+          photoBase64,
+          `foto_${idx + 1}_${Date.now()}.jpg`,
+          token
+        )
+      )
+    )
   }
 
   return { success: true }
@@ -321,19 +382,33 @@ export async function fetchTodayKPIs(unitType, filters = {}) {
   const listsToQuery = unitType === 'fuerza-de-ventas' ? LISTS_FDV : LISTS_SUC
   const results = {}
 
+  const todayMs  = new Date(today).getTime()
+  const headers  = { Authorization: `Bearer ${token}` }
+
   await Promise.allSettled(
     listsToQuery.map(async ({ key, listId, branchField }) => {
       try {
-        const clauses = [`fields/Created ge '${today}'`]
-        if (filters.branch && filters.branch !== 'all') {
-          clauses.push(`fields/${branchField} eq '${filters.branch}'`)
+        // $expand para traer el campo de sucursal y filtrar en JS.
+        // Las columnas de SP no están indexadas → no se puede usar $filter server-side.
+        const url     = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${branchField})&$orderby=lastModifiedDateTime desc&$top=500`
+        let res = await fetch(url, { headers })
+        // Fallback sin $orderby si la lista lo rechaza (ej. Pautas)
+        if (!res.ok) {
+          const fallback = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${branchField})&$top=1000`
+          res = await fetch(fallback, { headers })
         }
-        const filter = encodeURIComponent(clauses.join(' and '))
-        const url    = `${siteUrl}/lists/${listId}/items?$filter=${filter}&$select=fields/Created&$top=500`
-        const res    = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
         if (!res.ok) throw new Error(`SP GET ${res.status}`)
-        const json   = await res.json()
-        results[key] = (json.value || []).length
+        const json = await res.json()
+        const raw  = json.value || []
+
+        const items = raw.filter(item => {
+          if (new Date(item.createdDateTime).getTime() < todayMs) return false
+          if (filters.branch && filters.branch !== 'all') {
+            return normBranch(item.fields?.[branchField]) === normBranch(filters.branch)
+          }
+          return true
+        })
+        results[key] = items.length
       } catch (err) {
         console.warn(`[MRC Data] KPI ${key}:`, err.message)
         results[key] = 0
@@ -342,4 +417,251 @@ export async function fetchTodayKPIs(unitType, filters = {}) {
   )
 
   return results
+}
+
+// ── Actividad reciente desde SharePoint ───────────────────────────────────
+// Retorna los últimos 10 registros de hoy, de todas las listas relevantes.
+// Cada ítem: { time, user, action, branch }
+
+const ACTIVITY_LABELS = {
+  'pauta-verificacion-reglas-oro': 'Envió Pauta de Verificación',
+  'caminata-seguridad':            'Completó Caminata de Seguridad',
+  'inspeccion-simple':             'Registró Inspección Simple',
+  'difusiones-sso':                'Registró Difusión SSO',
+  'observacion-conductual':        'Completó Observación Conductual',
+  'inspeccion-planificada':        'Completó Inspección Planificada',
+}
+
+export async function fetchRecentActivity(unitType, filters = {}) {
+  if (IS_DEV_MODE) return null
+
+  const token   = await getGraphToken()
+  const siteUrl = getSiteUrl()
+  const today   = todayISO()
+  const headers = { Authorization: `Bearer ${token}` }
+
+  const LISTS_SUC = [
+    { key: 'pauta-verificacion-reglas-oro', listId: LIST_IDS.reglasOroSucursales, branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+    { key: 'caminata-seguridad',            listId: LIST_IDS.caminataSeguridad,   branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+    { key: 'inspeccion-simple',             listId: LIST_IDS.inspeccionSimple,    branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+    { key: 'difusiones-sso',                listId: LIST_IDS.difusionesSso,       branchField: 'Sucursal',          userField: 'Responsable' },
+  ]
+  const LISTS_FDV = [
+    { key: 'observacion-conductual', listId: LIST_IDS.reglasOroVentas, branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+    { key: 'difusiones-sso',         listId: LIST_IDS.difusionesSso,   branchField: 'Sucursal',          userField: 'Responsable' },
+  ]
+
+  const listsToQuery = unitType === 'fuerza-de-ventas' ? LISTS_FDV : LISTS_SUC
+  const allItems = []
+  const todayMs  = new Date(today).getTime()
+
+  await Promise.allSettled(
+    listsToQuery.map(async ({ key, listId, branchField, userField }) => {
+      try {
+        const url  = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${userField},${branchField})&$orderby=lastModifiedDateTime desc&$top=50`
+        const res  = await fetch(url, { headers })
+        if (!res.ok) return
+        const json = await res.json()
+        ;(json.value || [])
+          .filter(item => {
+            if (new Date(item.createdDateTime).getTime() < todayMs) return false
+            if (filters.branch && filters.branch !== 'all') {
+              return normBranch(item.fields?.[branchField]) === normBranch(filters.branch)
+            }
+            return true
+          })
+          .forEach(item => {
+            const created = new Date(item.createdDateTime)
+            // Normalizar la sucursal para display (quitar prefijo "Sucursal ")
+            const rawBranch = item.fields?.[branchField] || ''
+            const displayBranch = rawBranch.replace(/^sucursal\s+/i, '').trim()
+            allItems.push({
+              created,
+              time:   created.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+              user:   item.fields?.[userField] || '',
+              action: ACTIVITY_LABELS[key] || 'Envió formulario',
+              branch: displayBranch,
+            })
+          })
+      } catch { /* ignorar errores por lista */ }
+    })
+  )
+
+  // Ordenar por más reciente y devolver top 10
+  return allItems
+    .sort((a, b) => b.created - a.created)
+    .slice(0, 10)
+    .map(({ created, ...rest }) => rest)
+}
+
+// ── Detalle de registros de hoy para una tarjeta KPI ─────────────────────
+// Retorna array de { user, branch, time } para la lista/formType indicado.
+
+const DETAIL_CONFIG = {
+  'pauta-verificacion-reglas-oro': { listId: LIST_IDS.reglasOroSucursales, branchField: 'Instalaci_x00f3_n', userField: 'Nombre',      turnoField: 'Turno' },
+  'caminata-seguridad':            { listId: LIST_IDS.caminataSeguridad,   branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+  'inspeccion-simple':             { listId: LIST_IDS.inspeccionSimple,    branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+  'difusiones-sso':                { listId: LIST_IDS.difusionesSso,       branchField: 'Sucursal',          userField: 'Responsable' },
+  'observacion-conductual':        { listId: LIST_IDS.reglasOroVentas,     branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+  'inspeccion-planificada':        { listId: LIST_IDS.inspeccionSimple,    branchField: 'Instalaci_x00f3_n', userField: 'Nombre'      },
+}
+
+export async function fetchKPIDetail(formType, filters = {}) {
+  if (IS_DEV_MODE) return []
+
+  const config = DETAIL_CONFIG[formType]
+  if (!config) return []
+
+  const { listId, branchField, userField, turnoField } = config
+  const token   = await getGraphToken()
+  const siteUrl = getSiteUrl()
+  const today   = todayISO()
+  const todayMs = new Date(today).getTime()
+  const headers = { Authorization: `Bearer ${token}` }
+
+  const selectFields = [userField, branchField, turnoField].filter(Boolean).join(',')
+  const url = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${selectFields})&$orderby=lastModifiedDateTime desc&$top=200`
+  let res = await fetch(url, { headers })
+  if (!res.ok) {
+    const fallback = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${selectFields})&$top=500`
+    res = await fetch(fallback, { headers })
+  }
+  if (!res.ok) return []
+
+  const json  = await res.json()
+  const items = (json.value || []).filter(item => {
+    if (new Date(item.createdDateTime).getTime() < todayMs) return false
+    if (filters.branch && filters.branch !== 'all') {
+      return normBranch(item.fields?.[branchField]) === normBranch(filters.branch)
+    }
+    return true
+  })
+
+  return items.map(item => {
+    const created = new Date(item.createdDateTime)
+    const rawBranch = item.fields?.[branchField] || ''
+    return {
+      user:   item.fields?.[userField] || '—',
+      branch: rawBranch.replace(/^sucursal\s+/i, '').trim() || '—',
+      time:   created.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      turno:  turnoField ? (item.fields?.[turnoField] || '') : undefined,
+    }
+  })
+}
+
+// ── Analytics por período desde SharePoint ────────────────────────────────
+// period: 'week' | 'month' | 'year'
+// Retorna {
+//   summary: [{ label, value, color }],    — tarjetas superiores
+//   byFormType: [{ label, count, target }] — barras por herramienta
+//   prevComparison: number                 — % vs período anterior
+// }
+
+function periodRange(period) {
+  const now   = new Date()
+  const start = new Date()
+
+  if (period === 'week') {
+    const day = now.getDay() || 7          // lunes=1 … domingo=7
+    start.setDate(now.getDate() - (day - 1))
+  } else if (period === 'month') {
+    start.setDate(1)
+  } else {
+    start.setMonth(0, 1)
+  }
+  start.setHours(0, 0, 0, 0)
+  return { start: start.toISOString(), end: now.toISOString() }
+}
+
+function prevPeriodRange(period) {
+  const now  = new Date()
+  const end  = new Date()
+  const start = new Date()
+
+  if (period === 'week') {
+    const day = now.getDay() || 7
+    end.setDate(now.getDate() - (day - 1))   // inicio de esta semana = fin de la anterior
+    start.setDate(end.getDate() - 7)
+  } else if (period === 'month') {
+    end.setDate(0)                            // último día del mes anterior
+    start.setFullYear(end.getFullYear(), end.getMonth(), 1)
+  } else {
+    end.setFullYear(now.getFullYear(), 0, 1)  // 1 ene de este año = fin del año anterior
+    start.setFullYear(now.getFullYear() - 1, 0, 1)
+  }
+  start.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+async function countItemsInRange(siteUrl, listId, start, end, branchFilter, branchField, token) {
+  const startMs = new Date(start).getTime()
+  const endMs   = new Date(end).getTime()
+  const headers = { Authorization: `Bearer ${token}` }
+  const url = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${branchField})&$orderby=lastModifiedDateTime desc&$top=1000`
+  let res = await fetch(url, { headers })
+  if (!res.ok) {
+    const fallback = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${branchField})&$top=1000`
+    res = await fetch(fallback, { headers })
+  }
+  if (!res.ok) return 0
+  const json = await res.json()
+  return (json.value || []).filter(item => {
+    const t = new Date(item.createdDateTime).getTime()
+    if (t < startMs || t > endMs) return false
+    if (branchFilter && branchFilter !== 'all') {
+      return normBranch(item.fields?.[branchField]) === normBranch(branchFilter)
+    }
+    return true
+  }).length
+}
+
+export async function fetchAnalytics(unitType, period = 'month', filters = {}) {
+  if (IS_DEV_MODE) return null
+
+  const token   = await getGraphToken()
+  const siteUrl = getSiteUrl()
+
+  const LISTS_SUC = [
+    { key: 'pauta-verificacion-reglas-oro', listId: LIST_IDS.reglasOroSucursales, branchField: 'Instalaci_x00f3_n', label: 'Pautas Verificación', target: 15 },
+    { key: 'caminata-seguridad',            listId: LIST_IDS.caminataSeguridad,   branchField: 'Instalaci_x00f3_n', label: 'Caminatas',           target: 10 },
+    { key: 'inspeccion-simple',             listId: LIST_IDS.inspeccionSimple,    branchField: 'Instalaci_x00f3_n', label: 'Inspecciones',        target: 8  },
+    { key: 'difusiones-sso',                listId: LIST_IDS.difusionesSso,       branchField: 'Sucursal',          label: 'Difusiones SSO',      target: 5  },
+  ]
+  const LISTS_FDV = [
+    { key: 'observacion-conductual', listId: LIST_IDS.reglasOroVentas, branchField: 'Instalaci_x00f3_n', label: 'Obs. Conductual',  target: 12 },
+    { key: 'difusiones-sso',         listId: LIST_IDS.difusionesSso,   branchField: 'Sucursal',          label: 'Difusiones SSO',   target: 5  },
+  ]
+
+  const lists = unitType === 'fuerza-de-ventas' ? LISTS_FDV : LISTS_SUC
+  const { start, end }       = periodRange(period)
+  const { start: ps, end: pe } = prevPeriodRange(period)
+  const branch = filters.branch || 'all'
+
+  // Consultar período actual y anterior en paralelo
+  const [currentCounts, prevCounts] = await Promise.all([
+    Promise.allSettled(lists.map(l => countItemsInRange(siteUrl, l.listId, start, end, branch, l.branchField, token))),
+    Promise.allSettled(lists.map(l => countItemsInRange(siteUrl, l.listId, ps,   pe,  branch, l.branchField, token))),
+  ])
+
+  const byFormType = lists.map((l, i) => ({
+    label:  l.label,
+    count:  currentCounts[i].status === 'fulfilled' ? currentCounts[i].value : 0,
+    target: l.target,
+  }))
+
+  const totalCurrent  = byFormType.reduce((s, r) => s + r.count, 0)
+  const totalPrev     = prevCounts.reduce((s, r) => s + (r.status === 'fulfilled' ? r.value : 0), 0)
+  const totalTarget   = byFormType.reduce((s, r) => s + r.target, 0)
+  const compliance    = totalTarget > 0 ? Math.min(100, Math.round((totalCurrent / totalTarget) * 100)) : 0
+  const prevComparison = totalPrev > 0 ? Math.round(((totalCurrent - totalPrev) / totalPrev) * 100) : null
+
+  const summary = [
+    { label: 'Registros totales',    value: totalCurrent,        color: '#60A5FA' },
+    { label: 'Cumplimiento',         value: `${compliance}%`,    color: compliance >= 80 ? '#27AE60' : compliance >= 50 ? '#F57C20' : '#EB5757' },
+    { label: 'Herramientas activas', value: byFormType.filter(r => r.count > 0).length, color: '#7B3FE4' },
+    { label: 'vs período anterior',  value: prevComparison !== null ? `${prevComparison > 0 ? '+' : ''}${prevComparison}%` : 'N/D', color: prevComparison >= 0 ? '#27AE60' : '#EB5757' },
+  ]
+
+  return { summary, byFormType, totalCurrent, compliance }
 }

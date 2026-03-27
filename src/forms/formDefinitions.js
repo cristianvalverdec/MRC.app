@@ -130,6 +130,7 @@ export const formDefinitions = {
         questions: [
           { id: 'is_7', type: 'rating', label: 'Calificación del estado del elemento', required: true },
           { id: 'is_8', type: 'text',   label: 'Descripción del estado y acción correctiva requerida', required: false, placeholder: 'Detalla el estado encontrado y las acciones a tomar…' },
+          { id: 'is_photo', type: 'photo', label: 'Evidencia fotográfica de condiciones detectadas', required: false, maxPhotos: 3 },
         ],
       },
     ],
@@ -266,7 +267,6 @@ export const formDefinitions = {
         id: 'dg', title: 'DATOS GENERALES',
         questions: [
           { id: 'Q1', type: 'select', label: 'Instalación donde se realizará la Verificación de Reglas Oro', required: true, placeholder: 'Selecciona la instalación', options: ['Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo','Hijuelas','San Antonio','Viña del Mar','Miraflores','Huechuraba','Lo Espejo','Rancagua','Curicó','Talca','Chillán','Los Ángeles','Concepción','Temuco','Valdivia','Osorno','Puerto Montt','Castro','Coyhaique','Punta Arenas','San Felipe','Oficina Central','Oficina Vespucio'] },
-          { id: 'Q2', type: 'select', label: 'Cargo', required: true, placeholder: 'Selecciona el cargo', options: ['Gerente','Subgerente','Jefe de Zona','Jefe de Operaciones','Jefe Administrativo','Jefe de Frigorífico','Jefe de Despacho','Ayudante de Despacho','Comité Paritario','SSO','Coordinador SIG Sucursales','Experto ACHS','Colaborador Sucursal'] },
           { id: 'Q3',  type: 'text', label: 'Nombre GERENTE',                              required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q4',  type: 'text', label: 'Nombre SUBGERENTE',                           required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q5',  type: 'text', label: 'Nombre JEFE DE ZONA',                         required: true, placeholder: 'Escriba el nombre completo' },
@@ -275,8 +275,6 @@ export const formDefinitions = {
           { id: 'Q8',  type: 'text', label: 'Nombre JEFE DE FRIGORÍFICO',                  required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q9',  type: 'select', label: 'Equipo del colaborador observado', required: true, options: ['Foodservice','Venta Digital','Norte','Centro','Santiago','Sur','Servicio al Cliente'] },
           { id: 'Q10', type: 'text', label: 'Nombre JEFE O AYUDANTE DE DESPACHO',          required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q11', type: 'text', label: 'Cargo del Observador de la Pauta',            required: true, placeholder: 'Escriba el cargo' },
-          { id: 'Q12', type: 'text', label: 'Nombre del Observador de la Pauta',           required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q13', type: 'text', label: 'Nombre OBSERVADOR COMITÉ PARITARIO',          required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q14', type: 'text', label: 'Nombre OBSERVADOR EQUIPO SSO',                required: true, placeholder: 'Escriba el nombre completo' },
           { id: 'Q15', type: 'text', label: 'Nombre OBSERVADOR ACHS',                      required: true, placeholder: 'Escriba el nombre completo' },

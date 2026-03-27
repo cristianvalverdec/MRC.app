@@ -20,6 +20,7 @@ const TYPE_LABELS = {
   yesno:    { label: 'Sí/No',    color: '#27AE60', bg: 'rgba(39,174,96,0.18)' },
   text:     { label: 'Texto',    color: '#9B9B9B', bg: 'rgba(155,155,155,0.15)' },
   rating:   { label: 'Rating',   color: '#F2994A', bg: 'rgba(242,153,74,0.18)' },
+  photo:    { label: 'Foto',     color: '#EB5757', bg: 'rgba(235,87,87,0.15)'  },
 }
 
 const PROFILE_COLORS = {

@@ -60,7 +60,8 @@ const useFormStore = create(
                 q.id === item.id ? { ...q, synced: true } : q
               ),
             }))
-          } catch {
+          } catch (err) {
+            console.error('[MRC] syncQueue error en item', item.formType, err?.message || err)
             errors++
           }
         }

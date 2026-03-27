@@ -12,7 +12,7 @@ function getStatusEmoji(percent) {
   return '🔴'
 }
 
-export default function KPICard({ label, current, total, percent, delay = 0 }) {
+export default function KPICard({ label, current, total, percent, delay = 0, onClick }) {
   const color = getStatusColor(percent)
   const emoji = getStatusEmoji(percent)
 
@@ -20,7 +20,9 @@ export default function KPICard({ label, current, total, percent, delay = 0 }) {
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
+      whileTap={onClick ? { scale: 0.97 } : {}}
       transition={{ delay, duration: 0.35, ease: 'easeOut' }}
+      onClick={onClick}
       style={{
         background: 'linear-gradient(135deg, var(--color-navy-mid), var(--color-navy-light))',
         borderRadius: 'var(--radius-card)',
@@ -29,6 +31,7 @@ export default function KPICard({ label, current, total, percent, delay = 0 }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
+        cursor: onClick ? 'pointer' : 'default',
       }}
     >
       <div

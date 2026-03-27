@@ -9,9 +9,12 @@ import QuestionText     from '../components/form/QuestionText'
 import QuestionSelect   from '../components/form/QuestionSelect'
 import QuestionRadio    from '../components/form/QuestionRadio'
 import QuestionCheckbox from '../components/form/QuestionCheckbox'
+import QuestionPhoto    from '../components/form/QuestionPhoto'
 import { formDefinitions } from '../forms/formDefinitions'
 import useFormStore from '../store/formStore'
 import useFormEditorStore from '../store/formEditorStore'
+import useUserStore from '../store/userStore'
+import { IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Question dispatcher (shared) ──────────────────────────────────────────
 function QuestionRenderer({ question, value, onChange, hasError }) {
@@ -22,6 +25,7 @@ function QuestionRenderer({ question, value, onChange, hasError }) {
     select:   QuestionSelect,
     radio:    QuestionRadio,
     checkbox: QuestionCheckbox,
+    photo:    QuestionPhoto,
   }[question.type]
 
   if (!Component) return null
@@ -171,7 +175,8 @@ const slideVariants = {
 
 function WizardMode({ form, formType, cphsMode }) {
   const navigate = useNavigate()
-  const { saveDraft, clearDraft, addToPendingQueue, drafts } = useFormStore()
+  const { saveDraft, clearDraft, addToPendingQueue, syncQueue, drafts } = useFormStore()
+  const { name: userName, email: userEmail, jobTitle: userJobTitle, branch } = useUserStore()
 
   const [answers, setAnswers]   = useState(() => drafts[formType] || {})
   const [history, setHistory]   = useState([form.entryQuestion])
@@ -225,10 +230,12 @@ function WizardMode({ form, formType, cphsMode }) {
   const handleSubmit = async () => {
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers: { ...answers, ...(cphsMode ? { cphsRepresentante: true } : {}) }, formTitle: form.title })
+    addToPendingQueue({ formType, answers: { ...answers, ...(cphsMode ? { cphsRepresentante: true } : {}) }, formTitle: form.title, userName, userEmail, userJobTitle, branch })
     clearDraft(formType)
-    setSubmitting(false)
     setSubmitted(true)
+    setSubmitting(false)
+    // Disparar sync inmediatamente al enviar (no esperar al dashboard)
+    if (!IS_DEV_MODE) syncQueue().catch(() => {})
   }
 
   if (submitted) {
@@ -458,7 +465,8 @@ function WizardMode({ form, formType, cphsMode }) {
 // ── SECTIONS MODE (original) ──────────────────────────────────────────────
 function SectionsMode({ form, formType }) {
   const navigate = useNavigate()
-  const { saveDraft, clearDraft, addToPendingQueue, drafts } = useFormStore()
+  const { saveDraft, clearDraft, addToPendingQueue, syncQueue, drafts } = useFormStore()
+  const { name: userName, email: userEmail, jobTitle: userJobTitle, branch } = useUserStore()
 
   const [answers, setAnswers] = useState(() => drafts[formType] || {})
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -502,10 +510,12 @@ function SectionsMode({ form, formType }) {
     }
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers, formTitle: form.title })
+    addToPendingQueue({ formType, answers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
     clearDraft(formType)
-    setSubmitting(false)
     setSubmitted(true)
+    setSubmitting(false)
+    // Disparar sync inmediatamente al enviar (no esperar al dashboard)
+    if (!IS_DEV_MODE) syncQueue().catch(() => {})
   }
 
   if (submitted) {

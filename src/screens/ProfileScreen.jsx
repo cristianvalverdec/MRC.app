@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
 import { msalInstance } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
+import { getAdmins, addAdmin, removeAdmin, SUPER_ADMIN } from '../services/adminService'
 
 const ROLE_META = {
   admin: { label: 'Administrador', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
@@ -82,10 +84,195 @@ function ProfileRow({ icon, label, value }) {
   )
 }
 
+// ── Panel de administración ────────────────────────────────────────────────
+function AdminPanel({ currentEmail }) {
+  const [open,    setOpen]    = useState(false)
+  const [admins,  setAdmins]  = useState([])
+  const [loading, setLoading] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [adding,   setAdding]   = useState(false)
+  const [error,    setError]    = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const list = await getAdmins()
+      setAdmins(list)
+    } catch (e) {
+      setError('No se pudo cargar la lista de administradores')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { if (open) load() }, [open, load])
+
+  const handleAdd = async () => {
+    const email = newEmail.trim().toLowerCase()
+    if (!email || !email.includes('@')) { setError('Ingresa un email válido'); return }
+    if (admins.some(a => a.email === email)) { setError('Ese email ya es administrador'); return }
+    setAdding(true); setError('')
+    try {
+      await addAdmin(email)
+      setNewEmail('')
+      await load()
+    } catch {
+      setError('Error al agregar administrador')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleRemove = async (admin) => {
+    if (admin.email === SUPER_ADMIN) return
+    try {
+      await removeAdmin(admin.id, admin.email)
+      await load()
+    } catch {
+      setError('Error al eliminar administrador')
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.12 }}
+      style={{
+        background: 'var(--color-navy-mid)',
+        border: '1px solid rgba(96,165,250,0.3)',
+        borderRadius: 12, overflow: 'hidden',
+      }}
+    >
+      {/* Header colapsable */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', background: 'transparent', border: 'none', cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Users size={15} color="#60A5FA" />
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: '#60A5FA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Gestión de Administradores
+          </span>
+        </div>
+        {open ? <ChevronUp size={15} color="#60A5FA" /> : <ChevronDown size={15} color="#60A5FA" />}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Lista de admins actuales */}
+              {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
+                  <Loader size={18} color="#60A5FA" style={{ animation: 'spin 1s linear infinite' }} />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {admins.map(admin => (
+                    <div key={admin.id || admin.email} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'rgba(96,165,250,0.06)',
+                      border: '1px solid rgba(96,165,250,0.15)',
+                      borderRadius: 8,
+                    }}>
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                          {admin.nombre || admin.email}
+                        </div>
+                        {admin.nombre && (
+                          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)' }}>
+                            {admin.email}
+                          </div>
+                        )}
+                      </div>
+                      {admin.email === SUPER_ADMIN ? (
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, color: '#60A5FA', letterSpacing: '0.06em', padding: '3px 7px', background: 'rgba(96,165,250,0.12)', borderRadius: 20 }}>
+                          SUPER ADMIN
+                        </span>
+                      ) : admin.email !== currentEmail?.toLowerCase() ? (
+                        <button
+                          onClick={() => handleRemove(admin)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#EB5757', display: 'flex' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.06em', padding: '3px 7px', background: 'rgba(156,163,175,0.1)', borderRadius: 20 }}>
+                          TÚ
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Separador */}
+              <div style={{ borderTop: '1px solid var(--color-border)' }} />
+
+              {/* Formulario para agregar admin */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                  AGREGAR ADMINISTRADOR
+                </div>
+                <input
+                  type="email"
+                  placeholder="correo@agrosuper.com"
+                  value={newEmail}
+                  onChange={e => { setNewEmail(e.target.value); setError('') }}
+                  style={{
+                    padding: '10px 12px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-primary)', fontFamily: 'var(--font-body)', fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+                {error && (
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#EB5757' }}>
+                    {error}
+                  </div>
+                )}
+                <button
+                  onClick={handleAdd}
+                  disabled={adding || !newEmail.trim()}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '10px', borderRadius: 8, cursor: adding ? 'wait' : 'pointer',
+                    background: adding ? 'rgba(96,165,250,0.08)' : 'rgba(96,165,250,0.15)',
+                    border: '1px solid rgba(96,165,250,0.3)',
+                    color: '#60A5FA', fontFamily: 'var(--font-display)', fontSize: 12,
+                    fontWeight: 700, letterSpacing: '0.06em',
+                    opacity: !newEmail.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {adding ? <Loader size={13} /> : <UserPlus size={13} />}
+                  {adding ? 'GUARDANDO...' : 'ASIGNAR ROL ADMIN'}
+                </button>
+              </div>
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const navigate  = useNavigate()
-  const { name, email, role, unit, branch, photoUrl, clearUser } = useUserStore()
+  const { name, email, jobTitle, role, unit, branch, photoUrl, clearUser } = useUserStore()
   const pendingQueue = useFormStore((s) => s.pendingQueue)
 
   const pendingCount = pendingQueue.filter((i) => !i.synced).length
@@ -104,8 +291,9 @@ export default function ProfileScreen() {
   }
 
   // Nombre de display: usar nombre del store o "Usuario Demo" en dev
-  const displayName = name || (IS_DEV_MODE ? 'Usuario Demo' : '')
-  const displayEmail = email || (IS_DEV_MODE ? 'demo@agrosuper.cl' : '')
+  const displayName    = name     || (IS_DEV_MODE ? 'Usuario Demo' : '')
+  const displayEmail   = email    || (IS_DEV_MODE ? 'demo@agrosuper.cl' : '')
+  const displayJobTitle = jobTitle || (IS_DEV_MODE ? 'Colaborador' : '')
 
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
@@ -132,6 +320,11 @@ export default function ProfileScreen() {
             {displayEmail && (
               <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>
                 {displayEmail}
+              </div>
+            )}
+            {displayJobTitle && (
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-orange)', marginTop: 2, fontWeight: 600 }}>
+                {displayJobTitle}
               </div>
             )}
             <div style={{ marginTop: 8 }}>
@@ -165,9 +358,10 @@ export default function ProfileScreen() {
               Asignación
             </span>
           </div>
-          <ProfileRow icon={<User size={15} />}     label="Nombre"    value={displayName} />
-          <ProfileRow icon={<Mail size={15} />}     label="Email"     value={displayEmail} />
-          <ProfileRow icon={<Building2 size={15} />} label="Unidad"   value={UNIT_LABEL[unit] || unit} />
+          <ProfileRow icon={<User size={15} />}     label="Nombre"        value={displayName} />
+          <ProfileRow icon={<Mail size={15} />}     label="Email"         value={displayEmail} />
+          <ProfileRow icon={<Shield size={15} />}   label="Cargo"         value={displayJobTitle} />
+          <ProfileRow icon={<Building2 size={15} />} label="Unidad"       value={UNIT_LABEL[unit] || unit} />
           <ProfileRow icon={<Building2 size={15} />} label="Sucursal / CD" value={branch} />
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
@@ -194,6 +388,11 @@ export default function ProfileScreen() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Panel de administración (solo admins) ── */}
+        {role === 'admin' && !IS_DEV_MODE && (
+          <AdminPanel currentEmail={email} />
+        )}
 
         {/* ── Modo dev badge ── */}
         {IS_DEV_MODE && (

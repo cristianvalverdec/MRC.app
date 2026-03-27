@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react'
 import { useMsal } from '@azure/msal-react'
 import useUserStore from '../store/userStore'
 import { loginRequest } from '../config/msalConfig'
+import { isAdmin } from '../services/adminService'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -40,11 +41,21 @@ export function useBootstrap() {
         // 2. Perfil básico del usuario
         const profileRes = await fetch(`${GRAPH}/me?$select=displayName,mail,userPrincipalName,jobTitle`, { headers })
         const profile = await profileRes.json()
+        const userEmail = profile.mail || profile.userPrincipalName || accounts[0].username || ''
+
+        // Verificar si el usuario es administrador de la app
+        let role = 'user'
+        try {
+          if (await isAdmin(userEmail)) role = 'admin'
+        } catch {
+          // Si falla la consulta, sigue como usuario normal
+        }
 
         setUser({
-          name:  profile.displayName || accounts[0].name || '',
-          email: profile.mail || profile.userPrincipalName || accounts[0].username || '',
-          role:  'user',
+          name:     profile.displayName || accounts[0].name || '',
+          email:    userEmail,
+          jobTitle: profile.jobTitle || '',
+          role,
           isAuthenticated: true,
         })
 

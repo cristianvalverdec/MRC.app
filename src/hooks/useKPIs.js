@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import useFormStore from '../store/formStore'
-import { fetchTodayKPIs, IS_DEV_MODE } from '../services/sharepointData'
+import { fetchTodayKPIs, fetchRecentActivity, IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Listas de opciones para los filtros ──────────────────────────────────
 
@@ -154,11 +154,13 @@ export function useKPIs(unitType, filters = {}) {
         setKpis(buildMockKPIs(unitType, filters))
         setActivity(buildMockActivity(unitType, filters))
       } else {
-        // fetchTodayKPIs devuelve { [formType]: count }
-        const countsMap = await fetchTodayKPIs(unitType, filters)
+        // Consultar KPIs y actividad en paralelo
+        const [countsMap, recentActivity] = await Promise.all([
+          fetchTodayKPIs(unitType, filters),
+          fetchRecentActivity(unitType, filters),
+        ])
         setKpis(buildRealKPIs(countsMap, unitType))
-        // Actividad reciente: se mantiene como mock hasta implementar endpoint dedicado
-        setActivity(buildMockActivity(unitType, filters))
+        setActivity(recentActivity?.length ? recentActivity : buildMockActivity(unitType, filters))
       }
       setLastUpdated(new Date())
     } catch {
