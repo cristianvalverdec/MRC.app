@@ -69,11 +69,14 @@
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+  background-color: #1B2A4A; /* Chrome Android lee este valor para colorear la nav bar inferior */
 }
 
 body {
   margin: 0;
   padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   font-family: var(--font-body);
   background-color: var(--color-navy);
   color: var(--color-text-primary);

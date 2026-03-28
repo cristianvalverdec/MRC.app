@@ -4,7 +4,7 @@
   "description": "Herramientas SST - Agrosuper Comercial",
   "start_url": "/MRC.app/",
   "display": "standalone",
-  "background_color": "#08123A",
+  "background_color": "#1B2A4A",
   "theme_color": "#1B2A4A",
   "lang": "es",
   "scope": "/MRC.app/",
