@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Misión Riesgo Cero</title>
+  <script>
+    // GitHub Pages SPA — redirige rutas desconocidas a index.html
+    // preservando el path como query param para que React Router lo restaure.
+    var l = window.location;
+    var base = '/MRC.app';
+    var path = l.pathname.slice(base.length) || '/';
+    l.replace(
+      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+      base + '/?r=' + encodeURIComponent(path) +
+      (l.search ? '&q=' + encodeURIComponent(l.search.slice(1)) : '') +
+      l.hash
+    );
+  </script>
+</head>
+<body></body>
+</html>

@@ -21,6 +21,26 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/MRC.app/icons/apple-touch-icon.png" />
 
     <title>Misión Riesgo Cero · Agrosuper SST</title>
+
+    <!-- GitHub Pages SPA: restaura la ruta después del redirect de 404.html -->
+    <script>
+      (function () {
+        var qs = window.location.search;
+        if (qs.indexOf('?r=') === 0 || qs.indexOf('&r=') > -1) {
+          var params = {};
+          qs.slice(1).split('&').forEach(function (p) {
+            var kv = p.split('=');
+            params[kv[0]] = decodeURIComponent(kv[1] || '');
+          });
+          var path = params['r'] || '/';
+          var query = params['q'] ? '?' + params['q'] : '';
+          window.history.replaceState(
+            null, null,
+            '/MRC.app' + path + query + window.location.hash
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
