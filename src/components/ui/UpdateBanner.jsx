@@ -6,30 +6,30 @@ import { RefreshCw, Download } from 'lucide-react'
  * UpdateBanner — detecta via Service Worker nativo cuando hay
  * una nueva versión disponible y le pregunta al usuario si desea actualizar.
  *
- * Estrategia:
- *  1. Al cargar: si ya hay un SW en estado 'waiting' → muestra banner
- *  2. updatefound → installa nuevo SW → statechange a 'installed' → muestra banner
- *  3. Al hacer clic en Actualizar: envía SKIP_WAITING al SW esperando
- *  4. Escucha 'controllerchange' → recarga la página con la versión nueva
+ * Requiere registerType: 'prompt' en vite.config.js para que el SW
+ * quede en estado 'waiting' en lugar de activarse automáticamente.
  *
- * No depende de módulos virtuales de vite-plugin-pwa (compatibilidad Vite 8 / rolldown)
+ * Flujo:
+ *  1. Al cargar: si ya hay un SW en estado 'waiting' → muestra banner
+ *  2. updatefound → nuevo SW se instala → statechange 'installed' → muestra banner
+ *  3. Poll cada 60 s para detectar nuevas versiones mientras la app está abierta
+ *  4. Al hacer clic en Actualizar: envía SKIP_WAITING al SW en espera
+ *  5. Escucha 'controllerchange' → recarga la página con la versión nueva
  */
 export default function UpdateBanner() {
   const [needRefresh, setNeedRefresh] = useState(false)
   const waitingWorkerRef = useRef(null)
+  const intervalRef = useRef(null)
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
 
-    let reloadPending = false
-
-    // Al activarse el nuevo SW → recarga automática
+    // Al activarse el nuevo SW → recarga la página
     const handleControllerChange = () => {
-      if (reloadPending) window.location.reload()
+      window.location.reload()
     }
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
 
-    // Función para suscribirse a un registration
     const watchRegistration = (registration) => {
       // ¿Ya hay un SW esperando activación?
       if (registration.waiting) {
@@ -37,34 +37,30 @@ export default function UpdateBanner() {
         setNeedRefresh(true)
       }
 
-      // Escucha nuevas instalaciones
+      // Escucha nuevas instalaciones en background
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing
         if (!newWorker) return
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nueva versión instalada en background — avisar al usuario
+            // Nueva versión instalada, esperando activación — avisar al usuario
             waitingWorkerRef.current = newWorker
             setNeedRefresh(true)
           }
         })
       })
-    }
 
-    // Esperar que el SW esté registrado y activo
-    navigator.serviceWorker.ready.then((registration) => {
-      watchRegistration(registration)
-
-      // Forzar comprobación de actualización cada 60 s
-      const interval = setInterval(() => {
+      // Poll cada 60 s mientras la app permanece abierta
+      intervalRef.current = setInterval(() => {
         registration.update().catch(() => {})
       }, 60_000)
+    }
 
-      return () => clearInterval(interval)
-    })
+    navigator.serviceWorker.ready.then(watchRegistration)
 
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [])
 
@@ -73,8 +69,7 @@ export default function UpdateBanner() {
       window.location.reload()
       return
     }
-    // Indicar al SW en espera que active (skipWaiting)
-    // El 'controllerchange' listener se encargará del reload
+    // SKIP_WAITING → el SW en espera se activa → 'controllerchange' → reload
     waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' })
     setNeedRefresh(false)
   }
