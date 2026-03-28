@@ -436,7 +436,7 @@ export default function ProfileScreen() {
 
         {/* ── Versión ── */}
         <div style={{ textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', paddingTop: 4 }}>
-          Misión Riesgo Cero · v1.0.0 · Agrosuper SST
+          Misión Riesgo Cero · v{__APP_VERSION__} · build {__BUILD_DATE__}
         </div>
       </div>
     </div>

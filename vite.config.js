@@ -1,14 +1,31 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'fs'
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
+// Detecta entorno: Azure SWA usa base '/', GitHub Pages usa '/MRC.app/'
+const isAzure = process.env.DEPLOY_TARGET === 'azure'
+const base = isAzure ? '/' : '/MRC.app/'
+
+const pwaScope    = isAzure ? '/'          : '/MRC.app/'
+const pwaStartUrl = isAzure ? '/'          : '/MRC.app/'
 
 export default defineConfig({
-  base: '/MRC.app/',
+  base,
+
+  define: {
+    __APP_VERSION__:  JSON.stringify(pkg.version),
+    __BUILD_DATE__:   JSON.stringify(new Date().toISOString().slice(0, 10)),
+    __DEPLOY_TARGET__: JSON.stringify(isAzure ? 'azure' : 'github'),
+  },
+
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'assets/**/*'],
+      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Misión Riesgo Cero',
         short_name: 'MRC SST',
@@ -17,24 +34,16 @@ export default defineConfig({
         background_color: '#1B2A4A',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        scope:     pwaScope,
+        start_url: pwaStartUrl,
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
-        // mrc-logo.png pesa ~5 MB; lo excluimos del precaché (se carga en runtime)
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024, // 6 MiB
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {

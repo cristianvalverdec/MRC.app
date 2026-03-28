@@ -248,7 +248,7 @@ export default function SplashScreen() {
             letterSpacing: '0.04em',
           }}
         >
-          v1.0 · 26 Centros de Distribución
+          v{__APP_VERSION__} · {__BUILD_DATE__}
         </motion.p>
       </div>
     </div>
