@@ -2,19 +2,36 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ChevronLeft, Building2, TrendingUp } from 'lucide-react'
 import useUserStore from '../store/userStore'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
+
+// ── Network dot — pequeño indicador de conectividad ───────────────────
+function NetworkDot() {
+  const { isOnline } = useNetworkStatus()
+  return (
+    <div style={{
+      width: 8, height: 8, borderRadius: '50%',
+      background: isOnline ? '#27AE60' : '#F2994A',
+      border: '1.5px solid rgba(255,255,255,0.5)',
+      boxShadow: isOnline
+        ? '0 0 5px rgba(39,174,96,0.8)'
+        : '0 0 5px rgba(242,153,74,0.8)',
+      transition: 'background 0.4s ease, box-shadow 0.4s ease',
+    }} />
+  )
+}
 
 function MiniAvatar({ name, photoUrl }) {
   const initials = name ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() : '?'
   return (
     <div style={{
       width: 32, height: 32, borderRadius: '50%',
-      overflow: 'hidden', border: '2px solid rgba(255,255,255,0.25)',
-      background: 'rgba(255,255,255,0.1)',
+      overflow: 'hidden', border: '2px solid var(--color-border)',
+      background: 'var(--color-surface)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     }}>
       {photoUrl
         ? <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.8)' }}>{initials}</span>
+        : <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, color: 'var(--color-text-secondary)' }}>{initials}</span>
       }
     </div>
   )
@@ -73,7 +90,7 @@ export default function SelectUnitScreen() {
         minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'radial-gradient(ellipse 120% 100% at 50% 80%, #1e3260 0%, #1B2A4A 60%, #111d33 100%)',
+        background: 'var(--bg-splash-gradient)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -119,16 +136,16 @@ export default function SelectUnitScreen() {
           style={{ height: 32, width: 'auto' }}
         />
 
-        {/* Derecha: perfil */}
-        <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+        {/* Derecha: network dot + perfil */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NetworkDot />
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={() => navigate('/profile')}
             style={{
-              background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
               borderRadius: 8, padding: 6, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'rgba(255,255,255,0.6)',
               minWidth: 36, minHeight: 36,
             }}
             aria-label="Mi perfil"

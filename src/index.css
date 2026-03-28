@@ -11,6 +11,14 @@
   --color-navy-mid:    #243357;
   --color-navy-light:  #2E3F6E;
 
+  /* Gradiente de pantallas de entrada (Splash, SelectUnit) */
+  --bg-splash-gradient: radial-gradient(ellipse 120% 100% at 50% 80%, #1e3260 0%, #1B2A4A 60%, #111d33 100%);
+  --bg-splash-glow:     radial-gradient(ellipse, rgba(26,82,184,0.35) 0%, transparent 70%);
+  --splash-particle:    rgba(245, 124, 32, 0.40);
+  --mrc-logo-bg:        transparent;
+  --mrc-logo-radius:    0px;
+  --mrc-logo-padding:   0px;
+
   /* Accent corporativo */
   --color-orange:      #F57C20;
   --color-orange-dark: #D4640F;
@@ -64,6 +72,15 @@
   /* Bordes y superficies */
   --color-border:         rgba(27, 42, 74, 0.12);
   --color-surface:        rgba(27, 42, 74, 0.05);
+
+  /* Gradiente splash en modo claro — azul suave con toque de marca */
+  --bg-splash-gradient: radial-gradient(ellipse 120% 100% at 50% 80%, #dbe6f8 0%, #F0F3F9 60%, #e4edf8 100%);
+  --bg-splash-glow:     radial-gradient(ellipse, rgba(26,82,184,0.12) 0%, transparent 70%);
+  --splash-particle:    rgba(26, 82, 184, 0.25);
+  /* Logo MRC: en modo claro envolver en contenedor oscuro para que screen-blend funcione */
+  --mrc-logo-bg:        rgba(17, 29, 51, 0.88);
+  --mrc-logo-radius:    20px;
+  --mrc-logo-padding:   8px;
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────── */

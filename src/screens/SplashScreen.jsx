@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
 
 // ── Agrosuper Logo PNG ────────────────────────────────────────────────
 function AgrosuperShield({ height = 36 }) {
@@ -15,24 +16,32 @@ function AgrosuperShield({ height = 36 }) {
 }
 
 // ── Team Illustration — PNG real MRC 2026 ────────────────────────────
+// En modo claro se envuelve en un contenedor oscuro para que
+// mixBlendMode:'screen' funcione correctamente sobre el fondo claro.
 function TeamIllustration() {
   return (
-    <img
-      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
-      alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
-      style={{
-        width: '100%',
-        maxWidth: 500,
-        height: 'auto',
-        display: 'block',
-        // PNG tiene fondo negro — se mezcla con el fondo navy
-        mixBlendMode: 'screen',
-      }}
-    />
+    <div style={{
+      background: 'var(--mrc-logo-bg)',
+      borderRadius: 'var(--mrc-logo-radius)',
+      padding: 'var(--mrc-logo-padding)',
+      overflow: 'hidden',
+    }}>
+      <img
+        src={`${import.meta.env.BASE_URL}mrc-logo.png`}
+        alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
+        style={{
+          width: '100%',
+          maxWidth: 500,
+          height: 'auto',
+          display: 'block',
+          mixBlendMode: 'screen',
+        }}
+      />
+    </div>
   )
 }
 
-// ── Floating particles background ────────────────────────────────────
+// ── Floating particles ────────────────────────────────────────────────
 function FloatingParticles() {
   const particles = [
     { x: '8%',  y: '15%', size: 3, delay: 0,    duration: 5 },
@@ -43,31 +52,37 @@ function FloatingParticles() {
     { x: '15%', y: '45%', size: 1.5, delay: 1.6, duration: 7 },
     { x: '88%', y: '55%', size: 2, delay: 0.2,  duration: 5 },
   ]
-
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {particles.map((p, i) => (
         <motion.div
           key={i}
           style={{
-            position: 'absolute',
-            left: p.x,
-            top: p.y,
-            width: p.size * 2,
-            height: p.size * 2,
-            borderRadius: '50%',
-            background: 'rgba(245, 124, 32, 0.4)',
+            position: 'absolute', left: p.x, top: p.y,
+            width: p.size * 2, height: p.size * 2, borderRadius: '50%',
+            background: 'var(--splash-particle)',
           }}
           animate={{ y: [0, -16, 0], opacity: [0.3, 0.8, 0.3] }}
-          transition={{
-            repeat: Infinity,
-            duration: p.duration,
-            delay: p.delay,
-            ease: 'easeInOut',
-          }}
+          transition={{ repeat: Infinity, duration: p.duration, delay: p.delay, ease: 'easeInOut' }}
         />
       ))}
     </div>
+  )
+}
+
+// ── Network dot — pequeño indicador de conectividad ───────────────────
+function NetworkDot() {
+  const { isOnline } = useNetworkStatus()
+  return (
+    <div style={{
+      width: 8, height: 8, borderRadius: '50%',
+      background: isOnline ? '#27AE60' : '#F2994A',
+      border: '1.5px solid rgba(255,255,255,0.5)',
+      boxShadow: isOnline
+        ? '0 0 5px rgba(39,174,96,0.8)'
+        : '0 0 5px rgba(242,153,74,0.8)',
+      transition: 'background 0.4s ease, box-shadow 0.4s ease',
+    }} />
   )
 }
 
@@ -81,9 +96,7 @@ export default function SplashScreen() {
     setLoading(true)
     const result = await login()
     setLoading(false)
-    if (result.success) {
-      navigate('/select-unit')
-    }
+    if (result.success) navigate('/select-unit')
   }
 
   return (
@@ -94,98 +107,72 @@ export default function SplashScreen() {
         flexDirection: 'column',
         position: 'relative',
         overflow: 'hidden',
-        background: 'radial-gradient(ellipse 120% 100% at 50% 80%, #1e3260 0%, #1B2A4A 60%, #111d33 100%)',
+        background: 'var(--bg-splash-gradient)',
       }}
     >
-      {/* Noise texture */}
       <div className="noise-overlay" />
-
-      {/* Floating particles */}
       <FloatingParticles />
 
-      {/* Top accent glow */}
-      <div
-        style={{
-          position: 'absolute',
-          top: -80,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 300,
-          height: 200,
-          background: 'radial-gradient(ellipse, rgba(26,82,184,0.35) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Glow superior */}
+      <div style={{
+        position: 'absolute', top: -80, left: '50%',
+        transform: 'translateX(-50%)',
+        width: 300, height: 200,
+        background: 'var(--bg-splash-glow)',
+        pointerEvents: 'none',
+      }} />
 
-      {/* ── Header with logo (top-right) ──────────────────────────────── */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          padding: '16px 16px 0 0',
-          paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))',
-          zIndex: 10,
-        }}
-      >
+      {/* ── Header: logo Agrosuper + network dot ─────────────────── */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0,
+        padding: '16px 16px 0 0',
+        paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))',
+        zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        {/* Network dot flotante */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <NetworkDot />
+        </div>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
         >
           <AgrosuperShield height={36} />
         </motion.div>
       </div>
 
-      {/* Spacer superior — empuja el logo hacia el centro */}
       <div style={{ flex: 2, minHeight: 64 }} />
 
-      {/* ── Logo MRC centrado ──────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '0 24px',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        {/* Capa 1: entrada (una vez) */}
+      {/* ── Logo MRC centrado ──────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        padding: '0 24px', position: 'relative', zIndex: 1,
+      }}>
         <motion.div
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
         >
-          {/* Capa 2: float loop suave (sin jump al reiniciar) */}
           <motion.div
             animate={{ y: [0, -14, 0] }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              repeatType: 'mirror',
-              ease: 'easeInOut',
-            }}
+            transition={{ duration: 4, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' }}
             style={{ willChange: 'transform' }}
           >
             <TeamIllustration />
           </motion.div>
         </motion.div>
-
       </div>
 
-      {/* Spacer inferior — más pequeño para acercar botón */}
       <div style={{ flex: 1, minHeight: 24 }} />
 
-      {/* ── Botón al fondo ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          padding: '16px 24px',
-          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-        }}
-      >
+      {/* ── Botón al fondo ─────────────────────────────────────────── */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        padding: '16px 24px',
+        paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+      }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -196,24 +183,16 @@ export default function SplashScreen() {
             onClick={handleIngresar}
             className="btn-shimmer"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: 56,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '100%', height: 56,
               background: 'var(--color-blue-btn)',
               color: '#fff',
-              fontFamily: 'var(--font-display)',
-              fontSize: 20,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              border: 'none',
-              borderRadius: 'var(--radius-btn)',
+              fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              border: 'none', borderRadius: 'var(--radius-btn)',
               cursor: 'pointer',
               boxShadow: '0 4px 24px rgba(26,82,184,0.45)',
-              position: 'relative',
-              overflow: 'hidden',
+              position: 'relative', overflow: 'hidden',
             }}
             aria-label="Ingresar a la aplicación"
             disabled={loading}
@@ -239,12 +218,8 @@ export default function SplashScreen() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
           style={{
-            textAlign: 'center',
-            fontFamily: 'var(--font-body)',
-            fontSize: 11,
-            color: 'var(--color-text-muted)',
-            marginTop: 10,
-            marginBottom: 0,
+            textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: 11,
+            color: 'var(--color-text-muted)', marginTop: 10, marginBottom: 0,
             letterSpacing: '0.04em',
           }}
         >
