@@ -46,9 +46,15 @@
 
 /* ─── Modo claro ────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  /* Fondos */
+  /* Fondos app — también sobreescriben los tokens navy que usan
+     los screens como inline background: var(--color-navy) */
   --bg-app:            #F0F3F9;
   --bg-card:           #FFFFFF;
+
+  /* Sobreescribir tokens navy para que todos los inline styles respondan */
+  --color-navy:        #F0F3F9;
+  --color-navy-mid:    #FFFFFF;
+  --color-navy-light:  #E8EDF6;
 
   /* Textos invertidos sobre fondo claro */
   --color-text-primary:   #1B2A4A;
