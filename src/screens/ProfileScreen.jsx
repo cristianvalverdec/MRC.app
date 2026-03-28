@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader } from 'lucide-react'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
@@ -269,6 +269,73 @@ function AdminPanel({ currentEmail }) {
   )
 }
 
+// ── Toggle modo claro / oscuro ────────────────────────────────────────────
+function ThemeToggle() {
+  const { theme, setTheme } = useUserStore()
+  const isDark = theme === 'dark'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.20 }}
+      style={{
+        background: 'var(--color-navy-mid)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 12, padding: '14px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isDark
+          ? <Moon size={16} color="var(--color-text-secondary)" />
+          : <Sun  size={16} color="var(--color-orange)" />
+        }
+        <div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {isDark ? 'Modo oscuro' : 'Modo claro'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            Apariencia de la aplicación
+          </div>
+        </div>
+      </div>
+
+      {/* Switch pill */}
+      <motion.button
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        style={{
+          width: 48, height: 26, borderRadius: 999,
+          background: isDark ? 'rgba(255,255,255,0.12)' : 'var(--color-orange)',
+          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--color-orange-dark)',
+          cursor: 'pointer', padding: 3,
+          display: 'flex', alignItems: 'center',
+          justifyContent: isDark ? 'flex-start' : 'flex-end',
+          transition: 'background 0.25s ease, justify-content 0.25s ease',
+          flexShrink: 0,
+        }}
+        aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      >
+        <motion.div
+          layout
+          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+          style={{
+            width: 20, height: 20, borderRadius: '50%',
+            background: '#FFFFFF',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          {isDark
+            ? <Moon size={10} color="#1B2A4A" strokeWidth={2.5} />
+            : <Sun  size={10} color="#F57C20" strokeWidth={2.5} />
+          }
+        </motion.div>
+      </motion.button>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const navigate  = useNavigate()
@@ -412,11 +479,14 @@ export default function ProfileScreen() {
           </motion.div>
         )}
 
+        {/* ── Toggle modo claro / oscuro ── */}
+        <ThemeToggle />
+
         {/* ── Cerrar sesión ── */}
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.18 }}
+          transition={{ delay: 0.22 }}
           whileTap={{ scale: 0.97 }}
           onClick={handleLogout}
           style={{

@@ -14,12 +14,17 @@ const useUserStore = create(
       role: 'user',   // 'admin' | 'user'
       isAuthenticated: false,
       msalAccount: null,
+      theme: 'dark',  // 'dark' | 'light'
 
       setUser: (userData) => set({ ...userData, isAuthenticated: true }),
       setUnit: (unit) => set({ unit }),
       setBranch: (branch) => set({ branch }),
       setRole: (role) => set({ role }),
       setPhotoUrl: (photoUrl) => set({ photoUrl }),
+      setTheme: (theme) => {
+        set({ theme })
+        document.documentElement.setAttribute('data-theme', theme)
+      },
       clearUser: () => set({
         rut: '', name: '', email: '', jobTitle: '', photoUrl: '', unit: '', branch: '',
         role: 'user', isAuthenticated: false, msalAccount: null,
@@ -36,6 +41,7 @@ const useUserStore = create(
         unit: state.unit,
         branch: state.branch,
         role: state.role,
+        theme: state.theme,
       }),
     }
   )
