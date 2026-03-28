@@ -4,53 +4,52 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 
-// ── Agrosuper Logo PNG ────────────────────────────────────────────────
+// ── Agrosuper Logo — pill oscuro en modo claro para que el blanco sea visible
 function AgrosuperShield({ height = 36 }) {
   return (
-    <img
-      src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
-      alt="Agrosuper"
-      style={{ height, width: 'auto', display: 'block' }}
-    />
-  )
-}
-
-// ── Team Illustration — PNG real MRC 2026 ────────────────────────────
-// En modo claro se envuelve en un contenedor oscuro para que
-// mixBlendMode:'screen' funcione correctamente sobre el fondo claro.
-function TeamIllustration() {
-  return (
     <div style={{
-      background: 'var(--mrc-logo-bg)',
-      borderRadius: 'var(--mrc-logo-radius)',
-      padding: 'var(--mrc-logo-padding)',
-      overflow: 'hidden',
+      background: 'var(--logo-pill-bg)',
+      borderRadius: 'var(--logo-pill-radius)',
+      padding: 'var(--logo-pill-padding)',
+      display: 'inline-flex', alignItems: 'center',
+      transition: 'background 0.3s ease',
     }}>
       <img
-        src={`${import.meta.env.BASE_URL}mrc-logo.png`}
-        alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
-        style={{
-          width: '100%',
-          maxWidth: 500,
-          height: 'auto',
-          display: 'block',
-          mixBlendMode: 'screen',
-        }}
+        src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
+        alt="Agrosuper"
+        style={{ height, width: 'auto', display: 'block' }}
       />
     </div>
   )
 }
 
-// ── Floating particles ────────────────────────────────────────────────
+// ── Logo MRC — sin contenedor oscuro, mixBlendMode screen sobre cualquier fondo
+function TeamIllustration() {
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
+      alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
+      style={{
+        width: '100%',
+        maxWidth: 500,
+        height: 'auto',
+        display: 'block',
+        mixBlendMode: 'screen',
+      }}
+    />
+  )
+}
+
+// ── Partículas flotantes — color naranja Agrosuper (var definida en index.css)
 function FloatingParticles() {
   const particles = [
-    { x: '8%',  y: '15%', size: 3, delay: 0,    duration: 5 },
-    { x: '92%', y: '20%', size: 2, delay: 0.8,  duration: 4.5 },
-    { x: '20%', y: '80%', size: 2, delay: 1.2,  duration: 6 },
-    { x: '80%', y: '75%', size: 3, delay: 0.4,  duration: 5.5 },
-    { x: '50%', y: '8%',  size: 2, delay: 2,    duration: 4 },
-    { x: '15%', y: '45%', size: 1.5, delay: 1.6, duration: 7 },
-    { x: '88%', y: '55%', size: 2, delay: 0.2,  duration: 5 },
+    { x: '8%',  y: '15%', size: 3,   delay: 0,    duration: 5 },
+    { x: '92%', y: '20%', size: 2,   delay: 0.8,  duration: 4.5 },
+    { x: '20%', y: '80%', size: 2,   delay: 1.2,  duration: 6 },
+    { x: '80%', y: '75%', size: 3,   delay: 0.4,  duration: 5.5 },
+    { x: '50%', y: '8%',  size: 2,   delay: 2,    duration: 4 },
+    { x: '15%', y: '45%', size: 1.5, delay: 1.6,  duration: 7 },
+    { x: '88%', y: '55%', size: 2,   delay: 0.2,  duration: 5 },
   ]
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -62,7 +61,7 @@ function FloatingParticles() {
             width: p.size * 2, height: p.size * 2, borderRadius: '50%',
             background: 'var(--splash-particle)',
           }}
-          animate={{ y: [0, -16, 0], opacity: [0.3, 0.8, 0.3] }}
+          animate={{ y: [0, -16, 0], opacity: [0.35, 0.9, 0.35] }}
           transition={{ repeat: Infinity, duration: p.duration, delay: p.delay, ease: 'easeInOut' }}
         />
       ))}
@@ -70,7 +69,7 @@ function FloatingParticles() {
   )
 }
 
-// ── Network dot — pequeño indicador de conectividad ───────────────────
+// ── Network dot — LED de conectividad
 function NetworkDot() {
   const { isOnline } = useNetworkStatus()
   return (
@@ -86,7 +85,7 @@ function NetworkDot() {
   )
 }
 
-// ── Main Splash Screen ─────────────────────────────────────────────────
+// ── Pantalla principal ─────────────────────────────────────────────────
 export default function SplashScreen() {
   const navigate = useNavigate()
   const { login, isDevMode } = useAuth()
@@ -100,16 +99,14 @@ export default function SplashScreen() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'var(--bg-splash-gradient)',
-      }}
-    >
+    <div style={{
+      minHeight: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      overflow: 'hidden',
+      background: 'var(--bg-splash-gradient)',
+    }}>
       <div className="noise-overlay" />
       <FloatingParticles />
 
@@ -122,7 +119,7 @@ export default function SplashScreen() {
         pointerEvents: 'none',
       }} />
 
-      {/* ── Header: logo Agrosuper + network dot ─────────────────── */}
+      {/* ── Header: network dot + logo Agrosuper ──────────────────── */}
       <div style={{
         position: 'absolute', top: 0, right: 0,
         padding: '16px 16px 0 0',
@@ -130,27 +127,25 @@ export default function SplashScreen() {
         zIndex: 10,
         display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        {/* Network dot flotante */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <NetworkDot />
-        </div>
+        <NetworkDot />
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-          <AgrosuperShield height={36} />
+          <AgrosuperShield height={32} />
         </motion.div>
       </div>
 
       <div style={{ flex: 2, minHeight: 64 }} />
 
-      {/* ── Logo MRC centrado ──────────────────────────────────────── */}
+      {/* ── Logo MRC centrado ───────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         padding: '0 24px', position: 'relative', zIndex: 1,
       }}>
         <motion.div
+          style={{ width: '100%' }}
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
@@ -167,7 +162,7 @@ export default function SplashScreen() {
 
       <div style={{ flex: 1, minHeight: 24 }} />
 
-      {/* ── Botón al fondo ─────────────────────────────────────────── */}
+      {/* ── Botón naranja Agrosuper ─────────────────────────────────── */}
       <div style={{
         position: 'relative', zIndex: 1,
         padding: '16px 24px',
@@ -185,13 +180,13 @@ export default function SplashScreen() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '100%', height: 56,
-              background: 'var(--color-blue-btn)',
+              background: 'var(--color-orange)',
               color: '#fff',
               fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
               border: 'none', borderRadius: 'var(--radius-btn)',
               cursor: 'pointer',
-              boxShadow: '0 4px 24px rgba(26,82,184,0.45)',
+              boxShadow: '0 4px 24px rgba(245,124,32,0.50)',
               position: 'relative', overflow: 'hidden',
             }}
             aria-label="Ingresar a la aplicación"

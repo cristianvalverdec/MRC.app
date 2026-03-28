@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ShieldCheck, BarChart2, TrendingUp, Target, Users, HeartPulse } from 'lucide-react'
-import useUserStore from '../store/userStore'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/MenuCard'
@@ -77,41 +76,11 @@ const menuItems = {
   ],
 }
 
-function MiniAvatar({ name, photoUrl }) {
-  const initials = name ? name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() : '?'
-  return (
-    <div style={{
-      width: 32, height: 32, borderRadius: '50%',
-      overflow: 'hidden', border: '2px solid rgba(245,124,32,0.5)',
-      background: 'rgba(245,124,32,0.15)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    }}>
-      {photoUrl
-        ? <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, color: 'var(--color-orange)' }}>{initials}</span>
-      }
-    </div>
-  )
-}
-
 export default function UnitMenuScreen() {
   const navigate = useNavigate()
   const { unitType } = useParams()
-  const items    = menuItems[unitType] || menuItems.sucursales
-  const label    = unitLabels[unitType] || unitType
-  const name     = useUserStore((s) => s.name)
-  const photoUrl = useUserStore((s) => s.photoUrl)
-
-  const profileAction = (
-    <motion.button
-      whileTap={{ scale: 0.88 }}
-      onClick={() => navigate('/profile')}
-      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
-      aria-label="Mi perfil"
-    >
-      <MiniAvatar name={name} photoUrl={photoUrl} />
-    </motion.button>
-  )
+  const items = menuItems[unitType] || menuItems.sucursales
+  const label = unitLabels[unitType] || unitType
 
   return (
     <div
@@ -122,7 +91,8 @@ export default function UnitMenuScreen() {
         background: 'var(--color-navy)',
       }}
     >
-      <AppHeader title={label} rightAction={profileAction} />
+      {/* AppHeader muestra su propio avatar+NetworkDot cuando no se pasa rightAction */}
+      <AppHeader title={label} />
 
       <div style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Unit label */}

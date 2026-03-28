@@ -60,7 +60,7 @@ const unitCards = [
     label: 'Sucursales',
     sublabel: '26 Centros de Distribución',
     icon: <Building2 size={22} color="#fff" />,
-    bgColor: 'var(--color-blue-btn)',
+    bgColor: 'var(--color-orange)',
     route: '/unit/sucursales',
   },
   {
@@ -68,7 +68,7 @@ const unitCards = [
     label: 'Fuerza de Ventas',
     sublabel: 'Equipos comerciales en campo',
     icon: <TrendingUp size={22} color="#fff" />,
-    bgColor: 'var(--color-blue-dark)',
+    bgColor: 'var(--color-orange-dark)',
     route: '/unit/fuerza-de-ventas',
   },
 ]
@@ -169,6 +169,7 @@ export default function SelectUnitScreen() {
       >
         {/* Capa 1: entrada */}
         <motion.div
+          style={{ width: '100%' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -182,7 +183,7 @@ export default function SelectUnitScreen() {
               repeatType: 'mirror',
               ease: 'easeInOut',
             }}
-            style={{ willChange: 'transform' }}
+            style={{ willChange: 'transform', width: '100%' }}
           >
             <TeamIllustration />
           </motion.div>
@@ -240,7 +241,7 @@ export default function SelectUnitScreen() {
                 borderRadius: 'var(--radius-btn)',
                 cursor: 'pointer',
                 padding: '0 20px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+                boxShadow: '0 4px 20px rgba(245,124,32,0.35)',
               }}
               aria-label={`Seleccionar ${unit.label}`}
             >
