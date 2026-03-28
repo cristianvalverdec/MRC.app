@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { useMsal, useIsAuthenticated } from '@azure/msal-react'
 import { InteractionStatus } from '@azure/msal-browser'
 import LoadingSpinner from './components/ui/LoadingSpinner'
+import UpdateBanner from './components/ui/UpdateBanner'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
 import { useBootstrap } from './hooks/useBootstrap'
@@ -115,6 +116,8 @@ export default function App() {
 
   return (
     <BrowserRouter basename="/MRC.app">
+      {/* Banner de actualización — flota sobre toda la app */}
+      <UpdateBanner />
       <Suspense fallback={<PageFallback />}>
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}
