@@ -24,19 +24,18 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // autoUpdate: el SW nuevo se activa de inmediato (skipWaiting + clientsClaim).
+      // Antes era 'prompt' y el SW viejo persistía sirviendo HTML/CSS obsoleto.
+      registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Misión Riesgo Cero',
         short_name: 'MRC SST',
         description: 'Herramientas SST - Agrosuper Comercial',
+        lang: 'es',
         theme_color: '#1B2A4A',
         background_color: '#1B2A4A',
         display: 'standalone',
-        // Edge-to-edge: la barra de navegación inferior queda transparente y
-        // muestra el fondo de la app (navy) en lugar del blanco del sistema.
-        // Soportado en Chrome 123+ Android.
-        edge_to_edge_enabled: true,
         orientation: 'portrait',
         scope:     pwaScope,
         start_url: pwaStartUrl,
@@ -47,8 +46,12 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Fuerza activación inmediata del SW nuevo — sin esto, el SW viejo
+        // sigue sirviendo HTML/manifest obsoletos hasta que el usuario cierre TODAS las pestañas.
+        skipWaiting: true,
+        clientsClaim: true,
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/graph\.microsoft\.com\/.*/i,
