@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck } from 'lucide-react'
+import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/MenuCard'
@@ -48,6 +48,13 @@ const toolsBySucursales = [
     accentColor: '#27AE60',
     route: 'cierre-condiciones',   // ruta directa (no form genérico)
   },
+  {
+    icon: <Brain size={22} color="#fff" />,
+    label: 'Monitor de Fatiga Operacional',
+    sublabel: 'Test de fatiga para operadores de EQR',
+    accentColor: '#0891B2',
+    route: 'monitor-fatiga',
+  },
 ]
 
 const toolsByFuerzaVentas = [
@@ -71,6 +78,13 @@ const toolsByFuerzaVentas = [
     sublabel: 'Registro de charlas y capacitaciones',
     accentColor: '#2F80ED',
     route: 'difusiones-sso',
+  },
+  {
+    icon: <Brain size={22} color="#fff" />,
+    label: 'Monitor de Fatiga Operacional',
+    sublabel: 'Test de fatiga para operadores de EQR',
+    accentColor: '#0891B2',
+    route: 'monitor-fatiga',
   },
 ]
 

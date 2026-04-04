@@ -28,6 +28,7 @@ const GestionCPHSScreen          = lazy(() => import('./screens/GestionCPHSScree
 const GestionSaludScreen         = lazy(() => import('./screens/GestionSaludScreen'))
 const ProgramaTrabajoScreen      = lazy(() => import('./screens/ProgramaTrabajoScreen'))
 const DifusionesSSOScreen        = lazy(() => import('./screens/DifusionesSSOScreen'))
+const MonitorFatigaScreen        = lazy(() => import('./screens/MonitorFatigaScreen'))
 
 function PageFallback() {
   return (
@@ -62,6 +63,7 @@ function AnimatedRoutes() {
         <Route path="/unit/:unitType/cphs/programa-trabajo"    element={<ProgramaTrabajoScreen />} />
         <Route path="/unit/:unitType/salud"             element={<GestionSaludScreen />} />
         <Route path="/unit/:unitType/difusiones-sso"  element={<DifusionesSSOScreen />} />
+        <Route path="/unit/:unitType/monitor-fatiga"  element={<MonitorFatigaScreen />} />
         <Route path="/profile"                           element={<ProfileScreen />} />
         {/* Admin routes */}
         <Route path="/admin/fa-data"                 element={<FADataEntryScreen />} />
