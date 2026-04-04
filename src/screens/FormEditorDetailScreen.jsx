@@ -346,10 +346,15 @@ function FlowView({ questions }) {
 
 // ── Panel editor de pregunta (bottom sheet) ───────────────────────────────
 function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
-  // Normalizar options: si es string (ej '__DYNAMIC_AZURE_AD__') convertir a array vacío para edición
+  // Normalizar options: si es string (ej '__DYNAMIC_AZURE_AD__') → array vacío;
+  // si los items son strings simples (ej select de instalaciones) → convertir a objetos {value, label}
   const normalizedQuestion = {
     ...question,
-    options: Array.isArray(question.options) ? question.options : [],
+    options: Array.isArray(question.options)
+      ? question.options.map((opt) =>
+          typeof opt === 'string' ? { value: opt, label: opt, nextQuestion: 'END' } : opt
+        )
+      : [],
   }
   const [draft, setDraft] = useState(normalizedQuestion)
   const allIds = allQuestions.map(q => q.id)
