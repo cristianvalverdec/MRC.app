@@ -111,6 +111,9 @@
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  /* color-scheme: dark forzado siempre — controles del sistema (scrollbars, inputs)
+     siempre usan estilo oscuro independiente del tema del teléfono.
+     La app controla sus propios colores vía data-theme, no via prefers-color-scheme. */
   color-scheme: dark;
   /* Chrome Android usa este background para colorear la barra inferior de navegación.
      JS en main.jsx y userStore.js actualiza este valor al cambiar de tema. */
@@ -119,12 +122,16 @@ html {
 
 [data-theme="light"] html,
 html[data-theme="light"] {
+  /* En modo claro de la APP (no del sistema), fondo claro para la barra inferior.
+     color-scheme se mantiene dark para que el sistema no inyecte estilos claros. */
   background-color: #F0F3F9;
 }
 
 body {
   margin: 0;
   padding: 0;
+  /* En Android PWA edge-to-edge, el contenido se extiende bajo la barra inferior.
+     safe-area-inset-bottom asegura que el contenido útil no quede tapado. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
   font-family: var(--font-body);
   background-color: var(--color-navy);
@@ -135,6 +142,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Modo standalone (PWA instalada): refuerza que el fondo siempre sea navy
+   para que Chrome coloree la barra inferior correctamente en edge-to-edge */
+@media (display-mode: standalone) {
+  html, body, #root {
+    background-color: #1B2A4A;
+  }
+  [data-theme="light"] html,
+  [data-theme="light"] body,
+  [data-theme="light"] #root {
+    background-color: #F0F3F9;
+  }
 }
 
 [data-theme="light"] body,

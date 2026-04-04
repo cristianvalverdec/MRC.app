@@ -14,7 +14,8 @@ document.documentElement.setAttribute('data-theme', savedTheme)
 const navColor = savedTheme === 'light' ? '#F0F3F9' : '#1B2A4A'
 document.documentElement.style.backgroundColor = navColor
 document.querySelector('meta[name="theme-color"]')?.setAttribute('content', navColor)
-document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', savedTheme === 'light' ? 'light' : 'dark')
+// color-scheme se mantiene 'dark' siempre (definido en index.css y en index.html)
+// La app es independiente del tema del sistema operativo.
 
 // MSAL v3+: initialize() debe completarse antes de montar la app
 msalInstance.initialize().then(() => {

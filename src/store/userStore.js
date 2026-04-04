@@ -28,7 +28,9 @@ const useUserStore = create(
         const navColor = theme === 'light' ? '#F0F3F9' : '#1B2A4A'
         document.documentElement.style.backgroundColor = navColor
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', navColor)
-        document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', theme === 'light' ? 'light' : 'dark')
+        // color-scheme siempre 'dark' — la app controla sus colores via data-theme,
+        // no queremos que el sistema Android inyecte estilos claros en controles nativos
+        // ni que fuerce la barra de navegación inferior a blanco.
       },
       clearUser: () => set({
         rut: '', name: '', email: '', jobTitle: '', photoUrl: '', unit: '', branch: '',

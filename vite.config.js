@@ -33,6 +33,10 @@ export default defineConfig({
         theme_color: '#1B2A4A',
         background_color: '#1B2A4A',
         display: 'standalone',
+        // Edge-to-edge: la barra de navegación inferior queda transparente y
+        // muestra el fondo de la app (navy) en lugar del blanco del sistema.
+        // Soportado en Chrome 123+ Android.
+        edge_to_edge_enabled: true,
         orientation: 'portrait',
         scope:     pwaScope,
         start_url: pwaStartUrl,
