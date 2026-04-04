@@ -145,7 +145,7 @@ export default function QuestionSelect({ question, value, onChange }) {
               whileTap={{ scale: 0.95 }}
               onClick={() => onChange(question.id, selected ? null : opt.value)}
               style={{
-                padding: '9px 18px',
+                padding: '9px 16px',
                 borderRadius: 999,
                 border: `1.5px solid ${selected ? 'var(--color-blue-btn)' : 'var(--color-border)'}`,
                 background: selected ? 'rgba(26,82,184,0.22)' : 'transparent',
@@ -155,7 +155,10 @@ export default function QuestionSelect({ question, value, onChange }) {
                 fontWeight: selected ? 600 : 400,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+                textAlign: 'left',
+                lineHeight: 1.35,
               }}
             >
               {opt.label}

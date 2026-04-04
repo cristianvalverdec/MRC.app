@@ -101,31 +101,37 @@ export default function QuestionRadio({ question, value, onChange }) {
               onClick={() => onChange(question.id, selected ? null : opt.value)}
               style={{
                 width: '100%',
-                padding: '18px 20px',
+                padding: '14px 16px',
                 display: 'flex',
-                alignItems: 'center',
-                gap: 14,
+                alignItems: 'flex-start',
+                gap: 12,
                 border: `2px solid ${selected ? s.activeBorder : 'var(--color-border)'}`,
                 borderRadius: 12,
                 background: selected ? s.activeBg : 'rgba(255,255,255,0.02)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 textAlign: 'left',
+                boxSizing: 'border-box',
               }}
             >
               <Icon
-                size={22}
+                size={20}
                 color={selected ? s.activeColor : 'var(--color-text-muted)'}
                 strokeWidth={selected ? 2.5 : 1.5}
+                style={{ flexShrink: 0, marginTop: 2 }}
               />
               <span
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,
-                  fontSize: 16,
-                  letterSpacing: '0.05em',
+                  fontSize: 15,
+                  letterSpacing: '0.04em',
                   color: selected ? s.activeColor : 'var(--color-text-secondary)',
                   transition: 'color 0.15s ease',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
+                  minWidth: 0,
+                  lineHeight: 1.3,
                 }}
               >
                 {opt.label}

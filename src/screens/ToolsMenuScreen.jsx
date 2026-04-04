@@ -39,7 +39,7 @@ const toolsBySucursales = [
     label: 'Difusiones SSO',
     sublabel: 'Registro de charlas y capacitaciones',
     accentColor: '#2F80ED',
-    formType: 'difusiones-sso',
+    route: 'difusiones-sso',
   },
   {
     icon: <ShieldCheck size={22} color="#fff" />,
@@ -70,7 +70,7 @@ const toolsByFuerzaVentas = [
     label: 'Difusiones SSO',
     sublabel: 'Registro de charlas y capacitaciones',
     accentColor: '#2F80ED',
-    formType: 'difusiones-sso',
+    route: 'difusiones-sso',
   },
 ]
 

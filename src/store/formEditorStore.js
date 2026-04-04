@@ -28,19 +28,22 @@ const useFormEditorStore = create(
       lastSyncedAt: null,    // ISO string de la última sync exitosa
 
       // ── Formularios estáticos editados ─────────────────────────────────
+      // El guardado LOCAL es siempre síncrono e infalible.
+      // El cloud sync es fire-and-forget — nunca bloquea ni lanza al caller.
       saveFormEdits: (formId, formOverride) => {
         set((state) => ({
-          editedForms: { ...state.editedForms, [formId]: formOverride },
+          editedForms:  { ...state.editedForms, [formId]: formOverride },
+          lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud()
+        get()._syncToCloud().catch(() => {})
       },
 
       resetFormEdits: (formId) => {
         set((state) => {
           const { [formId]: _, ...rest } = state.editedForms
-          return { editedForms: rest }
+          return { editedForms: rest, lastSyncedAt: new Date().toISOString() }
         })
-        get()._syncToCloud()
+        get()._syncToCloud().catch(() => {})
       },
 
       getFormEdits: (formId) => get().editedForms[formId] || null,
@@ -49,55 +52,81 @@ const useFormEditorStore = create(
       // ── Formularios custom (creados por admin) ─────────────────────────
       addCustomForm: (formDef) => {
         set((state) => ({
-          customForms: { ...state.customForms, [formDef.id]: formDef },
+          customForms:  { ...state.customForms, [formDef.id]: formDef },
+          lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud()
+        get()._syncToCloud().catch(() => {})
       },
 
       updateCustomForm: (formId, formDef) => {
         set((state) => ({
-          customForms: { ...state.customForms, [formId]: formDef },
+          customForms:  { ...state.customForms, [formId]: formDef },
+          lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud()
+        get()._syncToCloud().catch(() => {})
       },
 
       deleteCustomForm: (formId) => {
         set((state) => {
           const { [formId]: _, ...rest } = state.customForms
-          return { customForms: rest }
+          return { customForms: rest, lastSyncedAt: new Date().toISOString() }
         })
-        get()._syncToCloud()
+        get()._syncToCloud().catch(() => {})
       },
 
       isCustomForm: (formId) => !!get().customForms[formId],
       getCustomForm: (formId) => get().customForms[formId] || null,
 
       // ── Sincronización con SharePoint ──────────────────────────────────
-      // Llamado automáticamente después de cada cambio (fire-and-forget)
       _syncToCloud: async () => {
         const { editedForms, customForms } = get()
-        set({ syncStatus: 'syncing' })
+        const savedAt = new Date().toISOString()
+        // Grabar lastSyncedAt ANTES del upload: protege los datos locales
+        // aunque la subida a SharePoint falle. pullFromCloud compara contra
+        // este timestamp y no sobrescribirá datos locales más nuevos.
+        set({ syncStatus: 'syncing', lastSyncedAt: savedAt })
         try {
-          await syncFormsToSharePoint({ editedForms, customForms })
-          set({ syncStatus: 'success', lastSyncedAt: new Date().toISOString() })
-        } catch {
+          await syncFormsToSharePoint({ editedForms, customForms, savedAt })
+          set({ syncStatus: 'success' })
+        } catch (err) {
           set({ syncStatus: 'error' })
+          throw err
         }
       },
 
-      // Descarga la versión más reciente desde SharePoint al iniciar la app.
-      // En modo dev retorna null y se queda con localStorage.
+      // Descarga la versión más reciente desde SharePoint.
+      // IMPORTANTE: solo sobrescribe si la versión cloud es más nueva que la local.
+      // Esto protege cambios locales no sincronizados de ser borrados por datos obsoletos.
       pullFromCloud: async () => {
         set({ syncStatus: 'syncing' })
         try {
           const data = await loadFormsFromSharePoint()
           if (data) {
-            set({
-              editedForms: data.editedForms || {},
-              customForms: data.customForms || {},
-              syncStatus: 'success',
-              lastSyncedAt: new Date().toISOString(),
-            })
+            const localLastSync = get().lastSyncedAt
+            const cloudSavedAt  = data.savedAt
+
+            // Sobrescribir SOLO si:
+            //   a) este dispositivo nunca ha guardado nada (primera vez), O
+            //   b) cloud tiene timestamp Y ese timestamp es posterior al local
+            // Si cloud no tiene timestamp (versión antigua sin savedAt) → NO sobrescribir:
+            //   archivos sin savedAt son anteriores a esta lógica y pueden ser datos viejos.
+            const cloudIsNewer =
+              !localLastSync ||                              // a) dispositivo sin historial local
+              (cloudSavedAt && cloudSavedAt > localLastSync) // b) cloud explícitamente más nuevo
+
+            if (cloudIsNewer) {
+              set({
+                editedForms:   data.editedForms  || {},
+                customForms:   data.customForms  || {},
+                syncStatus:    'success',
+                lastSyncedAt:  cloudSavedAt || new Date().toISOString(),
+              })
+              console.info('[MRC Sync] Store actualizado desde SharePoint ✓')
+            } else {
+              // Local es más nuevo — conservar local, marcar como sincronizado
+              set({ syncStatus: 'success' })
+              console.info('[MRC Sync] Local más reciente que cloud — conservando local')
+            }
           } else {
             set({ syncStatus: 'idle' })
           }

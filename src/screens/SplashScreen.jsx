@@ -3,23 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
+import useUserStore from '../store/userStore'
 
-// ── Agrosuper Logo — pill oscuro en modo claro para que el blanco sea visible
+// ── Agrosuper Logo — blanco en dark (relación 3.1:1), color en light (relación 1.5:1)
+// Para que ambos logos aparezcan del mismo tamaño visual usamos ancho fijo
 function AgrosuperShield({ height = 36 }) {
+  const theme = useUserStore((s) => s.theme)
+  const isLight = theme === 'light'
+  // Logo blanco: 5784×1864 → ratio 3.1. A h=36 → w≈111px
+  // Logo color:  17718×11812 → ratio 1.5. Para w=111px → h≈74px
   return (
-    <div style={{
-      background: 'var(--logo-pill-bg)',
-      borderRadius: 'var(--logo-pill-radius)',
-      padding: 'var(--logo-pill-padding)',
-      display: 'inline-flex', alignItems: 'center',
-      transition: 'background 0.3s ease',
-    }}>
-      <img
-        src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
-        alt="Agrosuper"
-        style={{ height, width: 'auto', display: 'block' }}
-      />
-    </div>
+    <img
+      src={`${import.meta.env.BASE_URL}${isLight ? 'agrosuper-logo-color.png' : 'agrosuper-logo.png'}`}
+      alt="Agrosuper"
+      style={isLight
+        ? { width: 111, height: 'auto', display: 'block' }
+        : { height, width: 'auto', display: 'block' }
+      }
+    />
   )
 }
 
@@ -35,6 +36,7 @@ function TeamIllustration() {
         height: 'auto',
         display: 'block',
         mixBlendMode: 'screen',
+        margin: '0 auto',
       }}
     />
   )
@@ -137,15 +139,17 @@ export default function SplashScreen() {
         </motion.div>
       </div>
 
-      <div style={{ flex: 2, minHeight: 64 }} />
+      <div style={{ flex: 1, minHeight: 40 }} />
 
-      {/* ── Logo MRC centrado ───────────────────────────────────────── */}
+      {/* ── Logo MRC — centrado horizontal y verticalmente ──────────── */}
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center',
         padding: '0 24px', position: 'relative', zIndex: 1,
+        width: '100%',
       }}>
         <motion.div
-          style={{ width: '100%' }}
+          style={{ width: '100%', maxWidth: 500, margin: '0 auto' }}
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
@@ -160,7 +164,7 @@ export default function SplashScreen() {
         </motion.div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 24 }} />
+      <div style={{ flex: 1, minHeight: 40 }} />
 
       {/* ── Botón naranja Agrosuper ─────────────────────────────────── */}
       <div style={{
@@ -180,13 +184,13 @@ export default function SplashScreen() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '100%', height: 56,
-              background: 'var(--color-orange)',
+              background: 'var(--btn-primary)',
               color: '#fff',
               fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
               border: 'none', borderRadius: 'var(--radius-btn)',
               cursor: 'pointer',
-              boxShadow: '0 4px 24px rgba(245,124,32,0.50)',
+              boxShadow: '0 4px 24px var(--btn-primary-shadow)',
               position: 'relative', overflow: 'hidden',
             }}
             aria-label="Ingresar a la aplicación"

@@ -16,7 +16,7 @@
   --bg-splash-glow:     radial-gradient(ellipse, rgba(26,82,184,0.35) 0%, transparent 70%);
   --splash-particle:    rgba(245, 124, 32, 0.50);
 
-  /* Logo Agrosuper — en modo claro (logo blanco) se envuelve en pill oscuro */
+  /* Logo Agrosuper — vars para pill (solo en modo claro) */
   --logo-pill-bg:      transparent;
   --logo-pill-padding: 0px;
   --logo-pill-radius:  0px;
@@ -25,9 +25,16 @@
   --color-orange:      #F57C20;
   --color-orange-dark: #D4640F;
 
-  /* Botones */
+  /* Botones — en modo oscuro son azules */
   --color-blue-btn:    #1A52B8;
   --color-blue-dark:   #153FA0;
+  --btn-primary:       #1A52B8;
+  --btn-primary-shadow: rgba(26,82,184,0.45);
+
+  /* Cards de unidad — en modo oscuro azules */
+  --unit-card-primary:   #1A52B8;
+  --unit-card-secondary: #153FA0;
+  --unit-card-shadow:    rgba(26, 82, 184, 0.35);
 
   /* Semánticos */
   --color-success:     #27AE60;
@@ -80,10 +87,19 @@
   --bg-splash-glow:     radial-gradient(ellipse, rgba(26,82,184,0.12) 0%, transparent 70%);
   --splash-particle:    rgba(245, 124, 32, 0.55);
 
-  /* Logo Agrosuper: en modo claro es blanco → pill oscuro para que sea visible */
-  --logo-pill-bg:      rgba(27, 42, 74, 0.90);
-  --logo-pill-padding: 5px 10px;
-  --logo-pill-radius:  10px;
+  /* Logo Agrosuper: en modo claro se usa logo a color → sin pill */
+  --logo-pill-bg:      transparent;
+  --logo-pill-padding: 0px;
+  --logo-pill-radius:  0px;
+
+  /* Botones — en modo claro son naranjas */
+  --btn-primary:       #F57C20;
+  --btn-primary-shadow: rgba(245,124,32,0.50);
+
+  /* Cards de unidad — en modo claro naranjas */
+  --unit-card-primary:   #F57C20;
+  --unit-card-secondary: #D4640F;
+  --unit-card-shadow:    rgba(245, 124, 32, 0.35);
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────── */

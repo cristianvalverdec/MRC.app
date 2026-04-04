@@ -5,6 +5,7 @@ import { useMsal, useIsAuthenticated } from '@azure/msal-react'
 import { InteractionStatus } from '@azure/msal-browser'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import UpdateBanner from './components/ui/UpdateBanner'
+import InstallPrompt from './components/ui/InstallPrompt'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
 import { useBootstrap } from './hooks/useBootstrap'
@@ -26,6 +27,7 @@ const CierreCondicionesScreen    = lazy(() => import('./screens/CierreCondicione
 const GestionCPHSScreen          = lazy(() => import('./screens/GestionCPHSScreen'))
 const GestionSaludScreen         = lazy(() => import('./screens/GestionSaludScreen'))
 const ProgramaTrabajoScreen      = lazy(() => import('./screens/ProgramaTrabajoScreen'))
+const DifusionesSSOScreen        = lazy(() => import('./screens/DifusionesSSOScreen'))
 
 function PageFallback() {
   return (
@@ -59,6 +61,7 @@ function AnimatedRoutes() {
         <Route path="/unit/:unitType/cphs"                       element={<GestionCPHSScreen />} />
         <Route path="/unit/:unitType/cphs/programa-trabajo"    element={<ProgramaTrabajoScreen />} />
         <Route path="/unit/:unitType/salud"             element={<GestionSaludScreen />} />
+        <Route path="/unit/:unitType/difusiones-sso"  element={<DifusionesSSOScreen />} />
         <Route path="/profile"                           element={<ProfileScreen />} />
         {/* Admin routes */}
         <Route path="/admin/fa-data"                 element={<FADataEntryScreen />} />
@@ -118,6 +121,8 @@ export default function App() {
     <BrowserRouter basename="/MRC.app">
       {/* Banner de actualización — flota sobre toda la app */}
       <UpdateBanner />
+      {/* Prompt de instalación PWA */}
+      <InstallPrompt />
       <Suspense fallback={<PageFallback />}>
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}

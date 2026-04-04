@@ -37,6 +37,26 @@ function MiniAvatar({ name, photoUrl }) {
   )
 }
 
+// Logo Agrosuper — blanco en dark, color en light con mismo ancho visual
+function AgrosuperLogo({ height = 32 }) {
+  const theme = useUserStore((s) => s.theme)
+  const isLight = theme === 'light'
+  // Logo blanco: ratio 3.1 → h=32 → w≈99px. Logo color: ratio 1.5 → mismo w=99
+  return (
+    <motion.img
+      src={`${import.meta.env.BASE_URL}${isLight ? 'agrosuper-logo-color.png' : 'agrosuper-logo.png'}`}
+      alt="Agrosuper"
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      style={isLight
+        ? { width: 99, height: 'auto' }
+        : { height, width: 'auto' }
+      }
+    />
+  )
+}
+
 // MRC 2026 PNG — mismo asset que splash
 function TeamIllustration() {
   return (
@@ -49,6 +69,7 @@ function TeamIllustration() {
         height: 'auto',
         display: 'block',
         mixBlendMode: 'screen',
+        margin: '0 auto',
       }}
     />
   )
@@ -60,7 +81,7 @@ const unitCards = [
     label: 'Sucursales',
     sublabel: '26 Centros de Distribución',
     icon: <Building2 size={22} color="#fff" />,
-    bgColor: 'var(--color-orange)',
+    bgColor: 'var(--unit-card-primary)',
     route: '/unit/sucursales',
   },
   {
@@ -68,7 +89,7 @@ const unitCards = [
     label: 'Fuerza de Ventas',
     sublabel: 'Equipos comerciales en campo',
     icon: <TrendingUp size={22} color="#fff" />,
-    bgColor: 'var(--color-orange-dark)',
+    bgColor: 'var(--unit-card-secondary)',
     route: '/unit/fuerza-de-ventas',
   },
 ]
@@ -126,15 +147,8 @@ export default function SelectUnitScreen() {
           </motion.button>
         </div>
 
-        {/* Centro: logo Agrosuper */}
-        <motion.img
-          src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
-          alt="Agrosuper"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          style={{ height: 32, width: 'auto' }}
-        />
+        {/* Centro: logo Agrosuper — color en light, blanco en dark */}
+        <AgrosuperLogo height={32} />
 
         {/* Derecha: network dot + perfil */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -241,7 +255,7 @@ export default function SelectUnitScreen() {
                 borderRadius: 'var(--radius-btn)',
                 cursor: 'pointer',
                 padding: '0 20px',
-                boxShadow: '0 4px 20px rgba(245,124,32,0.35)',
+                boxShadow: '0 4px 20px var(--unit-card-shadow)',
               }}
               aria-label={`Seleccionar ${unit.label}`}
             >

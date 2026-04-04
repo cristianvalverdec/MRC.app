@@ -9,7 +9,9 @@ export const msalConfig = {
       : window.location.origin + '/',
   },
   cache: {
-    cacheLocation: 'sessionStorage',
+    // localStorage persiste el token al cerrar/reabrir la PWA
+    // sessionStorage se borraría en cada sesión nueva forzando re-login
+    cacheLocation: 'localStorage',
     storeAuthStateInCookie: false,
   },
 }

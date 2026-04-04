@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react'
 import { useMsal } from '@azure/msal-react'
 import useUserStore from '../store/userStore'
+import useFormEditorStore from '../store/formEditorStore'
 import { loginRequest } from '../config/msalConfig'
 import { isAdmin } from '../services/adminService'
 
@@ -59,7 +60,12 @@ export function useBootstrap() {
           isAuthenticated: true,
         })
 
-        // 3. Foto de perfil (puede no existir → 404, se ignora)
+        // 3. Descargar configuración de formularios — se hace aquí porque
+        //    ya tenemos un token válido. App.jsx lo intenta al montar pero
+        //    puede ejecutarse antes de que MSAL haya cargado las cuentas.
+        useFormEditorStore.getState().pullFromCloud()
+
+        // 4. Foto de perfil (puede no existir → 404, se ignora)
         try {
           const photoRes = await fetch(`${GRAPH}/me/photo/$value`, { headers })
           if (photoRes.ok) {

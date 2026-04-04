@@ -784,38 +784,43 @@ export default function FormEditorDetailScreen() {
   const staticForm = formDefinitions[formId] || customForms[formId] || null
   const isWizard   = staticForm?.mode === 'wizard'
 
-  // Carga el estado inicial: edición guardada o definición estática / custom
+  // Carga el estado inicial leyendo del store en tiempo real (getState evita closure stale)
   const initQuestions = useCallback(() => {
-    // Para formularios custom: los cambios se guardan directo en customForms
+    const { editedForms: ef, customForms: cf } = useFormEditorStore.getState()
     if (isCustom) {
-      const cf = customForms[formId]
-      if (cf?.questions) return dictToArray(cf.questions)
-      if (cf?.sections) {
-        return cf.sections.flatMap((s) =>
+      const form = cf[formId]
+      if (form?.questions) return dictToArray(form.questions)
+      if (form?.sections) {
+        return form.sections.flatMap((s) =>
           s.questions.map((q) => ({ ...q, _section: s.id, _sectionTitle: s.title }))
         )
       }
       return []
     }
-    // Para formularios estáticos: override de editedForms primero
-    const override = editedForms[formId]
+    const override = ef[formId]
     if (override?.questions) return dictToArray(override.questions)
     if (isWizard && staticForm?.questions) return dictToArray(staticForm.questions)
+    if (override?.sections) {
+      return override.sections.flatMap((s) =>
+        (s.questions || []).map((q) => ({ ...q, _section: s.id, _sectionTitle: s.title }))
+      )
+    }
     if (staticForm?.sections) {
       return staticForm.sections.flatMap((s) =>
         s.questions.map((q) => ({ ...q, _section: s.id, _sectionTitle: s.title }))
       )
     }
     return []
-  }, [formId]) // eslint-disable-line
+  }, [formId, isCustom, isWizard, staticForm])
 
   const [questions, setQuestions] = useState(initQuestions)
+
   const [activeTab, setActiveTab] = useState('lista')
   const [editingQ, setEditingQ] = useState(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showDeleteFormConfirm, setShowDeleteFormConfirm] = useState(false)
-  const [showSaveToast, setShowSaveToast] = useState(false)
+  const [showSaveToast, setShowSaveToast] = useState(false)   // 'success' | 'error' | false
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   const allIds = questions.map(q => q.id)
@@ -863,10 +868,9 @@ export default function FormEditorDetailScreen() {
     setEditingQ(newQ)
   }
 
-  // Guardar todo en el store
+  // Guardar todo en el store (local save siempre exitoso; cloud sync es fire-and-forget)
   const handleSave = () => {
     if (isCustom) {
-      // Formulario personalizado: actualiza directamente en customForms
       const updatedForm = isWizard
         ? { ...staticForm, questions: arrayToDict(questions) }
         : {
@@ -878,7 +882,6 @@ export default function FormEditorDetailScreen() {
           }
       updateCustomForm(formId, updatedForm)
     } else {
-      // Formulario estático: guarda override en editedForms
       const override = isWizard
         ? { questions: arrayToDict(questions) }
         : {
@@ -890,8 +893,8 @@ export default function FormEditorDetailScreen() {
       saveFormEdits(formId, override)
     }
     setHasChanges(false)
-    setShowSaveToast(true)
-    setTimeout(() => setShowSaveToast(false), 2500)
+    setShowSaveToast('success')
+    setTimeout(() => setShowSaveToast(false), 3000)
   }
 
   // Resetear a definición estática (solo formularios no-custom)
@@ -944,17 +947,17 @@ export default function FormEditorDetailScreen() {
           <ChevronDown size={20} color="var(--color-text-muted)" style={{ transform: 'rotate(90deg)' }} />
         </motion.button>
 
-        {/* Título */}
+        {/* Título — header siempre navy oscuro → texto siempre blanco */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             letterSpacing: '0.05em', textTransform: 'uppercase',
-            color: 'var(--color-text-primary)',
+            color: '#FFFFFF',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {staticForm.title}
           </div>
-          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
             {questions.length} preguntas {hasChanges && <span style={{ color: '#F2994A' }}>• cambios sin guardar</span>}
           </div>
         </div>
@@ -1033,7 +1036,7 @@ export default function FormEditorDetailScreen() {
               flex: 1, height: 44, background: 'none', border: 'none', cursor: 'pointer',
               borderBottom: activeTab === tab.id ? '2px solid var(--color-orange)' : '2px solid transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              color: activeTab === tab.id ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+              color: activeTab === tab.id ? '#FFFFFF' : 'rgba(255,255,255,0.5)',
               fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
               transition: 'all 0.2s',
             }}
@@ -1263,7 +1266,7 @@ export default function FormEditorDetailScreen() {
         )}
       </AnimatePresence>
 
-      {/* Toast de guardado exitoso */}
+      {/* Toast de guardado */}
       <AnimatePresence>
         {showSaveToast && (
           <motion.div
@@ -1274,18 +1277,31 @@ export default function FormEditorDetailScreen() {
               position: 'fixed',
               bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
               left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(39,174,96,0.15)',
-              border: '1px solid rgba(39,174,96,0.4)',
+              background: showSaveToast === 'error'
+                ? 'rgba(235,87,87,0.15)' : 'rgba(39,174,96,0.15)',
+              border: showSaveToast === 'error'
+                ? '1px solid rgba(235,87,87,0.4)' : '1px solid rgba(39,174,96,0.4)',
               borderRadius: 10, padding: '10px 20px',
               display: 'flex', alignItems: 'center', gap: 8,
               zIndex: 20, backdropFilter: 'blur(8px)',
               whiteSpace: 'nowrap',
             }}
           >
-            <CheckCircle2 size={14} color="#6FCF97" />
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6FCF97' }}>
-              Cambios guardados
-            </span>
+            {showSaveToast === 'error' ? (
+              <>
+                <AlertTriangle size={14} color="#EB5757" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#EB5757' }}>
+                  Error al guardar — intenta nuevamente
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={14} color="#6FCF97" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6FCF97' }}>
+                  Cambios guardados y sincronizados ✓
+                </span>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
