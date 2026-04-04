@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="es">
+<!-- style inline en <html>: Chrome Android lo lee ANTES que el CSS para colorear
+     la barra inferior de navegación en la PWA instalada. Sin esto, puede quedar blanca. -->
+<html lang="es" style="background-color:#1B2A4A;color-scheme:dark;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -7,10 +9,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MRC SST" />
-    <!-- Android: colorea barra de URL (navegador) y barra inferior de navegación (PWA).
-         El JS en main.jsx y userStore.js actualiza este valor al cambiar de tema. -->
+    <!-- Android: colorea barra de URL (navegador) y barra inferior de navegación (PWA) -->
     <meta name="theme-color" content="#1B2A4A" />
-    <!-- Fuerza esquema oscuro — evita que Chrome use modo claro del sistema y pinte barras blancas -->
+    <!-- Fuerza esquema oscuro — la app es independiente del tema del sistema -->
     <meta name="color-scheme" content="dark" />
 
     <meta name="description" content="Herramientas SST/SSO - Agrosuper Comercial. Misión Riesgo Cero." />

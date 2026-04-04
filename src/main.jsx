@@ -10,12 +10,11 @@ const savedStore = JSON.parse(localStorage.getItem('mrc-user-store') || '{}')
 const savedTheme = savedStore?.state?.theme || 'dark'
 document.documentElement.setAttribute('data-theme', savedTheme)
 
-// Sincronizar barra de URL y barra inferior Android con el tema guardado
+// Sincronizar barra de URL y barra inferior Android con el tema guardado.
+// Se actualiza el inline style del <html> — Chrome lo lee antes que el CSS.
 const navColor = savedTheme === 'light' ? '#F0F3F9' : '#1B2A4A'
 document.documentElement.style.backgroundColor = navColor
 document.querySelector('meta[name="theme-color"]')?.setAttribute('content', navColor)
-// color-scheme se mantiene 'dark' siempre (definido en index.css y en index.html)
-// La app es independiente del tema del sistema operativo.
 
 // MSAL v3+: initialize() debe completarse antes de montar la app
 msalInstance.initialize().then(() => {
