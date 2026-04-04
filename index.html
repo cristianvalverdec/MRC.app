@@ -7,14 +7,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MRC SST" />
-    <!-- Android: tema oscuro (default) — colorea barra superior Y barra inferior de navegación -->
-    <meta name="theme-color" content="#1B2A4A" media="(prefers-color-scheme: dark)" />
-    <!-- Android: tema claro — usa el gris claro de la app en modo light -->
-    <meta name="theme-color" content="#F0F3F9" media="(prefers-color-scheme: light)" />
-    <!-- Fallback sin media query para navegadores que no soportan media en theme-color -->
+    <!-- Android: colorea barra de URL (navegador) y barra inferior de navegación (PWA).
+         El JS en main.jsx y userStore.js actualiza este valor al cambiar de tema. -->
     <meta name="theme-color" content="#1B2A4A" />
-    <!-- Fuerza lectura del esquema de colores correcto por el sistema Android -->
-    <meta name="color-scheme" content="dark light" />
+    <!-- Fuerza esquema oscuro — evita que Chrome use modo claro del sistema y pinte barras blancas -->
+    <meta name="color-scheme" content="dark" />
 
     <meta name="description" content="Herramientas SST/SSO - Agrosuper Comercial. Misión Riesgo Cero." />
 

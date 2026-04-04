@@ -111,16 +111,15 @@
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
-  color-scheme: dark light;
+  color-scheme: dark;
   /* Chrome Android usa este background para colorear la barra inferior de navegación.
-     Se actualiza vía JS en setTheme() para modo claro/oscuro. */
+     JS en main.jsx y userStore.js actualiza este valor al cambiar de tema. */
   background-color: #1B2A4A;
 }
 
 [data-theme="light"] html,
 html[data-theme="light"] {
   background-color: #F0F3F9;
-  color-scheme: light;
 }
 
 body {
