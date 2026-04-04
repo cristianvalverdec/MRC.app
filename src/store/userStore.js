@@ -24,6 +24,11 @@ const useUserStore = create(
       setTheme: (theme) => {
         set({ theme })
         document.documentElement.setAttribute('data-theme', theme)
+        // Actualiza barra de navegación inferior Android en tiempo real
+        const navColor = theme === 'light' ? '#F0F3F9' : '#1B2A4A'
+        document.documentElement.style.backgroundColor = navColor
+        document.querySelector('meta[name="theme-color"]:not([media])')
+          ?.setAttribute('content', navColor)
       },
       clearUser: () => set({
         rut: '', name: '', email: '', jobTitle: '', photoUrl: '', unit: '', branch: '',

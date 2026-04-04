@@ -10,6 +10,12 @@ const savedStore = JSON.parse(localStorage.getItem('mrc-user-store') || '{}')
 const savedTheme = savedStore?.state?.theme || 'dark'
 document.documentElement.setAttribute('data-theme', savedTheme)
 
+// Sincronizar barra de navegación inferior Android con el tema cargado
+const navColor = savedTheme === 'light' ? '#F0F3F9' : '#1B2A4A'
+document.documentElement.style.backgroundColor = navColor
+document.querySelector('meta[name="theme-color"]:not([media])')
+  ?.setAttribute('content', navColor)
+
 // MSAL v3+: initialize() debe completarse antes de montar la app
 msalInstance.initialize().then(() => {
   createRoot(document.getElementById('root')).render(
