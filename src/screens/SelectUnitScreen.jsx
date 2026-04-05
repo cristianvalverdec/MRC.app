@@ -44,7 +44,7 @@ function AgrosuperLogo({ height = 32 }) {
   // Logo blanco: ratio 3.1 → h=32 → w≈99px. Logo color: ratio 1.5 → mismo w=99
   return (
     <motion.img
-      src={`${import.meta.env.BASE_URL}${isLight ? 'agrosuper-logo-color.png' : 'agrosuper-logo.png'}`}
+      src={`${import.meta.env.BASE_URL}${isLight ? 'agrosuper-logo-color.webp' : 'agrosuper-logo.webp'}`}
       alt="Agrosuper"
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -61,7 +61,7 @@ function AgrosuperLogo({ height = 32 }) {
 function TeamIllustration() {
   return (
     <img
-      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
+      src={`${import.meta.env.BASE_URL}mrc-logo.webp`}
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',

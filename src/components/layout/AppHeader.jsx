@@ -8,7 +8,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 function AgrosuperLogo({ height = 28 }) {
   return (
     <img
-      src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
+      src={`${import.meta.env.BASE_URL}agrosuper-logo.webp`}
       alt="Agrosuper"
       style={{ height, width: 'auto', display: 'block' }}
     />

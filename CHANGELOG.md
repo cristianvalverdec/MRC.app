@@ -5,6 +5,18 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.2.8] — 2026-04-04
+
+### Optimización de rendimiento
+- **Imágenes convertidas a WebP:** `mrc-logo`, `agrosuper-logo` y `agrosuper-logo-color` migrados de PNG a WebP con calidad 92%.
+  - `mrc-logo`: 5.1 MB → 836 KB (−84%)
+  - `agrosuper-logo-color`: 1.2 MB → 162 KB (−87%)
+  - Total imágenes del bundle: de ~6.4 MB a ~1.1 MB (−83%)
+- Reduce significativamente el tiempo de carga inicial en terreno (redes móviles).
+- Sin impacto visual: resolución y fidelidad de color intactas.
+
+---
+
 ## [1.2.7] — 2026-04-04
 
 ### Correcciones en Editor de Formularios
