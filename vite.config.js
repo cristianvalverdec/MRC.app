@@ -24,9 +24,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // autoUpdate: el SW nuevo se activa de inmediato (skipWaiting + clientsClaim).
-      // Antes era 'prompt' y el SW viejo persistía sirviendo HTML/CSS obsoleto.
-      registerType: 'autoUpdate',
+      // 'prompt': el SW nuevo espera en estado 'waiting' → UpdateBanner detecta
+      // ese estado y muestra el cuadro de actualización. El usuario hace clic en
+      // "ACTUALIZAR" → se envía SKIP_WAITING → SW activa → controllerchange → reload.
+      // skipWaiting:false garantiza que no se salte la espera de forma automática.
+      registerType: 'prompt',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Misión Riesgo Cero',
@@ -48,10 +50,10 @@ export default defineConfig({
       workbox: {
         // Fuerza activación inmediata del SW nuevo — sin esto, el SW viejo
         // sigue sirviendo HTML/manifest obsoletos hasta que el usuario cierre TODAS las pestañas.
-        skipWaiting: true,
+        skipWaiting: false,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,woff2,webmanifest}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/graph\.microsoft\.com\/.*/i,

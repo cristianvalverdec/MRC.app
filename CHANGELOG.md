@@ -5,6 +5,14 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.2.9] — 2026-04-04
+
+### Corrección
+- **Banner de actualización no aparecía:** el modo `autoUpdate` + `skipWaiting:true` activaba el nuevo Service Worker de inmediato sin pasar por el estado `waiting`, por lo que el `UpdateBanner` nunca se disparaba. Se cambia a `registerType:'prompt'` + `skipWaiting:false` para que el SW espere en estado `waiting` y el banner pueda detectarlo y mostrarse.
+- **Imágenes WebP no cacheadas offline:** se agrega `webp` a `globPatterns` de Workbox para que las imágenes convertidas en v1.2.8 sean parte del pre-cache del Service Worker.
+
+---
+
 ## [1.2.8] — 2026-04-04
 
 ### Optimización de rendimiento
