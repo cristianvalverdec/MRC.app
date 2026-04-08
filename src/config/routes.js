@@ -6,6 +6,11 @@ export const ROUTES = {
   DAILY_STATUS: '/unit/:unitType/status',
   ANALYTICS: '/unit/:unitType/analytics',
   FORM: '/form/:formType',
+  // Directorio de líderes (lectura — nivel ≥ 2)
+  LIDERES: '/unit/:unitType/lideres',
+  // Admin — gestión de instalaciones y líderes
+  ADMIN_LIDERES: '/admin/lideres',
+  ADMIN_INSTALACION: '/admin/lideres/:instalacion',
 }
 
 export const unitTypes = {

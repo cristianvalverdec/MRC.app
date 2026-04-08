@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain } from 'lucide-react'
+import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/MenuCard'
@@ -92,7 +92,11 @@ export default function ToolsMenuScreen() {
   const navigate  = useNavigate()
   const { unitType } = useParams()
   const role      = useUserStore((s) => s.role)
+  const mrcNivel  = useUserStore((s) => s.mrcNivel)
   const isAdmin   = role === 'admin' || IS_DEV_MODE
+  // En dev mode se simula nivel 6 (Jefe de Zona) para mostrar el directorio
+  const nivelEfectivo = IS_DEV_MODE ? 6 : mrcNivel
+  const puedeVerDirectorio = nivelEfectivo >= 2
   const customForms = useFormEditorStore((s) => s.customForms)
 
   const tools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
@@ -184,6 +188,36 @@ export default function ToolsMenuScreen() {
             </>
           )}
 
+          {/* ── Directorio de líderes (nivel ≥ 2) ───────────────────────── */}
+          {puedeVerDirectorio && (
+            <>
+              <motion.div variants={itemVariants}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 4px',
+                }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(39,174,96,0.2)' }} />
+                  <span style={{
+                    fontFamily: 'var(--font-body)', fontSize: 11,
+                    color: 'rgba(39,174,96,0.7)', letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}>
+                    Directorio
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(39,174,96,0.2)' }} />
+                </div>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <MenuCard
+                  icon={<Users size={22} color="#fff" />}
+                  label="Líderes de Instalación"
+                  sublabel="Directorio de contactos de jefatura"
+                  accentColor="#27AE60"
+                  onClick={() => navigate(`/unit/${unitType}/lideres`)}
+                />
+              </motion.div>
+            </>
+          )}
+
           {/* ── Card exclusiva para Administrador ─────────────────────── */}
           {isAdmin && (
             <>
@@ -217,6 +251,16 @@ export default function ToolsMenuScreen() {
                   accentColor="#7B3FE4"
                   badge="ADMIN"
                   onClick={() => navigate('/admin/form-editor')}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <MenuCard
+                  icon={<Users size={22} color="#fff" />}
+                  label="Gestión de Líderes"
+                  sublabel="Asignar y editar líderes por instalación"
+                  accentColor="#0891B2"
+                  badge="ADMIN"
+                  onClick={() => navigate('/admin/lideres')}
                 />
               </motion.div>
             </>

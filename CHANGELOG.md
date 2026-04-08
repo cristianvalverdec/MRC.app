@@ -5,6 +5,22 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.3.0] — 2026-04-08
+
+### Nuevas Funcionalidades
+- **Módulo de Líderes MRC:** registro y directorio de jefaturas por instalación, con dos niveles de acceso.
+  - **Vista Directorio (nivel ≥ 2 — Jefe de Despacho en adelante):** muestra nombre, cargo y email de los líderes de la instalación asignada. Botón mailto directo. Modal de reporte de actualización (cargo erróneo, líder nuevo, baja, observación libre) que registra en SharePoint.
+  - **Vista Admin (rol administrador):** panel completo con todas las instalaciones, semáforo de cobertura de cargos críticos (verde/amarillo/rojo), búsqueda y filtro por tipo. Pantalla de detalle por instalación con alta, edición y baja de líderes. Historial de cambios colapsable con tipos de movimiento y detalle.
+- **Catálogo de cargos MRC (`mrcCatalog.js`):** fuente de verdad interna para los 10 niveles jerárquicos (Ayudante de Despacho → Gerente Comercial), 26 instalaciones (21 sucursales + 5 distribuidoras) y 3 cargos críticos (Jefe de Zona, Jefe de Operaciones, Jefe de Frigorífico). Independiente de Azure AD.
+- **Servicio de líderes SharePoint (`lideresService.js`):** auto-creación de listas "Líderes MRC" e "Historial Líderes MRC" al primer uso. CRUD completo con soft-delete (Activo=false), auditoría de cambios y reporte de actualizaciones desde líderes.
+- **Store Zustand de líderes (`lideresStore.js`):** estado central con carga lazy por instalación o masiva, acciones de crear/actualizar/dar de baja y carga de historial.
+- **Cargo MRC en perfil de usuario:** `useBootstrap` enriquece el perfil con el cargo y nivel real del colaborador desde la lista SharePoint (sobrescribe Azure AD). Se persiste en `userStore` con `mrcNivel`, `mrcCargo` e `instalacionMRC`.
+- **Rutas nuevas:** `/unit/:unitType/lideres`, `/admin/lideres`, `/admin/lideres/:instalacion`.
+- **Entradas en menú de herramientas:** "Líderes de Instalación" visible para nivel ≥ 2; "Gestión de Líderes" visible solo para administradores.
+- **PIN de identificación:** diseñado para cuentas grupales — últimos 4 dígitos del RUT antes del guión (ej. 12.345.678-9 → PIN: 5678). Campo preparado en la lista SharePoint para implementación futura en formularios.
+
+---
+
 ## [1.2.9] — 2026-04-04
 
 ### Corrección

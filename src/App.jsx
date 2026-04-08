@@ -28,7 +28,10 @@ const GestionCPHSScreen          = lazy(() => import('./screens/GestionCPHSScree
 const GestionSaludScreen         = lazy(() => import('./screens/GestionSaludScreen'))
 const ProgramaTrabajoScreen      = lazy(() => import('./screens/ProgramaTrabajoScreen'))
 const DifusionesSSOScreen        = lazy(() => import('./screens/DifusionesSSOScreen'))
-const MonitorFatigaScreen        = lazy(() => import('./screens/MonitorFatigaScreen'))
+const MonitorFatigaScreen         = lazy(() => import('./screens/MonitorFatigaScreen'))
+const LideresScreen               = lazy(() => import('./screens/LideresScreen'))
+const LideresAdminScreen          = lazy(() => import('./screens/LideresAdminScreen'))
+const InstalacionDetailScreen     = lazy(() => import('./screens/InstalacionDetailScreen'))
 
 function PageFallback() {
   return (
@@ -65,10 +68,14 @@ function AnimatedRoutes() {
         <Route path="/unit/:unitType/difusiones-sso"  element={<DifusionesSSOScreen />} />
         <Route path="/unit/:unitType/monitor-fatiga"  element={<MonitorFatigaScreen />} />
         <Route path="/profile"                           element={<ProfileScreen />} />
+        {/* Directorio de líderes (lectura) */}
+        <Route path="/unit/:unitType/lideres"        element={<LideresScreen />} />
         {/* Admin routes */}
         <Route path="/admin/fa-data"                 element={<FADataEntryScreen />} />
         <Route path="/admin/form-editor"             element={<FormEditorListScreen />} />
         <Route path="/admin/form-editor/:formId"     element={<FormEditorDetailScreen />} />
+        <Route path="/admin/lideres"                 element={<LideresAdminScreen />} />
+        <Route path="/admin/lideres/:instalacion"    element={<InstalacionDetailScreen />} />
         {/* Fallback */}
         <Route path="*" element={<SplashScreen />} />
       </Routes>

@@ -9,6 +9,7 @@ import useUserStore from '../store/userStore'
 import useFormEditorStore from '../store/formEditorStore'
 import { loginRequest } from '../config/msalConfig'
 import { isAdmin } from '../services/adminService'
+import { getLiderByEmail } from '../services/lideresService'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -18,7 +19,7 @@ const GRAPH = 'https://graph.microsoft.com/v1.0'
 
 export function useBootstrap() {
   const { instance, accounts } = useMsal()
-  const { setUser, setPhotoUrl, isAuthenticated, photoUrl, name } = useUserStore()
+  const { setUser, setPhotoUrl, setMrcPerfil, isAuthenticated, photoUrl, name } = useUserStore()
   const fetching = useRef(false)
 
   useEffect(() => {
@@ -60,12 +61,27 @@ export function useBootstrap() {
           isAuthenticated: true,
         })
 
-        // 3. Descargar configuración de formularios — se hace aquí porque
+        // 3. Perfil MRC — busca el cargo real en la lista "Líderes MRC"
+        //    independiente del cargo en Azure AD (que puede estar desactualizado)
+        try {
+          const liderMRC = await getLiderByEmail(userEmail)
+          if (liderMRC) {
+            setMrcPerfil({
+              mrcNivel:      liderMRC.nivelJerarquico,
+              mrcCargo:      liderMRC.cargoMRC,
+              instalacionMRC: liderMRC.instalacion,
+            })
+          }
+        } catch {
+          // No bloquear el login si falla la consulta MRC
+        }
+
+        // 4. Descargar configuración de formularios — se hace aquí porque
         //    ya tenemos un token válido. App.jsx lo intenta al montar pero
         //    puede ejecutarse antes de que MSAL haya cargado las cuentas.
         useFormEditorStore.getState().pullFromCloud()
 
-        // 4. Foto de perfil (puede no existir → 404, se ignora)
+        // 5. Foto de perfil (puede no existir → 404, se ignora)
         try {
           const photoRes = await fetch(`${GRAPH}/me/photo/$value`, { headers })
           if (photoRes.ok) {
