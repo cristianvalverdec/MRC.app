@@ -168,7 +168,11 @@ export async function getLideres(instalacion = null) {
   const token    = await getToken()
   const siteBase = getSiteBase()
   const listId   = await resolveListId(token, LIST_LIDERES, COLS_LIDERES)
-  const headers  = { Authorization: `Bearer ${token}` }
+  // Prefer header necesario para filtrar por columnas no indexadas (Activo, Instalacion)
+  const headers  = {
+    Authorization: `Bearer ${token}`,
+    Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly',
+  }
 
   let filter = 'fields/Activo eq true'
   if (instalacion) {
@@ -193,7 +197,10 @@ export async function getLiderByEmail(email) {
   const token    = await getToken()
   const siteBase = getSiteBase()
   const listId   = await resolveListId(token, LIST_LIDERES, COLS_LIDERES)
-  const headers  = { Authorization: `Bearer ${token}` }
+  const headers  = {
+    Authorization: `Bearer ${token}`,
+    Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly',
+  }
   const em       = email.toLowerCase().trim().replace(/'/g, "''")
 
   const res  = await fetch(
@@ -353,7 +360,10 @@ export async function getHistorial(instalacion = null, limit = 20) {
   const token    = await getToken()
   const siteBase = getSiteBase()
   const listId   = await resolveListId(token, LIST_HISTORIAL, COLS_HISTORIAL)
-  const headers  = { Authorization: `Bearer ${token}` }
+  const headers  = {
+    Authorization: `Bearer ${token}`,
+    Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly',
+  }
 
   let url = `${siteBase}/lists/${listId}/items?$expand=fields&$orderby=createdDateTime desc&$top=${limit}`
   if (instalacion) {
