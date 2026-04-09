@@ -14,7 +14,7 @@ function AgrosuperShield({ height = 36 }) {
   // Logo color:  17718×11812 → ratio 1.5. Para w=111px → h≈74px
   return (
     <img
-      src={`${import.meta.env.BASE_URL}${isLight ? 'agrosuper-logo-color.webp' : 'agrosuper-logo.webp'}`}
+      src={`${import.meta.env.BASE_URL}agrosuper-logo.png`}
       alt="Agrosuper"
       style={isLight
         ? { width: 111, height: 'auto', display: 'block' }
@@ -28,7 +28,7 @@ function AgrosuperShield({ height = 36 }) {
 function TeamIllustration() {
   return (
     <img
-      src={`${import.meta.env.BASE_URL}mrc-logo.webp`}
+      src={`${import.meta.env.BASE_URL}mrc-logo.png`}
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',
