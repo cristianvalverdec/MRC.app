@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es" style="background-color:#1B2A4A;color-scheme:dark;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MRC SST" />
+    <meta name="theme-color" content="#1B2A4A" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Herramientas SST/SSO - Agrosuper Comercial. Misión Riesgo Cero." />
+
+    <link rel="icon" type="image/png" href="/MRC.app/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/MRC.app/icons/apple-touch-icon.png" />
+
+    <title>Misión Riesgo Cero · Agrosuper SST</title>
+
+    <!--
+      Script bloqueante: se ejecuta ANTES de que Chrome Android pinte el primer frame.
+      Fuerza fondo navy en html+body para que la barra inferior adopte ese color.
+      También lee el tema guardado del usuario para aplicar la variante correcta.
+    -->
+    <script>
+      (function() {
+        var NAVY = '#1B2A4A';
+        var d = document.documentElement;
+        try {
+          var s = JSON.parse(localStorage.getItem('mrc-user-store') || '{}');
+          var t = (s.state && s.state.theme) || 'dark';
+          if (t === 'light') {
+            var c = '#F0F3F9';
+            d.setAttribute('data-theme', 'light');
+            d.style.backgroundColor = c;
+            var m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', c);
+          } else {
+            d.style.backgroundColor = NAVY;
+          }
+        } catch(e) {
+          d.style.backgroundColor = NAVY;
+        }
+      })();
+    </script>
+
+    <!-- GitHub Pages SPA: restaura la ruta después del redirect de 404.html -->
+    <script>
+      (function () {
+        var qs = window.location.search;
+        if (qs.indexOf('?r=') === 0 || qs.indexOf('&r=') > -1) {
+          var params = {};
+          qs.slice(1).split('&').forEach(function (p) {
+            var kv = p.split('=');
+            params[kv[0]] = decodeURIComponent(kv[1] || '');
+          });
+          var path = params['r'] || '/';
+          var query = params['q'] ? '?' + params['q'] : '';
+          window.history.replaceState(
+            null, null,
+            '/MRC.app' + path + query + window.location.hash
+          );
+        }
+      })();
+    </script>
+  </head>
+  <body style="background-color:#1B2A4A;margin:0;">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
