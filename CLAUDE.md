@@ -196,7 +196,24 @@ src/
 
 ---
 
-## 9. Reglas para evitar regresiones
+## 9. Assets estáticos (logos e imágenes)
+
+Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}nombre.png`:
+
+| Archivo | Uso | Dimensiones | Notas |
+|---|---|---|---|
+| `public/agrosuper-logo.png` | Logo Agrosuper blanco | 5784×1864 px | Se usa en modo oscuro Y claro (único archivo disponible) |
+| `public/mrc-logo.png` | Ilustración MRC | ~5MB | `mixBlendMode: screen` sobre fondo oscuro |
+
+**IMPORTANTE — no usar `.webp` para estos logos:**
+- En un proceso anterior de optimización se intentó convertir los logos a WebP pero los archivos `.webp` quedaron como stubs de 0 bytes.
+- Los archivos funcionales son únicamente los `.png`.
+- Si se incorpora una versión WebP optimizada en el futuro, actualizar las referencias en: `AppHeader.jsx`, `SplashScreen.jsx`, `SelectUnitScreen.jsx`.
+- **No existe** `agrosuper-logo-color` (para modo claro) — si se necesita, agregar el archivo y actualizar las pantallas.
+
+---
+
+## 10. Reglas para evitar regresiones
 
 1. **Nunca cambiar `registerType` a `'autoUpdate'`** sin verificar que el UpdateBanner siga funcionando. Con autoUpdate + skipWaiting el banner no se muestra.
 2. **Nunca cambiar `cacheLocation` de MSAL** de `'localStorage'` a `'sessionStorage'` — rompe la persistencia de sesión en PWA.
@@ -207,10 +224,11 @@ src/
 7. **Al modificar el catálogo** (mrcCatalog.js): verificar que `lideresService.js` y `useBootstrap.js` siguen funcionando con los nuevos niveles.
 8. **Super-admin hardcodeado:** `cvalverde@agrosuper.com` no se puede eliminar desde la UI. Es intencional.
 9. **El CHANGELOG.md se actualiza automáticamente** con `deploy.sh`. No editarlo manualmente a menos que sea para corregir una entrada existente.
+10. **Logos referenciados como `.png`, no `.webp`** — ver sección 9. No cambiar extensión sin verificar que el archivo existe y tiene contenido.
 
 ---
 
-## 10. Módulos pendientes / WIP
+## 11. Módulos pendientes / WIP
 
 - **Monitor de Fatiga Operacional:** ruta existe (`/unit/:unitType/monitor-fatiga`), pantalla es stub.
 - **PIN de identificación:** campo preparado en SharePoint, falta integrar en formularios para cuentas grupales.
@@ -219,7 +237,7 @@ src/
 
 ---
 
-## 11. Deploy y versionado
+## 12. Deploy y versionado
 
 - `package.json` tiene la versión canónica (se inyecta en build vía `__APP_VERSION__`).
 - El script `deploy.sh` pide la versión nueva, actualiza `package.json`, agrega entrada al `CHANGELOG.md`, compila, despliega a gh-pages y hace push a main.
@@ -232,7 +250,7 @@ src/
 
 ---
 
-## 12. Contactos y contexto organizacional
+## 13. Contactos y contexto organizacional
 
 - **Equipo de desarrollo:** Magdalena Montenegro (coordinadora), Cristian Valverde (admin técnico).
 - **Repositorio:** `cristianvalverdec/MRC.app` en GitHub.
@@ -242,4 +260,4 @@ src/
 
 ---
 
-*Última actualización: 2026-04-08 — v1.3.0*
+*Última actualización: 2026-04-09 — v1.3.0*
