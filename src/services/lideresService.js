@@ -32,23 +32,33 @@ function getSiteBase() {
   return `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${path}:`
 }
 
+// Normaliza un string eliminando acentos/diacríticos para comparación robusta.
+function normalizar(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
+
 // Devuelve el GUID de una lista, creándola si no existe.
-// columnasDef: array de definiciones de columna Graph API a crear tras la lista.
+// Busca todas las listas del sitio y filtra en cliente para evitar problemas
+// con caracteres especiales (tildes, ñ) en filtros OData de Graph API.
 async function resolveListId(token, listName, columnasDef = []) {
   if (cacheListIds[listName]) return cacheListIds[listName]
 
   const siteBase = getSiteBase()
   const headers  = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
-  // Buscar lista existente
+  // Obtener todas las listas del sitio y buscar por nombre normalizado
   const searchRes  = await fetch(
-    `${siteBase}/lists?$filter=displayName eq '${encodeURIComponent(listName)}'&$select=id`,
+    `${siteBase}/lists?$select=id,displayName&$top=200`,
     { headers }
   )
   const searchData = await searchRes.json()
 
-  if (searchData.value?.length > 0) {
-    cacheListIds[listName] = searchData.value[0].id
+  const found = (searchData.value || []).find(
+    l => l.displayName === listName || normalizar(l.displayName) === normalizar(listName)
+  )
+
+  if (found) {
+    cacheListIds[listName] = found.id
     return cacheListIds[listName]
   }
 
