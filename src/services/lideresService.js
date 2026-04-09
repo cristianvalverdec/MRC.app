@@ -62,7 +62,17 @@ async function resolveListId(token, listName, columnasDef = []) {
     }),
   })
   const created = await createRes.json()
-  if (!created.id) throw new Error(`Error creando lista "${listName}": ${JSON.stringify(created)}`)
+  if (!created.id) {
+    // accessDenied = el usuario no tiene permisos de propietario en el sitio SharePoint.
+    // En ese caso mostrar un mensaje claro; el super-admin (cvalverde) puede crearla.
+    if (created.error?.code === 'accessDenied') {
+      throw Object.assign(
+        new Error(`La lista "${listName}" no existe y debe ser creada por el administrador del sitio SharePoint (Cristian Valverde).`),
+        { code: 'SP_SETUP_REQUIRED' }
+      )
+    }
+    throw new Error(`Error creando lista "${listName}": ${JSON.stringify(created)}`)
+  }
   cacheListIds[listName] = created.id
 
   // Crear columnas personalizadas (las que no existen por defecto)

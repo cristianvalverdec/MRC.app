@@ -318,7 +318,7 @@ export default function InstalacionDetailScreen() {
 
   const { email: adminEmail } = useUserStore()
   const {
-    cargarInstalacion, lideresActivos, loading, error,
+    cargarInstalacion, lideresActivos, loading, error, errorCode,
     crear, actualizar, darBaja,
     cargarHistorial, historialPorInstalacion, loadingHistorial,
   } = useLideresStore()
@@ -432,6 +432,22 @@ export default function InstalacionDetailScreen() {
             <AlertTriangle size={15} color="#F2994A" style={{ flexShrink: 0, marginTop: 1 }} />
             <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#F2994A' }}>
               <strong>Cargos críticos vacantes:</strong> {vacantesCriticas.join(', ')}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Aviso de configuración inicial ── */}
+        {!loading && error && errorCode === 'SP_SETUP_REQUIRED' && !IS_DEV_MODE && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{
+            background: 'rgba(242,153,74,0.08)', border: '1px solid rgba(242,153,74,0.3)',
+            borderRadius: 10, padding: '12px 14px',
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, color: '#F2994A' }}>
+              ⚙ Configuración inicial pendiente
+            </div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(242,153,74,0.85)', lineHeight: 1.5 }}>
+              Cristian Valverde debe crear las listas en SharePoint antes de poder registrar líderes.
             </div>
           </motion.div>
         )}

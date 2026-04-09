@@ -27,9 +27,10 @@ const useLideresStore = create((set, get) => ({
   // Líderes de la instalación activa
   lideresActivos: [],
 
-  loading:      false,
+  loading:          false,
   loadingHistorial: false,
-  error:        null,
+  error:            null,
+  errorCode:        null,  // 'SP_SETUP_REQUIRED' u otro código específico
 
   // ── Acciones ──────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ const useLideresStore = create((set, get) => ({
       return
     }
 
-    set({ loading: true, error: null, instalacionActiva: instalacion })
+    set({ loading: true, error: null, errorCode: null, instalacionActiva: instalacion })
     try {
       const lideres = await getLideres(instalacion)
       set(state => ({
@@ -53,7 +54,7 @@ const useLideresStore = create((set, get) => ({
         loading: false,
       }))
     } catch (err) {
-      set({ error: err.message, loading: false })
+      set({ error: err.message, errorCode: err.code || null, loading: false })
     }
   },
 
@@ -62,7 +63,7 @@ const useLideresStore = create((set, get) => ({
    * Devuelve un mapa { instalacion: [líder, ...] }.
    */
   cargarTodos: async () => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, errorCode: null })
     try {
       const todos = await getLideres()
       // Agrupar por instalación
@@ -74,7 +75,7 @@ const useLideresStore = create((set, get) => ({
       set({ lidereresPorInstalacion: mapa, loading: false })
       return mapa
     } catch (err) {
-      set({ error: err.message, loading: false })
+      set({ error: err.message, errorCode: err.code || null, loading: false })
       return {}
     }
   },
@@ -157,7 +158,7 @@ const useLideresStore = create((set, get) => ({
     await reportarActualizacion(reporte, emailReportador)
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null, errorCode: null }),
 }))
 
 export default useLideresStore

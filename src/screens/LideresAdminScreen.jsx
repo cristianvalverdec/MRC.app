@@ -120,7 +120,7 @@ function InstalacionCard({ instalacion, lideres, onClick }) {
 // ── Pantalla principal ────────────────────────────────────────────────────────
 export default function LideresAdminScreen() {
   const navigate = useNavigate()
-  const { lidereresPorInstalacion, cargarTodos, loading, error } = useLideresStore()
+  const { lidereresPorInstalacion, cargarTodos, loading, error, errorCode } = useLideresStore()
 
   const [busqueda,   setBusqueda]   = useState('')
   const [filtroDist, setFiltroDist] = useState('todas')  // 'todas' | 'sucursales' | 'distribuidoras'
@@ -252,8 +252,26 @@ export default function LideresAdminScreen() {
           </div>
         </motion.div>
 
-        {/* ── Error ── */}
-        {error && !loading && (
+        {/* ── Aviso de configuración inicial (listas SharePoint no creadas) ── */}
+        {error && !loading && errorCode === 'SP_SETUP_REQUIRED' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{
+            background: 'rgba(242,153,74,0.08)', border: '1px solid rgba(242,153,74,0.3)',
+            borderRadius: 10, padding: '14px 16px',
+            display: 'flex', flexDirection: 'column', gap: 6,
+          }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: '#F2994A' }}>
+              ⚙ Configuración inicial pendiente
+            </div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'rgba(242,153,74,0.85)', lineHeight: 1.5 }}>
+              Las listas <strong>"Líderes MRC"</strong> e <strong>"Historial Líderes MRC"</strong> aún no existen en SharePoint.
+              Cristian Valverde debe crearlas desde su cuenta (tiene permisos de propietario del sitio).
+              Mientras tanto puedes navegar por las instalaciones.
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Error genérico ── */}
+        {error && !loading && errorCode !== 'SP_SETUP_REQUIRED' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{
             background: 'rgba(235,87,87,0.08)', border: '1px solid rgba(235,87,87,0.25)',
             borderRadius: 10, padding: '12px 16px',
