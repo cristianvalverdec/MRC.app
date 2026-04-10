@@ -173,29 +173,31 @@ function mapHistorial(item) {
 /**
  * Devuelve todos los líderes activos.
  * Si instalacion se pasa, filtra por instalación.
+ *
+ * NOTA: Los filtros OData de Graph API son inestables con columnas de nombres
+ * acentuados (Instalación → Instalaci_x00f3_n) y con columnas boolean no indexadas.
+ * Se trae la lista completa sin $filter y se filtra en cliente para mayor robustez.
  */
 export async function getLideres(instalacion = null) {
   const token    = await getToken()
   const siteBase = getSiteBase()
   const listId   = await resolveListId(token, LIST_LIDERES, COLS_LIDERES)
-  // Prefer header necesario para filtrar por columnas no indexadas (Activo, Instalacion)
-  const headers  = {
-    Authorization: `Bearer ${token}`,
-    Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly',
-  }
-
-  let filter = 'fields/Activo eq true'
-  if (instalacion) {
-    filter += ` and fields/Instalaci_x00f3_n eq '${instalacion.replace(/'/g, "''")}'`
-  }
+  const headers  = { Authorization: `Bearer ${token}` }
 
   const res  = await fetch(
-    `${siteBase}/lists/${listId}/items?$expand=fields&$filter=${encodeURIComponent(filter)}&$top=500`,
+    `${siteBase}/lists/${listId}/items?$expand=fields&$top=999`,
     { headers }
   )
   const data = await res.json()
   if (!res.ok) throw new Error(`getLideres error ${res.status}: ${JSON.stringify(data)}`)
-  return (data.value || []).map(mapLider)
+
+  return (data.value || [])
+    .map(mapLider)
+    .filter(l => {
+      if (!l.activo) return false
+      if (instalacion && normalizar(l.instalacion) !== normalizar(instalacion)) return false
+      return true
+    })
 }
 
 /**
@@ -204,22 +206,9 @@ export async function getLideres(instalacion = null) {
  */
 export async function getLiderByEmail(email) {
   if (!email) return null
-  const token    = await getToken()
-  const siteBase = getSiteBase()
-  const listId   = await resolveListId(token, LIST_LIDERES, COLS_LIDERES)
-  const headers  = {
-    Authorization: `Bearer ${token}`,
-    Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly',
-  }
-  const em       = email.toLowerCase().trim().replace(/'/g, "''")
-
-  const res  = await fetch(
-    `${siteBase}/lists/${listId}/items?$expand=fields&$filter=fields/Email eq '${em}' and fields/Activo eq true&$top=1`,
-    { headers }
-  )
-  const data = await res.json()
-  if (!res.ok || !data.value?.length) return null
-  return mapLider(data.value[0])
+  const todos = await getLideres()
+  const em    = email.toLowerCase().trim()
+  return todos.find(l => l.email === em) || null
 }
 
 /**
