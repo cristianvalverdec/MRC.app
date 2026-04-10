@@ -106,22 +106,24 @@ async function ensureColumns(siteBase, listId, columnasDef, headers) {
 }
 
 // Columnas para "Líderes MRC"
+// NOTA: SharePoint codifica la "ó" como "_x00f3_" en el nombre interno de columnas
+// creadas desde la interfaz web con tilde (ej: "Instalación" → "Instalaci_x00f3_n").
 const COLS_LIDERES = [
-  { name: 'Email',           text: {} },
-  { name: 'CargoMRC',        text: {} },
-  { name: 'NivelJerarquico', number: {} },
-  { name: 'Instalacion',     text: {} },
-  { name: 'TipoInstalacion', text: {} },
-  { name: 'RUT',             text: {} },
-  { name: 'PIN',             text: {} },
-  { name: 'Activo',          boolean: {} },
-  { name: 'AsignadoPor',     text: {} },
+  { name: 'Email',                text: {} },
+  { name: 'CargoMRC',             text: {} },
+  { name: 'NivelJerarquico',      number: {} },
+  { name: 'Instalaci_x00f3_n',    text: {} },
+  { name: 'TipoInstalaci_x00f3_n', text: {} },
+  { name: 'RUT',                  text: {} },
+  { name: 'PIN',                  text: {} },
+  { name: 'Activo',               boolean: {} },
+  { name: 'AsignadoPor',          text: {} },
 ]
 
 // Columnas para "Historial Líderes MRC"
 const COLS_HISTORIAL = [
-  { name: 'Instalacion',    text: {} },
-  { name: 'CargoMRC',       text: {} },
+  { name: 'Instalaci_x00f3_n',  text: {} },
+  { name: 'CargoMRC',           text: {} },
   { name: 'NombreAnterior', text: {} },
   { name: 'NombreNuevo',    text: {} },
   { name: 'EmailAnterior',  text: {} },
@@ -140,8 +142,8 @@ function mapLider(item) {
     email:            (f.Email         || '').toLowerCase().trim(),
     cargoMRC:         f.CargoMRC       || '',
     nivelJerarquico:  f.NivelJerarquico != null ? Number(f.NivelJerarquico) : 0,
-    instalacion:      f.Instalacion    || '',
-    tipoInstalacion:  f.TipoInstalacion|| '',
+    instalacion:      f.Instalaci_x00f3_n     || '',
+    tipoInstalacion:  f.TipoInstalaci_x00f3_n || '',
     rut:              f.RUT            || '',
     pin:              f.PIN            || '',
     activo:           f.Activo !== false,  // default true si undefined
@@ -184,7 +186,7 @@ export async function getLideres(instalacion = null) {
 
   let filter = 'fields/Activo eq true'
   if (instalacion) {
-    filter += ` and fields/Instalacion eq '${instalacion.replace(/'/g, "''")}'`
+    filter += ` and fields/Instalaci_x00f3_n eq '${instalacion.replace(/'/g, "''")}'`
   }
 
   const res  = await fetch(
@@ -236,8 +238,8 @@ export async function crearLider(lider, adminEmail) {
       Email:           (lider.email || '').toLowerCase().trim(),
       CargoMRC:        lider.cargoMRC,
       NivelJerarquico: lider.nivelJerarquico,
-      Instalacion:     lider.instalacion,
-      TipoInstalacion: lider.tipoInstalacion,
+      Instalaci_x00f3_n:     lider.instalacion,
+      TipoInstalaci_x00f3_n: lider.tipoInstalacion,
       RUT:             lider.rut || '',
       PIN:             lider.pin || '',
       Activo:          true,
@@ -395,8 +397,8 @@ async function _registrarHistorial(entrada, token, siteBase) {
     headers,
     body: JSON.stringify({
       fields: {
-        Title:          entrada.instalacion,
-        Instalacion:    entrada.instalacion,
+        Title:               entrada.instalacion,
+        Instalaci_x00f3_n:   entrada.instalacion,
         CargoMRC:       entrada.cargoMRC,
         NombreAnterior: entrada.nombreAnterior,
         NombreNuevo:    entrada.nombreNuevo,
