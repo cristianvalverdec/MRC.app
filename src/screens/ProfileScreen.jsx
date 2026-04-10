@@ -98,7 +98,7 @@ function AdminPanel({ currentEmail }) {
     try {
       const list = await getAdmins()
       setAdmins(list)
-    } catch (e) {
+    } catch (_e) {
       setError('No se pudo cargar la lista de administradores')
     } finally {
       setLoading(false)

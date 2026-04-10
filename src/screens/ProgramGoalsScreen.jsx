@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Filter, ChevronDown, ChevronUp, Info, ClipboardList, PersonStanding, Megaphone, Pencil } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
-import { containerVariants, itemVariants } from '../components/ui/MenuCard'
+import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import useGoalsStore, { getTramo, TRAMO_META } from '../store/goalsStore'
 import useUserStore from '../store/userStore'
 import { SUCURSALES_LIST } from '../hooks/useKPIs'
@@ -249,7 +249,6 @@ function TramoSummary({ counts }) {
 // ── Pantalla principal ────────────────────────────────────────────────────
 export default function ProgramGoalsScreen() {
   const navigate           = useNavigate()
-  const { unitType }       = useParams()
   const getFAForBranch     = useGoalsStore((s) => s.getFAForBranch)
   const getTargetsForTramo = useGoalsStore((s) => s.getTargetsForTramo)
   const role               = useUserStore((s) => s.role)

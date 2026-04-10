@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FolderOpen, ClipboardList, Search, Camera, Paperclip,
@@ -12,7 +12,6 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 // ── Componente de carga de foto + archivo ─────────────────────────────────
 function UploadPanel({ title, accentColor, icon }) {
-  const navigate = useNavigate()
   const cameraRef = useRef(null)
   const fileRef   = useRef(null)
 
@@ -247,7 +246,6 @@ function UploadPanel({ title, accentColor, icon }) {
 // ── Main Screen ───────────────────────────────────────────────────────────
 export default function ProgramaTrabajoScreen() {
   const navigate = useNavigate()
-  const { unitType } = useParams()
   const [searchParams] = useSearchParams()
   const instalacion = searchParams.get('instalacion') || 'Instalación'
 

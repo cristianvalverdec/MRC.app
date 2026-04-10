@@ -3,8 +3,7 @@
 // Cada usuario ve solo su instalación (excepción: nivel 7+ ve todas).
 // Incluye botón para reportar información desactualizada al administrador.
 
-import { useEffect, useState, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Building2, AlertCircle, ChevronDown, ChevronUp, Send, Loader, Users, ArrowLeft } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
@@ -268,10 +267,7 @@ function ModalReporte({ instalacion, onClose, onEnviar }) {
 
 // ── Pantalla principal ─────────────────────────────────────────────────────────
 export default function LideresScreen() {
-  const navigate    = useNavigate()
-  const { unitType } = useParams()
-
-  const { role, mrcNivel, instalacionMRC, email, name } = useUserStore()
+  const { role, mrcNivel, instalacionMRC, email } = useUserStore()
   const { cargarInstalacion, lideresActivos, loading, error, enviarReporte } = useLideresStore()
 
   const [mostrarReporte, setMostrarReporte] = useState(false)

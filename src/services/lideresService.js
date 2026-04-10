@@ -59,6 +59,10 @@ async function resolveListId(token, listName, columnasDef = []) {
 
   if (found) {
     cacheListIds[listName] = found.id
+    // Asegurar que las columnas personalizadas existan aunque la lista haya sido
+    // creada manualmente (sin columnas). SharePoint ignora silenciosamente las
+    // columnas que ya existen cuando se envían con POST — si devuelve error, lo ignoramos.
+    await ensureColumns(siteBase, found.id, columnasDef, headers)
     return cacheListIds[listName]
   }
 
@@ -84,17 +88,21 @@ async function resolveListId(token, listName, columnasDef = []) {
     throw new Error(`Error creando lista "${listName}": ${JSON.stringify(created)}`)
   }
   cacheListIds[listName] = created.id
+  await ensureColumns(siteBase, cacheListIds[listName], columnasDef, headers)
 
-  // Crear columnas personalizadas (las que no existen por defecto)
+  return cacheListIds[listName]
+}
+
+// Crea las columnas que aún no existen en una lista.
+// Los errores individuales se ignoran (columna ya existe, sin permisos de columna, etc.)
+async function ensureColumns(siteBase, listId, columnasDef, headers) {
   for (const colDef of columnasDef) {
-    await fetch(`${siteBase}/lists/${cacheListIds[listName]}/columns`, {
+    await fetch(`${siteBase}/lists/${listId}/columns`, {
       method: 'POST',
       headers,
       body: JSON.stringify(colDef),
-    }).catch(() => {})  // ignorar si ya existe
+    }).catch(() => {})
   }
-
-  return cacheListIds[listName]
 }
 
 // Columnas para "Líderes MRC"

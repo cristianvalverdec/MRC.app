@@ -491,7 +491,7 @@ export async function fetchRecentActivity(unitType, filters = {}) {
   return allItems
     .sort((a, b) => b.created - a.created)
     .slice(0, 10)
-    .map(({ created, ...rest }) => rest)
+    .map(({ created: _created, ...rest }) => rest)
 }
 
 // ── Detalle de registros de hoy para una tarjeta KPI ─────────────────────

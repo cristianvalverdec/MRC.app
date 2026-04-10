@@ -4,7 +4,7 @@
 // Muestra el historial completo de cambios de la instalación.
 
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UserPlus, Pencil, Trash2, ChevronDown, ChevronUp, Loader,
@@ -312,7 +312,6 @@ function LiderAdminCard({ lider, onEditar, onBaja }) {
 
 // ── Pantalla principal ────────────────────────────────────────────────────────
 export default function InstalacionDetailScreen() {
-  const navigate = useNavigate()
   const { instalacion: instalacionParam } = useParams()
   const instalacion = decodeURIComponent(instalacionParam || '')
 

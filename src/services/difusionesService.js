@@ -50,7 +50,7 @@ function getSiteBase() {
 
 async function uploadFileToDrive(token, file, folder) {
   const siteBase = getSiteBase()
-  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._\-]/g, '_')}`
+  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
   const endpoint = `${siteBase}/drive/root:${folder}/${safeName}:/content`
   const response = await fetch(endpoint, {
     method: 'PUT',
