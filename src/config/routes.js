@@ -11,6 +11,8 @@ export const ROUTES = {
   // Admin — gestión de instalaciones y líderes
   ADMIN_LIDERES: '/admin/lideres',
   ADMIN_INSTALACION: '/admin/lideres/:instalacion',
+  // Admin — panel de conexiones SharePoint
+  ADMIN_CONNECTIONS: '/admin/sharepoint-connections',
 }
 
 export const unitTypes = {

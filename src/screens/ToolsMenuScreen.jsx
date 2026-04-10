@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users } from 'lucide-react'
+import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users, Database } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
@@ -261,6 +261,16 @@ export default function ToolsMenuScreen() {
                   accentColor="#0891B2"
                   badge="ADMIN"
                   onClick={() => navigate('/admin/lideres')}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <MenuCard
+                  icon={<Database size={22} color="#fff" />}
+                  label="Conexiones SharePoint"
+                  sublabel="Estado de listas y servicios conectados"
+                  accentColor="#E67E22"
+                  badge="ADMIN"
+                  onClick={() => navigate('/admin/sharepoint-connections')}
                 />
               </motion.div>
             </>

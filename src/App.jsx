@@ -32,6 +32,7 @@ const MonitorFatigaScreen         = lazy(() => import('./screens/MonitorFatigaSc
 const LideresScreen               = lazy(() => import('./screens/LideresScreen'))
 const LideresAdminScreen          = lazy(() => import('./screens/LideresAdminScreen'))
 const InstalacionDetailScreen     = lazy(() => import('./screens/InstalacionDetailScreen'))
+const SharePointConnectionsScreen = lazy(() => import('./screens/SharePointConnectionsScreen'))
 
 function PageFallback() {
   return (
@@ -76,6 +77,7 @@ function AnimatedRoutes() {
         <Route path="/admin/form-editor/:formId"     element={<FormEditorDetailScreen />} />
         <Route path="/admin/lideres"                 element={<LideresAdminScreen />} />
         <Route path="/admin/lideres/:instalacion"    element={<InstalacionDetailScreen />} />
+        <Route path="/admin/sharepoint-connections" element={<SharePointConnectionsScreen />} />
         {/* Fallback */}
         <Route path="*" element={<SplashScreen />} />
       </Routes>
