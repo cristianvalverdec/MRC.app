@@ -77,19 +77,20 @@ describe('CARGOS_CRITICOS_POR_ESTRUCTURA', () => {
     })
   })
 
-  it('completa tiene 4 cargos, sin_frigorifico tiene 3, sin_joperaciones tiene 2', () => {
+  it('completa tiene 4 cargos, sin_frigorifico tiene 3, sin_joperaciones tiene 3', () => {
     expect(CARGOS_CRITICOS_POR_ESTRUCTURA.completa).toHaveLength(4)
     expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_frigorifico).toHaveLength(3)
-    expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_joperaciones).toHaveLength(2)
+    expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_joperaciones).toHaveLength(3)
   })
 
-  it('sin_frigorifico NO incluye Jefe de Frigorífico', () => {
+  it('sin_frigorifico NO incluye Jefe de Frigorífico (J. Operaciones asume ese rol)', () => {
     expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_frigorifico).not.toContain('Jefe de Frigorífico')
+    expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_frigorifico).toContain('Jefe de Operaciones')
   })
 
-  it('sin_joperaciones NO incluye Jefe de Operaciones ni Jefe de Frigorífico', () => {
+  it('sin_joperaciones NO incluye Jefe de Operaciones pero SÍ Jefe de Frigorífico', () => {
     expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_joperaciones).not.toContain('Jefe de Operaciones')
-    expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_joperaciones).not.toContain('Jefe de Frigorífico')
+    expect(CARGOS_CRITICOS_POR_ESTRUCTURA.sin_joperaciones).toContain('Jefe de Frigorífico')
   })
 })
 
@@ -106,20 +107,25 @@ describe('getCargosEstructura', () => {
     expect(cargos).toContain('Jefe Administrativo')
   })
 
-  it('sin_joperaciones → 2 cargos, solo Jefe de Zona y Jefe Administrativo', () => {
+  it('sin_joperaciones → 3 cargos: Jefe de Zona, Jefe de Frigorífico y Jefe Administrativo', () => {
     const cargos = getCargosEstructura('Hijuelas')
-    expect(cargos).toHaveLength(2)
+    expect(cargos).toHaveLength(3)
     expect(cargos).toContain('Jefe de Zona')
+    expect(cargos).toContain('Jefe de Frigorífico')
     expect(cargos).toContain('Jefe Administrativo')
+    expect(cargos).not.toContain('Jefe de Operaciones')
   })
 
   it('instalación inexistente → usa completa por defecto', () => {
     expect(getCargosEstructura('Instalación Fantasma')).toHaveLength(4)
   })
 
-  it('las 3 instalaciones sin_joperaciones están correctamente clasificadas', () => {
+  it('las 3 instalaciones sin_joperaciones requieren Jefe de Frigorífico pero no Jefe de Operaciones', () => {
     ['Hijuelas', 'Puerto Montt', 'Punta Arenas'].forEach((nombre) => {
-      expect(getCargosEstructura(nombre)).toHaveLength(2)
+      const cargos = getCargosEstructura(nombre)
+      expect(cargos).toHaveLength(3)
+      expect(cargos).toContain('Jefe de Frigorífico')
+      expect(cargos).not.toContain('Jefe de Operaciones')
     })
   })
 

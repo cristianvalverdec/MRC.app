@@ -80,10 +80,16 @@ export const NIVEL_MIN_DIRECTORIO = 2  // Jefe de Despacho en adelante
 
 // Cargos críticos por tipo de estructura organizativa.
 // El Jefe Administrativo es OBLIGATORIO en TODAS las estructuras sin excepción.
+//
+// sin_frigorifico:  el Jefe de Operaciones asume el rol del frigorífico →
+//                   no se requiere Jefe de Frigorífico como cargo separado.
+// sin_joperaciones: la instalación sí tiene frigorífico propio, pero el Jefe de
+//                   Operaciones no existe como cargo → se requiere Jefe de Frigorífico
+//                   pero NO Jefe de Operaciones.
 export const CARGOS_CRITICOS_POR_ESTRUCTURA = {
   completa:         ['Jefe de Zona', 'Jefe de Operaciones', 'Jefe de Frigorífico', 'Jefe Administrativo'],
   sin_frigorifico:  ['Jefe de Zona', 'Jefe de Operaciones', 'Jefe Administrativo'],
-  sin_joperaciones: ['Jefe de Zona', 'Jefe Administrativo'],
+  sin_joperaciones: ['Jefe de Zona', 'Jefe de Frigorífico', 'Jefe Administrativo'],
 }
 
 // Alias para instalaciones de estructura completa (referencia y compatibilidad)
