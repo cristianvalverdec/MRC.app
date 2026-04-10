@@ -370,6 +370,9 @@ export default function InstalacionDetailScreen() {
     } else {
       await crear(datos, adminEmail)
     }
+    // Forzar re-fetch desde SharePoint para reflejar el estado real
+    // (la respuesta del POST no incluye $expand=fields, así que el caché local queda incompleto)
+    await cargarInstalacion(instalacion, true)
   }
 
   const handleConfirmarBaja = async () => {
@@ -377,6 +380,8 @@ export default function InstalacionDetailScreen() {
     setBajando(true)
     try {
       await darBaja(confirmBaja.id, confirmBaja, adminEmail)
+      // Forzar re-fetch tras dar de baja
+      await cargarInstalacion(instalacion, true)
     } finally {
       setBajando(false)
       setConfirmBaja(null)
