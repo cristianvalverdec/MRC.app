@@ -5,6 +5,21 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.3.1] — 2026-04-10
+
+### Mejoras
+- **Estructura organizativa por instalación:** el catálogo `mrcCatalog.js` incorpora el campo `estructura` en cada instalación y un mapa `CARGOS_CRITICOS_POR_ESTRUCTURA` con tres tipos:
+  - `completa` — estructura estándar: Jefe de Zona, Jefe de Operaciones, Jefe de Frigorífico, Jefe Administrativo.
+  - `sin_frigorifico` — sin frigorífico propio: Jefe de Zona, Jefe de Operaciones, Jefe Administrativo. Aplica a: Arica, Calama, Copiapó, San Antonio, Los Ángeles, Valdivia, Osorno.
+  - `sin_joperaciones` — estructura reducida: Jefe de Zona, Jefe Administrativo. Aplica a: Hijuelas, Puerto Montt, Punta Arenas.
+  - **Jefe Administrativo es obligatorio en todas las estructuras sin excepción.**
+- **Helper `getCargosEstructura(nombre)`:** devuelve la lista de cargos críticos según la estructura de la instalación. Usado en `LideresAdminScreen` y `InstalacionDetailScreen`.
+- **Semáforo de cobertura actualizado:** `LideresAdminScreen` ahora evalúa vacantes respecto a los cargos requeridos por cada instalación (no un listado global). El texto de leyenda inferior refleja la variabilidad por estructura.
+- **Alerta de vacantes en detalle:** `InstalacionDetailScreen` muestra correctamente los cargos vacantes según la estructura de la instalación visitada.
+- **Tests centinela ampliados:** `regression-catalog.test.js` cubre estructura por instalación, `CARGOS_CRITICOS_POR_ESTRUCTURA`, helper `getCargosEstructura` con casos borde (instalación inexistente → `completa`). Total: 38 tests pasando.
+
+---
+
 ## [1.3.0] — 2026-04-08
 
 ### Nuevas Funcionalidades

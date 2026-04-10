@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useFormEditorStore from '../store/formEditorStore'
-import { containerVariants, itemVariants } from '../components/ui/MenuCard'
+import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 
 // ── Catálogo de formularios estáticos ─────────────────────────────────────
 const FORM_CATALOG = [

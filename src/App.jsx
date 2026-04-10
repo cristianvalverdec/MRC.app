@@ -85,7 +85,7 @@ function AnimatedRoutes() {
 
 // Maneja el retorno del redirect de Microsoft y sincroniza el usuario en el store
 function AuthHandler() {
-  const { instance, accounts, inProgress } = useMsal()
+  const { accounts, inProgress } = useMsal()
   const isAuthenticated = useIsAuthenticated()
   const setUser = useUserStore((s) => s.setUser)
   const navigate = useNavigate()

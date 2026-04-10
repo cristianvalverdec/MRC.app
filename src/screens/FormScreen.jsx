@@ -554,7 +554,12 @@ function SectionsMode({ form, formType }) {
       </div>
 
       <div style={{ flex: 1, padding: '16px 16px 0', overflowY: 'auto' }}>
-        {visibleSections.map((section, si) => (
+        {(() => {
+          // Compute the first error question ID before rendering (avoids reading ref during render)
+          const firstErrorId = unansweredIds.size > 0
+            ? visibleSections.flatMap(s => s.questions.filter(q => !q.visibleWhen || q.visibleWhen(answers))).find(q => unansweredIds.has(q.id))?.id ?? null
+            : null
+          return visibleSections.map((section, si) => (
           <motion.div
             key={section.id}
             initial={{ opacity: 0, y: 16 }}
@@ -575,11 +580,11 @@ function SectionsMode({ form, formType }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {section.questions.filter(q => !q.visibleWhen || q.visibleWhen(answers)).map((question) => {
                 const hasError = unansweredIds.has(question.id)
-                const isFirstError = hasError && firstErrorRef.current === null
+                const isFirstError = hasError && question.id === firstErrorId
                 return (
                   <div
                     key={question.id}
-                    ref={hasError && isFirstError ? (el) => { firstErrorRef.current = el } : null}
+                    ref={isFirstError ? (el) => { firstErrorRef.current = el } : null}
                   >
                     <QuestionRenderer
                       question={question}
@@ -592,7 +597,8 @@ function SectionsMode({ form, formType }) {
               })}
             </div>
           </motion.div>
-        ))}
+        ))
+        })()}
         <div style={{ height: 16 }} />
       </div>
 
@@ -656,7 +662,6 @@ function SectionsMode({ form, formType }) {
 // ── Main entry point ──────────────────────────────────────────────────────
 export default function FormScreen() {
   const { formType } = useParams()
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const cphsMode = searchParams.get('cphs') === 'true'
 

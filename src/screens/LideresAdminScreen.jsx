@@ -9,16 +9,17 @@ import { Building2, AlertTriangle, CheckCircle, ChevronRight, Search, Loader, Re
 import AppHeader from '../components/layout/AppHeader'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import useLideresStore from '../store/lideresStore'
-import { INSTALACIONES_MRC, CARGOS_CRITICOS } from '../config/mrcCatalog'
+import { INSTALACIONES_MRC, getCargosEstructura } from '../config/mrcCatalog'
 import { IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function semaforo(lideres) {
+function semaforo(instalacionNombre, lideres) {
   // Sin líderes = rojo
   if (!lideres || lideres.length === 0) return 'rojo'
-  const cargos = lideres.map(l => l.cargoMRC)
-  const vacantes = CARGOS_CRITICOS.filter(c => !cargos.includes(c))
+  const cargos    = lideres.map(l => l.cargoMRC)
+  const criticos  = getCargosEstructura(instalacionNombre)
+  const vacantes  = criticos.filter(c => !cargos.includes(c))
   if (vacantes.length === 0) return 'verde'
   if (vacantes.length <= 1) return 'amarillo'
   return 'rojo'
@@ -46,12 +47,12 @@ const DEMO_LIDERES = {
 
 // ── Tarjeta de instalación ────────────────────────────────────────────────────
 function InstalacionCard({ instalacion, lideres, onClick }) {
-  const estado   = semaforo(lideres)
+  const estado   = semaforo(instalacion.nombre, lideres)
   const colores  = COLORES_SEMAFORO[estado]
   const esDistrib = instalacion.tipo === 'Distribuidora'
 
   const cargosPresentes = (lideres || []).map(l => l.cargoMRC)
-  const vacanteCritica  = CARGOS_CRITICOS.filter(c => !cargosPresentes.includes(c))
+  const vacanteCritica  = getCargosEstructura(instalacion.nombre).filter(c => !cargosPresentes.includes(c))
 
   return (
     <motion.button
@@ -143,7 +144,7 @@ export default function LideresAdminScreen() {
 
   // Conteo de alertas
   const totalAlertas = INSTALACIONES_MRC.filter(inst =>
-    semaforo(mapa[inst.nombre]) !== 'verde'
+    semaforo(inst.nombre, mapa[inst.nombre]) !== 'verde'
   ).length
 
   return (
@@ -332,7 +333,7 @@ export default function LideresAdminScreen() {
             </div>
           ))}
           <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, fontStyle: 'italic' }}>
-            Cargos críticos: {CARGOS_CRITICOS.join(', ')}
+            Los cargos requeridos varían según la estructura de cada instalación (completa / sin frigorífico / sin J. Operaciones). Jefe Administrativo es obligatorio en todas.
           </div>
         </motion.div>
 

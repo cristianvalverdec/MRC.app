@@ -1,0 +1,23 @@
+#!/bin/sh
+
+echo "🔍 Pre-commit: lint + tests + build..."
+
+# 1. Lint — errores de sintaxis y convenciones
+npm run lint || {
+  echo "❌ Lint falló. Corrige los errores antes de hacer commit."
+  exit 1
+}
+
+# 2. Tests centinela — reglas anti-regresión
+npm run test || {
+  echo "❌ Tests centinela fallaron. Revisa qué regla de regresión se rompió."
+  exit 1
+}
+
+# 3. Build — la app debe compilar sin errores
+npm run build || {
+  echo "❌ Build falló. La app no compila."
+  exit 1
+}
+
+echo "✅ Pre-commit OK"

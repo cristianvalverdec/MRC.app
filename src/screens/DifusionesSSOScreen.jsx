@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Download, ChevronRight, Users, Calendar,
@@ -293,7 +292,6 @@ function FileItem({ file, onRemove }) {
 
 function RegistroForm() {
   const branch = useUserStore((s) => s.branch)
-  const name   = useUserStore((s) => s.name)
 
   const [instalacion,   setInstalacion]   = useState(branch || '')
   const [equipo,        setEquipo]        = useState('')

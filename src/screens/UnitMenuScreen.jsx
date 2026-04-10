@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { ShieldCheck, BarChart2, TrendingUp, Target, Users, HeartPulse } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
-import { containerVariants, itemVariants } from '../components/ui/MenuCard'
+import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import { unitLabels } from '../config/routes'
 
 const menuItems = {

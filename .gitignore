@@ -20,3 +20,18 @@ npm-debug.log*
 
 # Vite
 .vite/
+
+# Archivos duplicados por conflicto de Finder/iCloud
+* [0-9].*
+* [0-9][0-9].*
+
+# Workbox y SW generados (se regeneran en build)
+sw.js
+registerSW.js
+workbox-*.js
+
+# node_modules antiguos
+node_modules_old/
+
+# WebP stubs vacíos (ver CLAUDE.md sección 9)
+public/*.webp

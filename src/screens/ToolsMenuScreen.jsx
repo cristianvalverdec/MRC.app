@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
-import { containerVariants, itemVariants } from '../components/ui/MenuCard'
+import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import useUserStore from '../store/userStore'
 import useFormEditorStore from '../store/formEditorStore'
 

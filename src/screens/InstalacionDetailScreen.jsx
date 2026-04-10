@@ -14,7 +14,7 @@ import AppHeader from '../components/layout/AppHeader'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import useUserStore from '../store/userStore'
 import useLideresStore from '../store/lideresStore'
-import { CARGOS_MRC, INSTALACIONES_MRC, CARGOS_CRITICOS } from '../config/mrcCatalog'
+import { CARGOS_MRC, INSTALACIONES_MRC, getCargosEstructura } from '../config/mrcCatalog'
 import { IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ export default function InstalacionDetailScreen() {
 
   // Cargos presentes y vacantes críticos
   const cargosPresentes = lideres.map(l => l.cargoMRC)
-  const vacantesCriticas = CARGOS_CRITICOS.filter(c => !cargosPresentes.includes(c))
+  const vacantesCriticas = getCargosEstructura(instalacion).filter(c => !cargosPresentes.includes(c))
 
   // Ordenar líderes por nivel desc
   const lideresOrdenados = [...lideres].sort((a, b) => b.nivelJerarquico - a.nivelJerarquico)

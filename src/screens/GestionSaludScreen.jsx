@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { HeartPulse, ChevronRight, Stethoscope, FileBarChart2, CalendarClock, ShieldAlert } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
@@ -35,9 +35,6 @@ const modules = [
 ]
 
 export default function GestionSaludScreen() {
-  const navigate = useNavigate()
-  const { unitType } = useParams()
-
   return (
     <div
       style={{

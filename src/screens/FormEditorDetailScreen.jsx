@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -780,7 +780,7 @@ export default function FormEditorDetailScreen() {
   const { formId } = useParams()
   const navigate = useNavigate()
   const {
-    editedForms, saveFormEdits, resetFormEdits,
+    saveFormEdits, resetFormEdits,
     customForms, updateCustomForm, deleteCustomForm,
   } = useFormEditorStore()
 
@@ -827,8 +827,6 @@ export default function FormEditorDetailScreen() {
   const [showDeleteFormConfirm, setShowDeleteFormConfirm] = useState(false)
   const [showSaveToast, setShowSaveToast] = useState(false)   // 'success' | 'error' | false
   const [deleteConfirm, setDeleteConfirm] = useState(null)
-
-  const allIds = questions.map(q => q.id)
 
   const markChanged = (newQs) => {
     setQuestions(newQs)

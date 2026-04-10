@@ -145,42 +145,17 @@ src/
 
 ---
 
-## 6. Catálogo organizacional (mrcCatalog.js)
+## 6. Catálogo organizacional
 
-**10 niveles jerárquicos:**
-
-| Nivel | Cargo | Alcance |
-|-------|-------|---------|
-| 1 | Ayudante de Despacho | turno (requiere PIN) |
-| 2 | Jefe de Despacho | turno (requiere PIN) |
-| 3 | Jefe de Frigorífico | instalación |
-| 4 | Jefe de Operaciones | instalación |
-| 5 | Jefe Administrativo | instalación |
-| 6 | Jefe de Zona | instalación |
-| 7 | Subgerente de Zona | zona (nacional) |
-| 8 | Gerente de Sucursales | nacional |
-| 9 | Gerente de Ventas Nacionales | nacional |
-| 10 | Gerente Comercial | nacional |
-
-**26 instalaciones** (21 sucursales + 5 distribuidoras).
-**Cargos críticos** (disparan semáforo de cobertura): Jefe de Zona, Jefe de Operaciones, Jefe de Frigorífico.
+→ Fuente de verdad: `src/config/mrcCatalog.js` (10 niveles, 26 instalaciones, 3 cargos críticos).
+→ Tests centinela: `src/__tests__/regression-catalog.test.js` valida integridad.
 
 ---
 
 ## 7. Listas SharePoint
 
-| Lista | Uso |
-|---|---|
-| Reglas de Oro - Sucursales | Formulario pauta-verificacion-reglas-oro |
-| Caminata de Seguridad | Formulario caminata-seguridad |
-| Inspección Simple | Formulario inspeccion-simple |
-| Reglas de Oro - Ventas | Formulario reglas oro (fuerza ventas) |
-| Difusiones SSO MRC | Charlas SSO registradas |
-| Maestro de Cierre Condiciones | Workflow de cierre |
-| Líderes MRC | Directorio de jefaturas (auto-created) |
-| Historial Líderes MRC | Log de cambios de líderes (auto-created) |
-| Administradores MRC | Lista de emails admin |
-| mrc-forms-config.json | Archivo en drive — overrides de formularios |
+→ Mapeo completo en `src/services/sharepointData.js`.
+→ Al agregar formulario nuevo: crear lista en SharePoint Y agregar mapeo en ese archivo.
 
 ---
 
@@ -225,10 +200,29 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 8. **Super-admin hardcodeado:** `cvalverde@agrosuper.com` no se puede eliminar desde la UI. Es intencional.
 9. **El CHANGELOG.md se actualiza automáticamente** con `deploy.sh`. No editarlo manualmente a menos que sea para corregir una entrada existente.
 10. **Logos referenciados como `.png`, no `.webp`** — ver sección 9. No cambiar extensión sin verificar que el archivo existe y tiene contenido.
+11. **Antes de hacer commit, ejecutar `npm test`** — los tests centinela validan automáticamente las reglas 1-10. Si un test falla, NO hacer commit.
+12. **Al agregar una regla anti-regresión nueva**, agregar también un test centinela en `src/__tests__/`.
 
 ---
 
-## 11. Módulos pendientes / WIP
+## 11. Tests centinela (anti-regresión)
+
+```
+src/__tests__/
+├── regression-pwa.test.js      registerType, skipWaiting, logos PNG
+├── regression-msal.test.js     cacheLocation, scopes MSAL
+├── regression-forms.test.js    initQuestions, integridad formDefinitions
+├── regression-catalog.test.js  jerarquía, instalaciones, helpers
+└── regression-theme.test.js    data-theme, color-scheme, meta tags
+```
+
+- **Ejecutar:** `npm test` (Vitest)
+- **Pre-commit hook (Husky):** lint → test → build. Si cualquier paso falla, el commit se rechaza.
+- Cada regla de la sección 10 tiene su test correspondiente. Al crear una regla nueva, crear su test.
+
+---
+
+## 12. Módulos pendientes / WIP
 
 - **Monitor de Fatiga Operacional:** ruta existe (`/unit/:unitType/monitor-fatiga`), pantalla es stub.
 - **PIN de identificación:** campo preparado en SharePoint, falta integrar en formularios para cuentas grupales.
@@ -237,7 +231,7 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 
 ---
 
-## 12. Deploy y versionado
+## 13. Deploy y versionado
 
 - `package.json` tiene la versión canónica (se inyecta en build vía `__APP_VERSION__`).
 - El script `deploy.sh` pide la versión nueva, actualiza `package.json`, agrega entrada al `CHANGELOG.md`, compila, despliega a gh-pages y hace push a main.
@@ -250,7 +244,7 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 
 ---
 
-## 13. Contactos y contexto organizacional
+## 14. Contactos y contexto organizacional
 
 - **Equipo de desarrollo:** Magdalena Montenegro (coordinadora), Cristian Valverde (admin técnico).
 - **Repositorio:** `cristianvalverdec/MRC.app` en GitHub.
@@ -260,4 +254,4 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 
 ---
 
-*Última actualización: 2026-04-09 — v1.3.0*
+*Última actualización: 2026-04-09 — v1.3.0 — Tests centinela + Husky + Claude Code hooks*

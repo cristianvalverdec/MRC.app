@@ -28,7 +28,7 @@ function wasDismissedRecently() {
 }
 
 function saveDismissed() {
-  try { localStorage.setItem(STORAGE_KEY, String(Date.now())) } catch {}
+  try { localStorage.setItem(STORAGE_KEY, String(Date.now())) } catch { /* no-op */ }
 }
 
 // ── Banner iOS: instrucciones manuales ────────────────────────────────────
