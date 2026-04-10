@@ -1,19 +1,21 @@
 import { useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Database, CheckCircle, XCircle, Loader, RefreshCw,
-  Link2, FileText, Users, Shield, BookOpen, Settings,
-  ChevronDown, ChevronUp, Globe, HardDrive,
+  Globe, HardDrive, Users, Settings, ChevronDown, ChevronUp,
+  Link2, Pencil, Trash2, Save,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import { msalInstance } from '../config/msalInstance'
 import { graphScopes } from '../config/msalConfig'
+import {
+  saveConnectionOverride,
+  clearConnectionOverride,
+  getAllConnectionOverrides,
+} from '../services/sharepointData'
 
 // ── Registro estático de conexiones SharePoint ──────────────────────────────
-// Fuente de verdad centralizada para el panel de administración.
-// Al agregar una lista nueva en sharepointData.js, agregar aquí también.
-
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL || '(no configurado)'
 
 const IS_DEV_MODE =
@@ -21,7 +23,6 @@ const IS_DEV_MODE =
   import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
 const CONNECTIONS = [
-  // ── Listas con GUID fijo (formularios) ────────────────────────────────────
   {
     category: 'Formularios',
     items: [
@@ -81,7 +82,6 @@ const CONNECTIONS = [
       },
     ],
   },
-  // ── Listas dinámicas (se crean automáticamente) ───────────────────────────
   {
     category: 'Gestión de Líderes',
     items: [
@@ -103,7 +103,6 @@ const CONNECTIONS = [
       },
     ],
   },
-  // ── Listas de sistema ─────────────────────────────────────────────────────
   {
     category: 'Sistema',
     items: [
@@ -117,7 +116,6 @@ const CONNECTIONS = [
       },
     ],
   },
-  // ── Archivos en Drive ─────────────────────────────────────────────────────
   {
     category: 'Archivos de Configuración',
     items: [
@@ -133,7 +131,6 @@ const CONNECTIONS = [
   },
 ]
 
-// Variables de entorno relevantes
 const ENV_VARS = [
   { key: 'VITE_SHAREPOINT_SITE_URL', label: 'URL del sitio SharePoint', value: import.meta.env.VITE_SHAREPOINT_SITE_URL },
   { key: 'VITE_AZURE_CLIENT_ID', label: 'App Registration ID', value: import.meta.env.VITE_AZURE_CLIENT_ID ? '••••' + (import.meta.env.VITE_AZURE_CLIENT_ID || '').slice(-4) : null },
@@ -145,7 +142,7 @@ const ENV_VARS = [
   { key: 'VITE_SP_SEMANA_DIST', label: 'Carpeta semana — Distribuidoras', value: import.meta.env.VITE_SP_SEMANA_DIST },
 ]
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers Graph API ────────────────────────────────────────────────────────
 
 async function getGraphToken() {
   const accounts = msalInstance.getAllAccounts()
@@ -162,11 +159,13 @@ function getSiteBase() {
   return `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${path}:`
 }
 
-// Test de conectividad para una lista por GUID
+// ── Test de conectividad ─────────────────────────────────────────────────────
+// FIX: itemCount no es campo válido en $select de Graph API → se omite
+
 async function testListByGuid(listId, token) {
   const siteBase = getSiteBase()
   if (!siteBase) return { ok: false, error: 'VITE_SHAREPOINT_SITE_URL no configurado' }
-  const res = await fetch(`${siteBase}/lists/${listId}?$select=id,displayName,itemCount`, {
+  const res = await fetch(`${siteBase}/lists/${listId}?$select=id,displayName`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
@@ -174,29 +173,25 @@ async function testListByGuid(listId, token) {
     return { ok: false, error: `HTTP ${res.status}`, detail: txt }
   }
   const data = await res.json()
-  return { ok: true, displayName: data.displayName, itemCount: data.itemCount }
+  return { ok: true, displayName: data.displayName }
 }
 
-// Test de conectividad para una lista por nombre (dinámicas)
 async function testListByName(listName, token) {
   const siteBase = getSiteBase()
   if (!siteBase) return { ok: false, error: 'VITE_SHAREPOINT_SITE_URL no configurado' }
   const res = await fetch(
-    `${siteBase}/lists?$filter=displayName eq '${listName}'&$select=id,displayName,itemCount`,
+    `${siteBase}/lists?$filter=displayName eq '${encodeURIComponent(listName)}'&$select=id,displayName`,
     { headers: { Authorization: `Bearer ${token}` } },
   )
-  if (!res.ok) {
-    return { ok: false, error: `HTTP ${res.status}` }
-  }
+  if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
   const data = await res.json()
   if (!data.value || data.value.length === 0) {
     return { ok: false, error: 'Lista no encontrada (se creará al primer uso)' }
   }
   const list = data.value[0]
-  return { ok: true, displayName: list.displayName, itemCount: list.itemCount, resolvedId: list.id }
+  return { ok: true, displayName: list.displayName, resolvedId: list.id }
 }
 
-// Test de conectividad para archivo en Drive
 async function testDriveFile(fileName, token) {
   const siteBase = getSiteBase()
   if (!siteBase) return { ok: false, error: 'VITE_SHAREPOINT_SITE_URL no configurado' }
@@ -209,236 +204,190 @@ async function testDriveFile(fileName, token) {
   return { ok: true, size: data.size, lastModified: data.lastModifiedDateTime }
 }
 
-// ── Estilos ─────────────────────────────────────────────────────────────────
+// ── Resolución de URL/nombre → GUID ─────────────────────────────────────────
+// Acepta: GUID directo, URL de SharePoint (/Lists/NombreLista/...), nombre de lista
+async function resolveToListId(input, token) {
+  const trimmed = input.trim()
+  const guidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const styles = {
-  page: {
-    minHeight: '100dvh',
-    display: 'flex',
-    flexDirection: 'column',
-    background: 'var(--color-navy)',
-  },
-  content: {
-    flex: 1,
-    padding: '20px 16px 32px',
-  },
-  siteUrl: {
-    background: 'var(--color-navy-mid)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-card)',
-    padding: '12px 16px',
-    marginBottom: 16,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
-  siteUrlText: {
-    fontFamily: 'var(--font-body)',
-    fontSize: 12,
-    color: 'var(--color-text-muted)',
-    wordBreak: 'break-all',
-  },
-  siteLabel: {
-    fontFamily: 'var(--font-display)',
-    fontSize: 11,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  testAllBtn: {
-    background: 'rgba(47,128,237,0.15)',
-    border: '1px solid rgba(47,128,237,0.3)',
-    borderRadius: 8,
-    padding: '10px 16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    cursor: 'pointer',
-    width: '100%',
-    marginBottom: 20,
-    fontFamily: 'var(--font-display)',
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#60A5FA',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
-  categoryHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    margin: '20px 0 10px',
-    cursor: 'pointer',
-  },
-  categoryLine: {
-    flex: 1,
-    height: 1,
-  },
-  categoryLabel: {
-    fontFamily: 'var(--font-body)',
-    fontSize: 11,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-  },
-  card: {
-    background: 'var(--color-navy-mid)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-card)',
-    padding: '14px 16px',
-    marginBottom: 8,
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  cardTitle: {
-    fontFamily: 'var(--font-display)',
-    fontWeight: 700,
-    fontSize: 13,
-    letterSpacing: '0.04em',
-    color: 'var(--color-text-primary)',
-    lineHeight: 1.3,
-  },
-  cardSub: {
-    fontFamily: 'var(--font-body)',
-    fontSize: 11,
-    color: 'var(--color-text-muted)',
-    marginTop: 2,
-  },
-  tag: {
-    display: 'inline-block',
-    fontFamily: 'var(--font-display)',
-    fontSize: 9,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    padding: '2px 6px',
-    borderRadius: 4,
-    marginRight: 6,
-    marginTop: 4,
-  },
-  detailRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    fontFamily: 'var(--font-body)',
-    fontSize: 11,
-  },
-  detailLabel: {
-    color: 'var(--color-text-muted)',
-    minWidth: 60,
-  },
-  detailValue: {
-    color: 'var(--color-text-primary)',
-    wordBreak: 'break-all',
-    fontSize: 10,
-    fontFamily: 'monospace',
-  },
-  statusDot: (ok) => ({
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: ok ? '#27AE60' : '#E74C3C',
-    flexShrink: 0,
-  }),
-  statusText: {
-    fontFamily: 'var(--font-body)',
-    fontSize: 11,
-    marginTop: 8,
-    padding: '6px 10px',
-    borderRadius: 6,
-  },
-  envSection: {
-    background: 'var(--color-navy-mid)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-card)',
-    padding: '14px 16px',
-    marginTop: 8,
-  },
-  envRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '6px 0',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
-  },
-  summary: {
-    display: 'flex',
-    gap: 12,
-    marginBottom: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    background: 'var(--color-navy-mid)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-card)',
-    padding: '12px',
-    textAlign: 'center',
-  },
-  summaryNumber: {
-    fontFamily: 'var(--font-display)',
-    fontSize: 24,
-    fontWeight: 700,
-    color: 'var(--color-text-primary)',
-  },
-  summaryLabel: {
-    fontFamily: 'var(--font-body)',
-    fontSize: 10,
-    color: 'var(--color-text-muted)',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-  },
+  // Caso 1: ya es un GUID
+  if (guidRe.test(trimmed)) {
+    const result = await testListByGuid(trimmed, token)
+    if (!result.ok) throw new Error(result.error)
+    return { listId: trimmed, displayName: result.displayName }
+  }
+
+  // Caso 2: es una URL de SharePoint
+  let listName = trimmed
+  try {
+    const url = new URL(trimmed)
+    // Intentar extraer nombre de /Lists/NombreLista/
+    const matchLists = url.pathname.match(/\/[Ll]ists\/([^/]+)/i)
+    if (matchLists) {
+      listName = decodeURIComponent(matchLists[1])
+    } else {
+      // Intentar GUID en query param ?List={guid}
+      const listParam = url.searchParams.get('List')
+      if (listParam) {
+        const cleanGuid = listParam.replace(/[{}]/g, '')
+        if (guidRe.test(cleanGuid)) {
+          const result = await testListByGuid(cleanGuid, token)
+          if (!result.ok) throw new Error(result.error)
+          return { listId: cleanGuid, displayName: result.displayName }
+        }
+      }
+    }
+  } catch (e) {
+    if (e.message !== 'Failed to construct \'URL\': Invalid URL') throw e
+    // No era URL válida, seguir con listName = trimmed
+  }
+
+  // Caso 3: nombre de lista
+  const result = await testListByName(listName, token)
+  if (!result.ok || !result.resolvedId) throw new Error(result.error || 'Lista no encontrada')
+  return { listId: result.resolvedId, displayName: result.displayName }
 }
 
-// ── Componentes internos ────────────────────────────────────────────────────
+// ── Estilos ──────────────────────────────────────────────────────────────────
+
+const s = {
+  page: { minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' },
+  content: { flex: 1, padding: '20px 16px 32px' },
+  siteUrl: {
+    background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-card)', padding: '12px 16px', marginBottom: 16,
+    display: 'flex', alignItems: 'center', gap: 10,
+  },
+  siteLabel: { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 },
+  siteUrlText: { fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', wordBreak: 'break-all' },
+  testAllBtn: {
+    background: 'rgba(47,128,237,0.15)', border: '1px solid rgba(47,128,237,0.3)',
+    borderRadius: 8, padding: '10px 16px', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', gap: 8, cursor: 'pointer', width: '100%', marginBottom: 20,
+    fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+    color: '#60A5FA', letterSpacing: '0.05em', textTransform: 'uppercase',
+  },
+  catHeader: { display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 10px', cursor: 'pointer' },
+  catLine: { flex: 1, height: 1 },
+  catLabel: { fontFamily: 'var(--font-body)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' },
+  card: { background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '14px 16px', marginBottom: 8 },
+  cardHeader: { display: 'flex', alignItems: 'flex-start', gap: 10 },
+  iconBox: { width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  cardTitle: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', color: 'var(--color-text-primary)', lineHeight: 1.3 },
+  cardSub: { fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 },
+  tag: { display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', padding: '2px 6px', borderRadius: 4, marginRight: 6, marginTop: 4 },
+  detailRow: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontFamily: 'var(--font-body)', fontSize: 11 },
+  detailLabel: { color: 'var(--color-text-muted)', minWidth: 60 },
+  detailValue: { color: 'var(--color-text-primary)', wordBreak: 'break-all', fontSize: 10, fontFamily: 'monospace' },
+  statusText: { fontFamily: 'var(--font-body)', fontSize: 11, marginTop: 8, padding: '6px 10px', borderRadius: 6 },
+  summary: { display: 'flex', gap: 12, marginBottom: 16 },
+  summaryCard: { flex: 1, background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '12px', textAlign: 'center' },
+  summaryNumber: { fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--color-text-primary)' },
+  summaryLabel: { fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  envSection: { background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '14px 16px', marginTop: 8 },
+  envRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  statusDot: (ok) => ({ width: 8, height: 8, borderRadius: '50%', background: ok ? '#27AE60' : '#E74C3C', flexShrink: 0 }),
+  // Config panel
+  cfgPanel: { marginTop: 10, padding: '12px 14px', background: 'rgba(47,128,237,0.06)', border: '1px solid rgba(47,128,237,0.18)', borderRadius: 8 },
+  cfgLabel: { fontFamily: 'var(--font-body)', fontSize: 11, color: '#60A5FA', marginBottom: 6 },
+  cfgInput: {
+    width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(47,128,237,0.3)', borderRadius: 6, padding: '8px 10px',
+    fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-primary)',
+    outline: 'none',
+  },
+  cfgRow: { display: 'flex', gap: 8, marginTop: 8 },
+  cfgBtn: (color) => ({
+    flex: 1, padding: '7px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+    fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+    background: color === 'primary' ? 'rgba(47,128,237,0.25)' : 'rgba(255,255,255,0.07)',
+    color: color === 'primary' ? '#60A5FA' : 'var(--color-text-muted)',
+  }),
+}
+
+// ── Componentes internos ─────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
   if (!status) return null
-  if (status.loading) {
-    return (
-      <div style={{ ...styles.statusText, background: 'rgba(47,128,237,0.1)', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
-        Verificando...
-      </div>
-    )
-  }
-  if (status.ok) {
-    return (
-      <div style={{ ...styles.statusText, background: 'rgba(39,174,96,0.1)', color: '#27AE60', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <CheckCircle size={12} />
-        <span>
-          Conectado
-          {status.displayName ? ` — "${status.displayName}"` : ''}
-          {status.itemCount != null ? ` (${status.itemCount} registros)` : ''}
-          {status.size != null ? ` (${(status.size / 1024).toFixed(1)} KB)` : ''}
-          {status.lastModified ? ` — ${new Date(status.lastModified).toLocaleDateString('es-CL')}` : ''}
-        </span>
-      </div>
-    )
-  }
+  if (status.loading) return (
+    <div style={{ ...s.statusText, background: 'rgba(47,128,237,0.1)', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> Verificando...
+    </div>
+  )
+  if (status.ok) return (
+    <div style={{ ...s.statusText, background: 'rgba(39,174,96,0.1)', color: '#27AE60', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <CheckCircle size={12} />
+      <span>
+        Conectado{status.displayName ? ` — "${status.displayName}"` : ''}
+        {status.size != null ? ` (${(status.size / 1024).toFixed(1)} KB)` : ''}
+        {status.lastModified ? ` — ${new Date(status.lastModified).toLocaleDateString('es-CL')}` : ''}
+      </span>
+    </div>
+  )
   return (
-    <div style={{ ...styles.statusText, background: 'rgba(231,76,60,0.1)', color: '#E74C3C', display: 'flex', alignItems: 'center', gap: 6 }}>
-      <XCircle size={12} />
-      <span>{status.error || 'Error desconocido'}</span>
+    <div style={{ ...s.statusText, background: 'rgba(231,76,60,0.1)', color: '#E74C3C', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <XCircle size={12} /> <span>{status.error || 'Error desconocido'}</span>
     </div>
   )
 }
 
-function ConnectionCard({ item, status }) {
+function ConfigPanel({ item, override, onSave, onClear }) {
+  const [input, setInput] = useState('')
+  const [resolving, setResolving] = useState(false)
+  const [resolveError, setResolveError] = useState(null)
+
+  const handleSave = async () => {
+    if (!input.trim()) return
+    setResolving(true)
+    setResolveError(null)
+    try {
+      const token = await getGraphToken()
+      const { listId, displayName } = await resolveToListId(input, token)
+      onSave(item.formId, listId, displayName)
+      setInput('')
+    } catch (err) {
+      setResolveError(err.message)
+    } finally {
+      setResolving(false)
+    }
+  }
+
+  return (
+    <div style={s.cfgPanel}>
+      <div style={s.cfgLabel}>
+        {override
+          ? `Override activo: ${override.listId}`
+          : 'Pega la URL de la lista SharePoint o su GUID'}
+      </div>
+      <input
+        style={s.cfgInput}
+        placeholder="https://agrosuper.sharepoint.com/.../Lists/NombreLista  ó  guid"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      {resolveError && (
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#E74C3C', marginTop: 4 }}>
+          {resolveError}
+        </div>
+      )}
+      <div style={s.cfgRow}>
+        <button style={s.cfgBtn('primary')} onClick={handleSave} disabled={resolving || !input.trim()}>
+          {resolving ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={12} />}
+          {resolving ? 'Resolviendo...' : 'Guardar'}
+        </button>
+        {override && (
+          <button style={s.cfgBtn('secondary')} onClick={() => onClear(item.formId)}>
+            <Trash2 size={12} /> Quitar override
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ConnectionCard({ item, status, override, onSave, onClear }) {
+  const [cfgOpen, setCfgOpen] = useState(false)
   const iconColor = item.type === 'guid' ? '#2F80ED' : item.type === 'dynamic' ? '#0891B2' : '#F57C20'
   const IconComponent = item.type === 'drive' ? HardDrive : item.type === 'dynamic' ? Users : Database
 
@@ -449,75 +398,126 @@ function ConnectionCard({ item, status }) {
     Global: { bg: 'rgba(123,63,228,0.12)', color: '#C084FC', border: 'rgba(123,63,228,0.25)' },
   }
   const unitStyle = unitColors[item.unit] || unitColors.Global
+  const effectiveId = override ? override.listId : item.listId
 
   return (
-    <motion.div variants={itemVariants} style={styles.card}>
-      <div style={styles.cardHeader}>
-        <div style={{ ...styles.iconBox, background: `${iconColor}22` }}>
+    <motion.div variants={itemVariants} style={s.card}>
+      <div style={s.cardHeader}>
+        <div style={{ ...s.iconBox, background: `${iconColor}22` }}>
           <IconComponent size={18} color={iconColor} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={styles.cardTitle}>{item.name}</div>
-          <div style={styles.cardSub}>{item.formLabel}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={s.cardTitle}>{item.name}</span>
+            {override && (
+              <span style={{ ...s.tag, background: 'rgba(245,124,32,0.15)', color: '#F5A623', border: '1px solid rgba(245,124,32,0.3)', marginTop: 0 }}>
+                OVERRIDE
+              </span>
+            )}
+          </div>
+          <div style={s.cardSub}>{item.formLabel}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-            <span style={{ ...styles.tag, background: unitStyle.bg, color: unitStyle.color, border: `1px solid ${unitStyle.border}` }}>
+            <span style={{ ...s.tag, background: unitStyle.bg, color: unitStyle.color, border: `1px solid ${unitStyle.border}` }}>
               {item.unit}
             </span>
-            <span style={{ ...styles.tag, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span style={{ ...s.tag, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
               {item.service}
             </span>
             {item.type === 'dynamic' && (
-              <span style={{ ...styles.tag, background: 'rgba(8,145,178,0.12)', color: '#22D3EE', border: '1px solid rgba(8,145,178,0.25)' }}>
+              <span style={{ ...s.tag, background: 'rgba(8,145,178,0.12)', color: '#22D3EE', border: '1px solid rgba(8,145,178,0.25)' }}>
                 Auto-creada
               </span>
             )}
           </div>
         </div>
+        {/* Botón Configurar — solo para listas con formId */}
+        {item.formId && (
+          <button
+            onClick={() => setCfgOpen((v) => !v)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: cfgOpen ? '#60A5FA' : 'var(--color-text-muted)', flexShrink: 0 }}
+            title="Configurar conexión"
+          >
+            <Pencil size={14} />
+          </button>
+        )}
       </div>
 
-      {item.listId && (
-        <div style={styles.detailRow}>
-          <span style={styles.detailLabel}>GUID:</span>
-          <span style={styles.detailValue}>{item.listId}</span>
+      {effectiveId && (
+        <div style={s.detailRow}>
+          <span style={s.detailLabel}>GUID:</span>
+          <span style={{ ...s.detailValue, color: override ? '#F5A623' : 'var(--color-text-primary)' }}>
+            {effectiveId}
+          </span>
         </div>
       )}
       {item.formId && (
-        <div style={styles.detailRow}>
-          <span style={styles.detailLabel}>Form ID:</span>
-          <span style={styles.detailValue}>{item.formId}</span>
+        <div style={s.detailRow}>
+          <span style={s.detailLabel}>Form ID:</span>
+          <span style={s.detailValue}>{item.formId}</span>
         </div>
       )}
 
       <StatusBadge status={status} />
+
+      <AnimatePresence>
+        {cfgOpen && item.formId && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <ConfigPanel
+              item={item}
+              override={override}
+              onSave={(formId, listId, displayName) => {
+                onSave(formId, listId, displayName)
+                setCfgOpen(false)
+              }}
+              onClear={(formId) => {
+                onClear(formId)
+                setCfgOpen(false)
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-// ── Pantalla principal ──────────────────────────────────────────────────────
+// ── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function SharePointConnectionsScreen() {
   const [statuses, setStatuses] = useState({})
   const [testing, setTesting] = useState(false)
+  const [overrides, setOverrides] = useState(() => getAllConnectionOverrides())
   const [expandedCategories, setExpandedCategories] = useState(() => {
-    const initial = {}
-    CONNECTIONS.forEach((cat) => { initial[cat.category] = true })
-    initial['Variables de Entorno'] = false
-    return initial
+    const init = {}
+    CONNECTIONS.forEach((cat) => { init[cat.category] = true })
+    init['Variables de Entorno'] = false
+    return init
   })
 
-  const toggleCategory = (cat) => {
-    setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
-  }
+  const toggleCategory = (cat) => setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))
 
-  // Total de conexiones
   const totalConnections = CONNECTIONS.reduce((sum, cat) => sum + cat.items.length, 0)
   const testedCount = Object.keys(statuses).length
   const okCount = Object.values(statuses).filter((s) => s.ok).length
   const failCount = Object.values(statuses).filter((s) => !s.loading && !s.ok).length
 
+  const handleSaveOverride = useCallback((formId, listId) => {
+    saveConnectionOverride(formId, listId)
+    setOverrides(getAllConnectionOverrides())
+  }, [])
+
+  const handleClearOverride = useCallback((formId) => {
+    clearConnectionOverride(formId)
+    setOverrides(getAllConnectionOverrides())
+  }, [])
+
   const testAll = useCallback(async () => {
     if (IS_DEV_MODE) {
-      // En dev mode simulamos resultados
       const simulated = {}
       CONNECTIONS.forEach((cat) => {
         cat.items.forEach((item) => {
@@ -529,23 +529,20 @@ export default function SharePointConnectionsScreen() {
     }
 
     setTesting(true)
-    // Marcar todas como "loading"
     const loading = {}
-    CONNECTIONS.forEach((cat) => {
-      cat.items.forEach((item) => { loading[item.name] = { loading: true } })
-    })
+    CONNECTIONS.forEach((cat) => { cat.items.forEach((item) => { loading[item.name] = { loading: true } }) })
     setStatuses(loading)
 
     try {
       const token = await getGraphToken()
-
-      // Testear todas las conexiones en paralelo
       const promises = CONNECTIONS.flatMap((cat) =>
         cat.items.map(async (item) => {
           try {
             let result
-            if (item.type === 'guid' && item.listId) {
-              result = await testListByGuid(item.listId, token)
+            // Si tiene override activo, verificar con ese GUID
+            const activeId = overrides[item.formId]?.listId || item.listId
+            if (item.type === 'guid' || (item.formId && activeId)) {
+              result = await testListByGuid(activeId, token)
             } else if (item.type === 'dynamic') {
               result = await testListByName(item.name, token)
             } else if (item.type === 'drive') {
@@ -559,170 +556,127 @@ export default function SharePointConnectionsScreen() {
           }
         }),
       )
-
       const results = await Promise.all(promises)
       const final = {}
       results.forEach(({ name, result }) => { final[name] = result })
       setStatuses(final)
     } catch (err) {
-      // Error global (ej: no hay token)
       const errAll = {}
       CONNECTIONS.forEach((cat) => {
-        cat.items.forEach((item) => {
-          errAll[item.name] = { ok: false, error: err.message }
-        })
+        cat.items.forEach((item) => { errAll[item.name] = { ok: false, error: err.message } })
       })
       setStatuses(errAll)
     } finally {
       setTesting(false)
     }
-  }, [])
+  }, [overrides])
 
   const categoryColors = {
     Formularios: { line: 'rgba(47,128,237,0.2)', text: 'rgba(96,165,250,0.7)' },
     'Gestión de Líderes': { line: 'rgba(8,145,178,0.2)', text: 'rgba(34,211,238,0.7)' },
     Sistema: { line: 'rgba(123,63,228,0.2)', text: 'rgba(192,132,252,0.7)' },
     'Archivos de Configuración': { line: 'rgba(245,124,32,0.2)', text: 'rgba(245,166,35,0.7)' },
-    'Variables de Entorno': { line: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.3)' },
   }
 
   return (
-    <div style={styles.page}>
+    <div style={s.page}>
       <AppHeader title="Conexiones SharePoint" />
+      <div style={s.content}>
 
-      <div style={styles.content}>
-        {/* ── Resumen ─────────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={styles.summary}
-        >
-          <div style={styles.summaryCard}>
-            <div style={styles.summaryNumber}>{totalConnections}</div>
-            <div style={styles.summaryLabel}>Conexiones</div>
+        {/* Resumen */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={s.summary}>
+          <div style={s.summaryCard}>
+            <div style={s.summaryNumber}>{totalConnections}</div>
+            <div style={s.summaryLabel}>Conexiones</div>
           </div>
-          <div style={styles.summaryCard}>
-            <div style={{ ...styles.summaryNumber, color: okCount > 0 ? '#27AE60' : 'var(--color-text-primary)' }}>
+          <div style={s.summaryCard}>
+            <div style={{ ...s.summaryNumber, color: okCount > 0 ? '#27AE60' : 'var(--color-text-primary)' }}>
               {testedCount > 0 ? okCount : '—'}
             </div>
-            <div style={styles.summaryLabel}>Activas</div>
+            <div style={s.summaryLabel}>Activas</div>
           </div>
-          <div style={styles.summaryCard}>
-            <div style={{ ...styles.summaryNumber, color: failCount > 0 ? '#E74C3C' : 'var(--color-text-primary)' }}>
+          <div style={s.summaryCard}>
+            <div style={{ ...s.summaryNumber, color: failCount > 0 ? '#E74C3C' : 'var(--color-text-primary)' }}>
               {testedCount > 0 ? failCount : '—'}
             </div>
-            <div style={styles.summaryLabel}>Con error</div>
+            <div style={s.summaryLabel}>Con error</div>
           </div>
         </motion.div>
 
-        {/* ── Sitio SharePoint ────────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          style={styles.siteUrl}
-        >
+        {/* URL del sitio */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} style={s.siteUrl}>
           <Globe size={18} color="#60A5FA" style={{ flexShrink: 0 }} />
           <div>
-            <div style={styles.siteLabel}>Sitio SharePoint</div>
-            <div style={styles.siteUrlText}>{SITE_URL}</div>
+            <div style={s.siteLabel}>Sitio SharePoint</div>
+            <div style={s.siteUrlText}>{SITE_URL}</div>
           </div>
         </motion.div>
 
-        {/* ── Botón Test All ─────────────────────────────────────────── */}
+        {/* Botón verificar */}
         <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           whileTap={{ scale: 0.97 }}
-          style={styles.testAllBtn}
+          style={s.testAllBtn}
           onClick={testAll}
           disabled={testing}
         >
-          {testing ? (
-            <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
-          ) : (
-            <RefreshCw size={16} />
-          )}
+          {testing ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={16} />}
           {testing ? 'Verificando conexiones...' : 'Verificar todas las conexiones'}
         </motion.button>
 
-        {/* ── Categorías de conexiones ────────────────────────────────── */}
-        <motion.div
-          variants={containerVariants}
-          initial="initial"
-          animate="animate"
-        >
+        {/* Categorías */}
+        <motion.div variants={containerVariants} initial="initial" animate="animate">
           {CONNECTIONS.map((cat) => {
-            const colors = categoryColors[cat.category] || categoryColors.Sistema
+            const colors = categoryColors[cat.category] || { line: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.3)' }
             const expanded = expandedCategories[cat.category] !== false
-
             return (
               <div key={cat.category}>
                 <motion.div variants={itemVariants}>
-                  <div
-                    style={styles.categoryHeader}
-                    onClick={() => toggleCategory(cat.category)}
-                  >
-                    <div style={{ ...styles.categoryLine, background: colors.line }} />
-                    <span style={{ ...styles.categoryLabel, color: colors.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={s.catHeader} onClick={() => toggleCategory(cat.category)}>
+                    <div style={{ ...s.catLine, background: colors.line }} />
+                    <span style={{ ...s.catLabel, color: colors.text, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {cat.category} ({cat.items.length})
                       {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </span>
-                    <div style={{ ...styles.categoryLine, background: colors.line }} />
+                    <div style={{ ...s.catLine, background: colors.line }} />
                   </div>
                 </motion.div>
-
                 {expanded && cat.items.map((item) => (
                   <ConnectionCard
                     key={item.name}
                     item={item}
                     status={statuses[item.name]}
+                    override={item.formId ? overrides[item.formId] : null}
+                    onSave={handleSaveOverride}
+                    onClear={handleClearOverride}
                   />
                 ))}
               </div>
             )
           })}
 
-          {/* ── Variables de Entorno ──────────────────────────────────── */}
+          {/* Variables de entorno */}
           <motion.div variants={itemVariants}>
-            <div
-              style={styles.categoryHeader}
-              onClick={() => toggleCategory('Variables de Entorno')}
-            >
-              <div style={{ ...styles.categoryLine, background: 'rgba(255,255,255,0.08)' }} />
-              <span style={{ ...styles.categoryLabel, color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={s.catHeader} onClick={() => toggleCategory('Variables de Entorno')}>
+              <div style={{ ...s.catLine, background: 'rgba(255,255,255,0.08)' }} />
+              <span style={{ ...s.catLabel, color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Settings size={11} /> Variables de Entorno ({ENV_VARS.length})
                 {expandedCategories['Variables de Entorno'] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </span>
-              <div style={{ ...styles.categoryLine, background: 'rgba(255,255,255,0.08)' }} />
+              <div style={{ ...s.catLine, background: 'rgba(255,255,255,0.08)' }} />
             </div>
           </motion.div>
-
           {expandedCategories['Variables de Entorno'] && (
-            <motion.div variants={itemVariants} style={styles.envSection}>
+            <motion.div variants={itemVariants} style={s.envSection}>
               {ENV_VARS.map((env, i) => (
-                <div
-                  key={env.key}
-                  style={{ ...styles.envRow, borderBottom: i < ENV_VARS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}
-                >
+                <div key={env.key} style={{ ...s.envRow, borderBottom: i < ENV_VARS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <div>
                     <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#60A5FA' }}>{env.key}</div>
-                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>
-                      {env.label}
-                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>{env.label}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={styles.statusDot(!!env.value)} />
-                    <span style={{
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: env.value ? 'var(--color-text-primary)' : '#E74C3C',
-                      maxWidth: 120,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}>
+                    <div style={s.statusDot(!!env.value)} />
+                    <span style={{ fontFamily: 'monospace', fontSize: 10, color: env.value ? 'var(--color-text-primary)' : '#E74C3C', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {env.value || 'No configurada'}
                     </span>
                   </div>
@@ -732,37 +686,21 @@ export default function SharePointConnectionsScreen() {
           )}
         </motion.div>
 
-        {/* ── Nota informativa ────────────────────────────────────────── */}
+        {/* Nota SSO */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          style={{
-            marginTop: 24,
-            padding: '12px 14px',
-            background: 'rgba(47,128,237,0.06)',
-            border: '1px solid rgba(47,128,237,0.15)',
-            borderRadius: 8,
-            fontFamily: 'var(--font-body)',
-            fontSize: 11,
-            color: 'var(--color-text-muted)',
-            lineHeight: 1.5,
-          }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+          style={{ marginTop: 24, padding: '12px 14px', background: 'rgba(47,128,237,0.06)', border: '1px solid rgba(47,128,237,0.15)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}
         >
           <strong style={{ color: '#60A5FA' }}>Nota para el equipo SSO:</strong> Las listas marcadas como
-          "Auto-creada" se generan automáticamente la primera vez que se usan. Si una conexión falla,
-          verificar que el sitio SharePoint tenga los permisos correctos y que la App Registration
-          tenga los scopes <code style={{ fontSize: 10, color: '#C084FC' }}>Sites.ReadWrite.All</code> y{' '}
+          "Auto-creada" se generan automáticamente la primera vez que se usan. Para reasignar una lista,
+          toca el ícono <Pencil size={10} style={{ verticalAlign: 'middle', color: '#60A5FA' }} /> en la tarjeta
+          y pega la URL o GUID de la nueva lista. El override se guarda localmente y es aplicado al
+          enviar formularios desde este dispositivo. Los scopes requeridos son{' '}
+          <code style={{ fontSize: 10, color: '#C084FC' }}>Sites.ReadWrite.All</code> y{' '}
           <code style={{ fontSize: 10, color: '#C084FC' }}>Files.ReadWrite.All</code>.
         </motion.div>
 
-        {/* Spinner CSS animation */}
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   )

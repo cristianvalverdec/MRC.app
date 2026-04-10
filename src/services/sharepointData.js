@@ -18,6 +18,41 @@ export const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
   import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
+// ── Overrides de conexión (panel de administrador) ───────────────────────
+// El admin puede reasignar el listId de un formulario desde el panel
+// de Conexiones SharePoint sin necesidad de editar el código.
+// Se almacenan en localStorage bajo 'mrc-sp-connections-override'.
+const SP_OVERRIDE_KEY = 'mrc-sp-connections-override'
+
+function getConnectionOverride(formType) {
+  try {
+    const raw = localStorage.getItem(SP_OVERRIDE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)[formType]?.listId || null
+  } catch { return null }
+}
+
+export function saveConnectionOverride(formType, listId) {
+  try {
+    const overrides = JSON.parse(localStorage.getItem(SP_OVERRIDE_KEY) || '{}')
+    overrides[formType] = { listId, savedAt: new Date().toISOString() }
+    localStorage.setItem(SP_OVERRIDE_KEY, JSON.stringify(overrides))
+  } catch (e) { console.warn('[MRC] Error guardando override:', e) }
+}
+
+export function clearConnectionOverride(formType) {
+  try {
+    const overrides = JSON.parse(localStorage.getItem(SP_OVERRIDE_KEY) || '{}')
+    delete overrides[formType]
+    localStorage.setItem(SP_OVERRIDE_KEY, JSON.stringify(overrides))
+  } catch { /* ignore */ }
+}
+
+export function getAllConnectionOverrides() {
+  try { return JSON.parse(localStorage.getItem(SP_OVERRIDE_KEY) || '{}') }
+  catch { return {} }
+}
+
 // ── GUIDs de listas ───────────────────────────────────────────────────────
 const LIST_IDS = {
   reglasOroSucursales: 'd123a245-0aeb-4f51-9b20-693639c963b6',
@@ -265,7 +300,12 @@ function getListConfig(formType) {
     'difusiones-sso':                { listId: LIST_IDS.difusionesSso,       mapFields: mapDifusiones          },
     'cierre-condiciones':            { listId: LIST_IDS.cierreCondiciones,   mapFields: mapCierreCondiciones   },
   }
-  return MAP[formType] || null
+  const base = MAP[formType]
+  if (!base) return null
+  // El admin puede sobreescribir el listId desde el panel de conexiones
+  const overrideId = getConnectionOverride(formType)
+  if (overrideId) return { ...base, listId: overrideId }
+  return base
 }
 
 // ── Enviar un registro a SharePoint ──────────────────────────────────────
