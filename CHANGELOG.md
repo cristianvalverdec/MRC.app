@@ -5,6 +5,23 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.5.0] — 2026-04-11
+
+### Correcciones críticas
+- **Centralización de autenticación MSAL:** eliminadas 6 funciones `getGraphToken()` duplicadas en los servicios, cada una con scopes distintos al login. Ahora existe una única función en `msalInstance.js` que usa `loginRequest` (mismos scopes que el login original), permitiendo reutilizar el token cacheado sin renovación vía iframe.
+- **Eliminado `acquireTokenPopup` de toda la app:** el fallback a popup en `sharepointSync.js`, `graphService.js` y `useAuth.js` causaba que en Android PWA se abriera el navegador del sistema, rompiendo la sesión y generando loops infinitos de re-autenticación. Ahora ningún servicio lanza auth interactiva.
+- **Loop de sincronización en editor de formularios resuelto:** el `acquireTokenPopup` en `sharepointSync.js` triggereaba una redirección → recarga de la PWA → `pullFromCloud()` nuevamente → loop. Al eliminar el popup, el sync falla silenciosamente (datos locales seguros) sin causar re-login.
+
+### Nuevas Funcionalidades
+- **Semáforo de sesión Azure en el header:** el dot del avatar ahora indica tres estados:
+  - Verde: sesión activa y conexión ok
+  - Naranja: sin internet
+  - Rojo pulsante: sesión Azure perdida (prioridad máxima)
+- **Banner de sesión expirada:** cuando el token falla, aparece un banner rojo bajo el header con el mensaje de error y la instrucción "cierra y abre la app", animado con entrada/salida suave.
+- **Detección automática al volver de background:** `ResumeHandler` escucha el evento `visibilitychange` del navegador. Cuando el usuario regresa a la app después de tenerla en segundo plano (ej: despertar el celular), intenta renovar el token silenciosamente y actualiza el semáforo de inmediato.
+
+---
+
 ## [1.4.0] — 2026-04-10
 
 ### Nuevas Funcionalidades
