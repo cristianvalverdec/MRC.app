@@ -146,9 +146,20 @@ const ENV_VARS = [
 
 async function getGraphToken() {
   const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada')
-  const result = await msalInstance.acquireTokenSilent({ ...graphScopes, account: accounts[0] })
-  return result.accessToken
+  if (!accounts.length) throw new Error('Sin cuenta autenticada. Recarga la app.')
+  try {
+    const result = await msalInstance.acquireTokenSilent({ ...graphScopes, account: accounts[0] })
+    return result.accessToken
+  } catch (err) {
+    // timed_out ocurre cuando hay múltiples ventanas compitiendo por el token
+    // o cuando el iframe de MSAL no puede comunicarse (WebView restrictivo).
+    // No relanzamos auth interactiva para no abrir más ventanas.
+    const isTimeout = err?.errorCode === 'timed_out' || err?.message?.includes('timed_out')
+    if (isTimeout) {
+      throw new Error('Token MSAL expiró (timed_out). Cierra las ventanas duplicadas de la app y vuelve a intentarlo.')
+    }
+    throw new Error(`Error de autenticación: ${err?.message || err}`)
+  }
 }
 
 function getSiteBase() {
@@ -488,10 +499,26 @@ function ConnectionCard({ item, status, override, onSave, onClear }) {
 
 // ── Pantalla principal ───────────────────────────────────────────────────────
 
+// Detecta si hay más de una pestaña/ventana de la app abierta (causa del timed_out)
+function useMultipleTabsWarning() {
+  const [multiTab, setMultiTab] = useState(false)
+  useState(() => {
+    const key = 'mrc-sp-panel-open'
+    const prev = parseInt(localStorage.getItem(key) || '0', 10)
+    const now = Date.now()
+    setMultiTab(now - prev < 30000) // otra pestaña activa en los últimos 30s
+    localStorage.setItem(key, String(now))
+    const interval = setInterval(() => localStorage.setItem(key, String(Date.now())), 10000)
+    return () => clearInterval(interval)
+  })
+  return multiTab
+}
+
 export default function SharePointConnectionsScreen() {
   const [statuses, setStatuses] = useState({})
   const [testing, setTesting] = useState(false)
   const [overrides, setOverrides] = useState(() => getAllConnectionOverrides())
+  const multiTab = useMultipleTabsWarning()
   const [expandedCategories, setExpandedCategories] = useState(() => {
     const init = {}
     CONNECTIONS.forEach((cat) => { init[cat.category] = true })
@@ -611,6 +638,21 @@ export default function SharePointConnectionsScreen() {
             <div style={s.siteUrlText}>{SITE_URL}</div>
           </div>
         </motion.div>
+
+        {/* Advertencia múltiples ventanas */}
+        {multiTab && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(245,124,32,0.1)', border: '1px solid rgba(245,124,32,0.3)', borderRadius: 8, fontFamily: 'var(--font-body)', fontSize: 11, color: '#F5A623', display: 'flex', gap: 8, alignItems: 'flex-start' }}
+          >
+            <XCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>
+              <strong>Ventanas duplicadas detectadas.</strong> MSAL usa una sola sesión compartida —
+              tener múltiples ventanas abiertas causa el error <code style={{ fontSize: 10 }}>timed_out</code>.
+              Cierra las ventanas extra y vuelve a intentarlo.
+            </span>
+          </motion.div>
+        )}
 
         {/* Botón verificar */}
         <motion.button
