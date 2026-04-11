@@ -6,8 +6,7 @@
 // Super-admin permanente (hardcodeado, no puede ser removido desde la app):
 //   cvalverde@agrosuper.com
 
-import { msalInstance } from '../config/msalInstance'
-import { graphScopes }  from '../config/msalConfig'
+import { getGraphToken } from '../config/msalInstance'
 
 const LIST_NAME   = 'Administradores MRC'
 const SUPER_ADMIN = 'cvalverde@agrosuper.com'
@@ -18,12 +17,8 @@ let cachedAdmins   = null   // Set<string> de emails en minúsculas
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-async function getToken() {
-  const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada')
-  const result = await msalInstance.acquireTokenSilent({ ...graphScopes, account: accounts[0] })
-  return result.accessToken
-}
+// Token: usa getGraphToken centralizado de msalInstance.js
+const getToken = getGraphToken
 
 function getSiteBase() {
   const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL

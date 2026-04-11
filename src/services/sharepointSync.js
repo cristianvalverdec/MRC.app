@@ -14,8 +14,7 @@
 //   VITE_AZURE_TENANT_ID       — Azure Tenant ID
 //   VITE_SHAREPOINT_SITE_URL   — URL del sitio (ej: https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL)
 
-import { msalInstance } from '../config/msalInstance'
-import { graphScopes } from '../config/msalConfig'
+import { getGraphToken } from '../config/msalInstance'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -26,26 +25,6 @@ const CONFIG_FILENAME = 'mrc-forms-config.json'
 
 // Cache del siteId para no resolverlo en cada llamada
 let _cachedSiteId = null
-
-// ── Token Graph (silencioso con fallback a popup) ────────────────────────
-async function getGraphToken() {
-  const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada — inicia sesión primero')
-  try {
-    const result = await msalInstance.acquireTokenSilent({
-      ...graphScopes,
-      account: accounts[0],
-    })
-    return result.accessToken
-  } catch (silentErr) {
-    console.warn('[MRC Sync] Token silencioso falló, intentando popup:', silentErr.message)
-    const result = await msalInstance.acquireTokenPopup({
-      ...graphScopes,
-      account: accounts[0],
-    })
-    return result.accessToken
-  }
-}
 
 // ── Resolver el siteId a partir de la URL del sitio ──────────────────────
 // Llama a GET /sites/{hostname}:{/path} → devuelve el ID real del sitio.

@@ -6,8 +6,7 @@
 // Ambas listas se crean automáticamente en la primera ejecución si no existen.
 // Se usa caché en memoria para minimizar round-trips a Graph API.
 
-import { msalInstance } from '../config/msalInstance'
-import { graphScopes }  from '../config/msalConfig'
+import { getGraphToken } from '../config/msalInstance'
 
 const LIST_LIDERES   = 'Líderes MRC'
 const LIST_HISTORIAL = 'Historial Líderes MRC'
@@ -17,12 +16,8 @@ let cacheListIds = {}
 
 // ── Helpers internos ──────────────────────────────────────────────────────────
 
-async function getToken() {
-  const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada')
-  const result = await msalInstance.acquireTokenSilent({ ...graphScopes, account: accounts[0] })
-  return result.accessToken
-}
+// Token: usa getGraphToken centralizado de msalInstance.js
+const getToken = getGraphToken
 
 function getSiteBase() {
   const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL

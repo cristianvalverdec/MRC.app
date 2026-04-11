@@ -35,7 +35,7 @@ const useFormEditorStore = create(
           editedForms:  { ...state.editedForms, [formId]: formOverride },
           lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud().catch(() => {})
+        get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
       resetFormEdits: (formId) => {
@@ -43,7 +43,7 @@ const useFormEditorStore = create(
           const { [formId]: _, ...rest } = state.editedForms
           return { editedForms: rest, lastSyncedAt: new Date().toISOString() }
         })
-        get()._syncToCloud().catch(() => {})
+        get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
       getFormEdits: (formId) => get().editedForms[formId] || null,
@@ -55,7 +55,7 @@ const useFormEditorStore = create(
           customForms:  { ...state.customForms, [formDef.id]: formDef },
           lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud().catch(() => {})
+        get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
       updateCustomForm: (formId, formDef) => {
@@ -63,7 +63,7 @@ const useFormEditorStore = create(
           customForms:  { ...state.customForms, [formId]: formDef },
           lastSyncedAt: new Date().toISOString(),
         }))
-        get()._syncToCloud().catch(() => {})
+        get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
       deleteCustomForm: (formId) => {
@@ -71,7 +71,7 @@ const useFormEditorStore = create(
           const { [formId]: _, ...rest } = state.customForms
           return { customForms: rest, lastSyncedAt: new Date().toISOString() }
         })
-        get()._syncToCloud().catch(() => {})
+        get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
       isCustomForm: (formId) => !!get().customForms[formId],

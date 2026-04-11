@@ -24,22 +24,11 @@
 //   NroParticipantes — Número
 //   ArchivosAdjuntos — Texto multilínea (URLs separadas por \n)
 
-import { msalInstance } from '../config/msalInstance'
-import { graphScopes } from '../config/msalConfig'
+import { getGraphToken } from '../config/msalInstance'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
   import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-
-async function getGraphToken() {
-  const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada')
-  const result = await msalInstance.acquireTokenSilent({
-    ...graphScopes,
-    account: accounts[0],
-  })
-  return result.accessToken
-}
 
 function getSiteBase() {
   const siteUrl = import.meta.env.VITE_SHAREPOINT_SITE_URL

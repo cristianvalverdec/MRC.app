@@ -46,16 +46,14 @@ export function useAuth() {
 
   const getToken = useCallback(async () => {
     if (IS_DEV_MODE) return 'dev-token'
-    try {
-      const result = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      })
-      return result.accessToken
-    } catch {
-      const result = await instance.acquireTokenPopup(loginRequest)
-      return result.accessToken
-    }
+    // Usa solo acquireTokenSilent — NUNCA popup/redirect.
+    // En PWA mobile, acquireTokenPopup abre el navegador del sistema,
+    // rompe la sesión y puede causar loops de re-autenticación.
+    const result = await instance.acquireTokenSilent({
+      ...loginRequest,
+      account: accounts[0],
+    })
+    return result.accessToken
   }, [instance, accounts])
 
   return {
