@@ -5,6 +5,22 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.4.0] — 2026-04-10
+
+### Nuevas Funcionalidades
+- **Panel de Conexiones SharePoint (Admin):** nueva pantalla `/admin/sharepoint-connections` accesible desde el menú de Herramientas en ambas unidades (Sucursales y Fuerza de Ventas) para perfiles Administrador.
+  - Inventario centralizado de las 10 conexiones SharePoint del sistema (listas con GUID, listas dinámicas y archivo de configuración JSON).
+  - Verificación de conectividad en tiempo real vía Graph API en paralelo.
+  - **Asignación de lista desde el panel:** el admin pega una URL de SharePoint o GUID, el sistema lo resuelve y guarda como override sin modificar código. Badge `OVERRIDE` visible; botón para revertir al GUID original.
+  - Detección de ventanas duplicadas con aviso explicativo (causa del `timed_out` de MSAL).
+  - Sección de Variables de Entorno con indicador visual de configuración.
+
+### Correcciones
+- **HTTP 400 en test de conexiones:** `$select=itemCount` no es campo válido en Graph API — se eliminó. Las verificaciones retornan estado correcto.
+- **Error `timed_out` de MSAL:** ya no se relanza auth interactiva al recibir `timed_out`, evitando el ciclo de ventanas de login adicionales.
+
+---
+
 ## [1.3.1] — 2026-04-10
 
 ### Mejoras

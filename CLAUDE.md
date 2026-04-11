@@ -36,6 +36,33 @@ npm run build && node node_modules/.bin/gh-pages -d dist -b gh-pages --dotfiles 
 git push origin main
 ```
 
+### ⚠️ Protocolo obligatorio de deploy
+
+**SIEMPRE ejecutar en este orden exacto:**
+
+1. `git add <archivos>` — solo los archivos modificados, nunca `git add -A`
+2. `git commit -m "..."` — el pre-commit hook (Husky) ejecuta lint + test + build automáticamente
+3. `git push origin main` — sube los cambios al repositorio
+4. **Esperar** a que el commit termine antes de continuar
+5. `node node_modules/.bin/gh-pages -d dist -b gh-pages --dotfiles -m "deploy: descripción"` — publica a GitHub Pages (usa el `dist/` ya compilado por el pre-commit hook)
+6. Verificar en `git log origin/gh-pages --oneline -3` que el nuevo commit apareció
+
+**NO hacer:**
+- ❌ Ejecutar `npm run build` seguido de `gh-pages` simultáneamente (genera procesos duplicados)
+- ❌ Lanzar `gh-pages` múltiples veces sin esperar que el anterior termine
+- ❌ Lanzar `gh-pages` en background (`run_in_background: true`) — siempre en foreground
+- ❌ Usar `bash deploy.sh` para deploys intermedios — reservar para releases con bump de versión
+
+**Si gh-pages se cuelga:**
+```bash
+# 1. Matar todos los procesos colgados
+kill $(ps aux | grep -E "gh-pages|git checkout gh-pages" | grep -v grep | awk '{print $2}')
+# 2. Eliminar el caché corrompido
+rm -rf node_modules/.cache/gh-pages
+# 3. Reintentar (en foreground, sin background)
+node node_modules/.bin/gh-pages -d dist -b gh-pages --dotfiles -m "deploy: descripción"
+```
+
 ---
 
 ## 3. Variables de entorno
