@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { ChevronLeft, RefreshCw } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import useUserStore from '../../store/userStore'
+import useAuthHealthStore from '../../store/authHealthStore'
 import NetworkStatus from '../ui/NetworkStatus'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
@@ -15,21 +16,62 @@ function AgrosuperLogo({ height = 28 }) {
   )
 }
 
-// Dot de conectividad — pequeño indicador verde/naranja sobre el avatar
+// Dot de conectividad — prioridad: error Azure (rojo) > offline (naranja) > ok (verde)
 function NetworkDot() {
   const { isOnline } = useNetworkStatus()
+  const tokenStatus = useAuthHealthStore((s) => s.tokenStatus)
+  const isAuthError = tokenStatus === 'error'
+
+  const color  = isAuthError ? '#E74C3C' : isOnline ? '#27AE60' : '#F2994A'
+  const shadow = isAuthError ? '0 0 6px rgba(231,76,60,0.8)' : isOnline ? '0 0 5px rgba(39,174,96,0.7)' : '0 0 5px rgba(242,153,74,0.7)'
+
   return (
     <div style={{
       width: 8, height: 8, borderRadius: '50%',
-      background: isOnline ? '#27AE60' : '#F2994A',
+      background: color,
       border: '1.5px solid rgba(27,42,74,0.8)',
       position: 'absolute',
       bottom: 0, right: 0,
-      boxShadow: isOnline
-        ? '0 0 5px rgba(39,174,96,0.7)'
-        : '0 0 5px rgba(242,153,74,0.7)',
+      boxShadow: shadow,
       transition: 'background 0.4s ease, box-shadow 0.4s ease',
+      // Pulso cuando hay error de sesión Azure para llamar la atención
+      animation: isAuthError ? 'authErrorPulse 1.6s ease-in-out infinite' : 'none',
     }} />
+  )
+}
+
+// Banner de sesión Azure perdida — aparece bajo el header igual que NetworkStatus
+function AuthStatusBanner() {
+  const { tokenStatus, tokenError } = useAuthHealthStore()
+  const show = tokenStatus === 'error'
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div style={{
+            background: 'rgba(231,76,60,0.12)',
+            borderBottom: '1px solid rgba(231,76,60,0.3)',
+            padding: '8px 16px',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <RefreshCw size={13} color="#E74C3C" style={{ flexShrink: 0 }} />
+            <span style={{
+              fontFamily: 'var(--font-body)', fontSize: 11,
+              color: '#E74C3C', lineHeight: 1.4, flex: 1,
+            }}>
+              {tokenError || 'Sesión Azure perdida'} — <strong>cierra y abre la app</strong>
+            </span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -141,6 +183,9 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
 
       {/* Banner de red — aparece bajo el header solo cuando es relevante */}
       <NetworkStatus />
+      {/* Banner de sesión Azure — aparece cuando el token falla */}
+      <AuthStatusBanner />
+      <style>{`@keyframes authErrorPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
     </div>
   )
 }

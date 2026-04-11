@@ -8,6 +8,7 @@ import UpdateBanner from './components/ui/UpdateBanner'
 import InstallPrompt from './components/ui/InstallPrompt'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
+import { getGraphToken } from './config/msalInstance'
 import { useBootstrap } from './hooks/useBootstrap'
 
 // ── Lazy-loaded screens (performance: code splitting per route) ───────
@@ -121,6 +122,32 @@ function BootstrapHandler() {
   return null
 }
 
+// Detecta cuando el usuario vuelve a la app después de tenerla en background.
+// Al regresar, intenta renovar el token silenciosamente para actualizar el semáforo.
+// Si el token sigue vigente → dot verde. Si expiró → dot rojo + banner.
+function ResumeHandler() {
+  const isAuthenticated = useUserStore((s) => s.isAuthenticated)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        await getGraphToken()
+        // setTokenOk() ya lo llama getGraphToken() internamente al tener éxito
+      } catch {
+        // setTokenError() ya lo llama getGraphToken() internamente al fallar
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [isAuthenticated])
+
+  return null
+}
+
 export default function App() {
   // Al iniciar la app: descarga la configuración más reciente de formularios
   // desde SharePoint. En dev mode esto es un no-op silencioso.
@@ -137,6 +164,7 @@ export default function App() {
       <Suspense fallback={<PageFallback />}>
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}
+        {!IS_DEV_MODE && <ResumeHandler />}
         <AnimatedRoutes />
       </Suspense>
     </BrowserRouter>

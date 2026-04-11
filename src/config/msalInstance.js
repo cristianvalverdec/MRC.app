@@ -4,6 +4,7 @@
 
 import { PublicClientApplication } from '@azure/msal-browser'
 import { msalConfig, loginRequest } from './msalConfig'
+import useAuthHealthStore from '../store/authHealthStore'
 
 // Instancia creada sincrónicamente; se inicializa con .initialize() en main.jsx
 export const msalInstance = new PublicClientApplication(msalConfig)
@@ -28,20 +29,24 @@ export async function getGraphToken() {
       ...loginRequest,
       account: accounts[0],
     })
+    useAuthHealthStore.getState().setTokenOk()
     return result.accessToken
   } catch (err) {
     const code = err?.errorCode || ''
+    let message
     // timed_out: iframe bloqueado (PWA mobile) o múltiples pestañas
     if (code === 'timed_out' || err?.message?.includes('timed_out')) {
       console.warn('[MRC Auth] acquireTokenSilent timed_out — iframe bloqueado')
-      throw new Error('No se pudo renovar la sesión. Cierra otras ventanas de MRC y recarga.')
-    }
-    // interaction_required: refresh token expirado, necesita re-login
-    if (code === 'interaction_required' || err?.name === 'InteractionRequiredAuthError') {
+      message = 'No se pudo renovar la sesión. Cierra otras ventanas de MRC y recarga.'
+    } else if (code === 'interaction_required' || err?.name === 'InteractionRequiredAuthError') {
+      // interaction_required: refresh token expirado, necesita re-login
       console.warn('[MRC Auth] Token expirado, requiere re-login')
-      throw new Error('Sesión expirada. Cierra la app y ábrela nuevamente para iniciar sesión.')
+      message = 'Sesión expirada. Cierra la app y ábrela nuevamente para iniciar sesión.'
+    } else {
+      console.warn('[MRC Auth] acquireTokenSilent error:', code || err?.message)
+      message = `Error de autenticación: ${code || err?.message || err}`
     }
-    console.warn('[MRC Auth] acquireTokenSilent error:', code || err?.message)
-    throw new Error(`Error de autenticación: ${code || err?.message || err}`)
+    useAuthHealthStore.getState().setTokenError(message)
+    throw new Error(message)
   }
 }
