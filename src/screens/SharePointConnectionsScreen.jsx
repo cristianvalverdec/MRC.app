@@ -7,8 +7,8 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
-import { msalInstance } from '../config/msalInstance'
-import { graphScopes } from '../config/msalConfig'
+import { useMsal } from '@azure/msal-react'
+import { loginRequest } from '../config/msalConfig'
 import {
   saveConnectionOverride,
   clearConnectionOverride,
@@ -143,24 +143,6 @@ const ENV_VARS = [
 ]
 
 // ── Helpers Graph API ────────────────────────────────────────────────────────
-
-async function getGraphToken() {
-  const accounts = msalInstance.getAllAccounts()
-  if (!accounts.length) throw new Error('Sin cuenta autenticada. Recarga la app.')
-  try {
-    const result = await msalInstance.acquireTokenSilent({ ...graphScopes, account: accounts[0] })
-    return result.accessToken
-  } catch (err) {
-    // timed_out ocurre cuando hay múltiples ventanas compitiendo por el token
-    // o cuando el iframe de MSAL no puede comunicarse (WebView restrictivo).
-    // No relanzamos auth interactiva para no abrir más ventanas.
-    const isTimeout = err?.errorCode === 'timed_out' || err?.message?.includes('timed_out')
-    if (isTimeout) {
-      throw new Error('No se pudo obtener el token (timed_out). Recarga la pantalla e intenta de nuevo.')
-    }
-    throw new Error(`Error al obtener token: ${err?.errorCode || err?.message || err}`)
-  }
-}
 
 function getSiteBase() {
   const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL
@@ -343,7 +325,7 @@ function StatusBadge({ status }) {
   )
 }
 
-function ConfigPanel({ item, override, onSave, onClear }) {
+function ConfigPanel({ item, override, onSave, onClear, getToken }) {
   const [input, setInput] = useState('')
   const [resolving, setResolving] = useState(false)
   const [resolveError, setResolveError] = useState(null)
@@ -353,7 +335,7 @@ function ConfigPanel({ item, override, onSave, onClear }) {
     setResolving(true)
     setResolveError(null)
     try {
-      const token = await getGraphToken()
+      const token = await getToken()
       const { listId, displayName } = await resolveToListId(input, token)
       onSave(item.formId, listId, displayName)
       setInput('')
@@ -397,7 +379,7 @@ function ConfigPanel({ item, override, onSave, onClear }) {
   )
 }
 
-function ConnectionCard({ item, status, override, onSave, onClear }) {
+function ConnectionCard({ item, status, override, onSave, onClear, getToken }) {
   const [cfgOpen, setCfgOpen] = useState(false)
   const iconColor = item.type === 'guid' ? '#2F80ED' : item.type === 'dynamic' ? '#0891B2' : '#F57C20'
   const IconComponent = item.type === 'drive' ? HardDrive : item.type === 'dynamic' ? Users : Database
@@ -481,6 +463,7 @@ function ConnectionCard({ item, status, override, onSave, onClear }) {
             <ConfigPanel
               item={item}
               override={override}
+              getToken={getToken}
               onSave={(formId, listId, displayName) => {
                 onSave(formId, listId, displayName)
                 setCfgOpen(false)
@@ -500,6 +483,33 @@ function ConnectionCard({ item, status, override, onSave, onClear }) {
 // ── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function SharePointConnectionsScreen() {
+  const { instance, accounts } = useMsal()
+
+  // Token: usa el mismo flujo que useBootstrap/useAuth (loginRequest + instancia del hook).
+  // Antes usaba msalInstance directo con graphScopes, lo que impedía reutilizar
+  // el token cacheado del login y forzaba renovación vía iframe (bloqueado en PWA mobile).
+  const getToken = useCallback(async () => {
+    if (IS_DEV_MODE) return 'dev-token'
+    if (!accounts.length) throw new Error('Sin cuenta activa. Cierra y abre la app.')
+    try {
+      const result = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      })
+      return result.accessToken
+    } catch (err) {
+      // timed_out: iframe bloqueado en PWA mobile o múltiples pestañas compitiendo
+      if (err?.errorCode === 'timed_out' || err?.message?.includes('timed_out')) {
+        throw new Error('No se pudo renovar la sesión. Cierra todas las ventanas de MRC y abre solo una.')
+      }
+      // interaction_required: refresh token expirado, necesita re-login completo
+      if (err?.errorCode === 'interaction_required' || err?.name === 'InteractionRequiredAuthError') {
+        throw new Error('Sesión expirada. Cierra la app y ábrela nuevamente para iniciar sesión.')
+      }
+      throw new Error(`Error de autenticación: ${err?.errorCode || err?.message || err}`)
+    }
+  }, [instance, accounts])
+
   const [statuses, setStatuses] = useState({})
   const [testing, setTesting] = useState(false)
   const [overrides, setOverrides] = useState(() => {
@@ -549,7 +559,7 @@ export default function SharePointConnectionsScreen() {
     setStatuses(loading)
 
     try {
-      const token = await getGraphToken()
+      const token = await getToken()
       const promises = CONNECTIONS.flatMap((cat) =>
         cat.items.map(async (item) => {
           try {
@@ -584,7 +594,7 @@ export default function SharePointConnectionsScreen() {
     } finally {
       setTesting(false)
     }
-  }, [overrides])
+  }, [overrides, getToken])
 
   const categoryColors = {
     Formularios: { line: 'rgba(47,128,237,0.2)', text: 'rgba(96,165,250,0.7)' },
@@ -664,6 +674,7 @@ export default function SharePointConnectionsScreen() {
                     override={item.formId ? overrides[item.formId] : null}
                     onSave={handleSaveOverride}
                     onClear={handleClearOverride}
+                    getToken={getToken}
                   />
                 ))}
               </div>
