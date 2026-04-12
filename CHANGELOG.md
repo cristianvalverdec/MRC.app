@@ -5,6 +5,13 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.5.1] — 2026-04-12
+
+### Correcciones
+- **HTTP 400 falso en test de mrc-forms-config.json:** la función `testDriveFile` en la pantalla de Conexiones SharePoint construía una URL que combinaba *path-based site addressing* con *path-based drive item addressing*, combinación que Graph API rechaza con 400. Ahora resuelve primero el `siteId` como GUID (igual que `sharepointSync.js`) y luego construye la URL con ese ID. La sincronización real de formularios no estaba afectada; el error era exclusivo del diagnóstico visual.
+
+---
+
 ## [1.5.0] — 2026-04-11
 
 ### Correcciones críticas
