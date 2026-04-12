@@ -5,6 +5,13 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.5.3] — 2026-04-12
+
+### Configuración
+- **`VITE_SP_ADMINS_LIST_ID` configurado:** GUID de la lista "Administradores MRC" creada manualmente en SharePoint (`59789384-5546-4920-8ed2-e44aaf826b9a`). La app no tiene permisos para crear listas automáticamente; al existir esta variable, `adminService.js` la usa directamente sin búsqueda ni auto-creación.
+
+---
+
 ## [1.5.2] — 2026-04-12
 
 ### Correcciones

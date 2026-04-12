@@ -74,6 +74,7 @@ Archivo `.env` (nunca se commitea):
 | `VITE_AZURE_CLIENT_ID` | ID de la app registration en Azure AD |
 | `VITE_AZURE_TENANT_ID` | Tenant ID de Agrosuper |
 | `VITE_SHAREPOINT_SITE_URL` | URL del sitio SharePoint (`https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL`) |
+| `VITE_SP_ADMINS_LIST_ID` | GUID de la lista "Administradores MRC" — la app no tiene permiso para crearla automáticamente |
 
 Si `VITE_AZURE_CLIENT_ID` falta o es placeholder → **modo dev** con datos mock y usuario demo@agrosuper.cl (admin).
 
