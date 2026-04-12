@@ -5,6 +5,16 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.5.2] — 2026-04-12
+
+### Correcciones
+- **Gestión de Administradores — error real visible en UI:** los catch en `ProfileScreen` swallowaban el error original y siempre mostraban el mismo mensaje genérico. Ahora se muestra el mensaje exacto que retorna Graph API.
+- **`getListId` en `adminService.js` — búsqueda más robusta:** reemplazado `$filter=displayName eq '...'` (soporte inconsistente en Graph API de SharePoint) por fetch de todas las listas con filtrado en cliente. Evita caída silenciosa al bloque de creación cuando el $filter retorna error.
+- **`getListId` — verificación de respuesta:** ahora se comprueba `searchRes.ok` y `createRes.ok` antes de usar la respuesta; los errores 4xx/5xx se lanzan con el cuerpo real del error para facilitar el diagnóstico.
+- **Soporte para `VITE_SP_ADMINS_LIST_ID`:** si el GUID de la lista está configurado en el entorno, se usa directamente sin búsqueda ni auto-creación (solución recomendada para producción).
+
+---
+
 ## [1.5.1] — 2026-04-12
 
 ### Correcciones

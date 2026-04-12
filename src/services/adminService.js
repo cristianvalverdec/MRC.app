@@ -32,18 +32,31 @@ function getSiteBase() {
 async function getListId(token) {
   if (cachedListId) return cachedListId
 
+  // Si el GUID está configurado en el entorno, usarlo directamente
+  const envListId = import.meta.env.VITE_SP_ADMINS_LIST_ID
+  if (envListId) {
+    cachedListId = envListId
+    return cachedListId
+  }
+
   const siteBase = getSiteBase()
   const headers  = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
-  // Buscar lista por nombre
-  const searchRes  = await fetch(
-    `${siteBase}/lists?$filter=displayName eq '${LIST_NAME}'&$select=id`,
+  // Buscar lista en cliente (más robusto que $filter en Graph API de SharePoint)
+  const searchRes = await fetch(
+    `${siteBase}/lists?$select=id,displayName&$top=200`,
     { headers }
   )
+  if (!searchRes.ok) {
+    const errBody = await searchRes.text().catch(() => '')
+    throw new Error(`No se pudo acceder a SharePoint (${searchRes.status}): ${errBody.slice(0, 120)}`)
+  }
   const searchData = await searchRes.json()
-
-  if (searchData.value && searchData.value.length > 0) {
-    cachedListId = searchData.value[0].id
+  const found = (searchData.value || []).find(
+    l => l.displayName?.toLowerCase() === LIST_NAME.toLowerCase()
+  )
+  if (found) {
+    cachedListId = found.id
     return cachedListId
   }
 
@@ -56,8 +69,12 @@ async function getListId(token) {
       list: { template: 'genericList' },
     }),
   })
+  if (!createRes.ok) {
+    const errBody = await createRes.text().catch(() => '')
+    throw new Error(`No se pudo crear la lista "${LIST_NAME}" (${createRes.status}): ${errBody.slice(0, 120)}`)
+  }
   const created = await createRes.json()
-  if (!created.id) throw new Error(`Error creando lista: ${JSON.stringify(created)}`)
+  if (!created.id) throw new Error(`Respuesta inesperada al crear lista: ${JSON.stringify(created).slice(0, 150)}`)
   cachedListId = created.id
 
   // Sembrar super-admin como primer ítem (solo campo Title = email)

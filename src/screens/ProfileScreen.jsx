@@ -98,8 +98,8 @@ function AdminPanel({ currentEmail }) {
     try {
       const list = await getAdmins()
       setAdmins(list)
-    } catch (_e) {
-      setError('No se pudo cargar la lista de administradores')
+    } catch (e) {
+      setError(e?.message || 'No se pudo cargar la lista de administradores')
     } finally {
       setLoading(false)
     }
@@ -116,8 +116,8 @@ function AdminPanel({ currentEmail }) {
       await addAdmin(email)
       setNewEmail('')
       await load()
-    } catch {
-      setError('Error al agregar administrador')
+    } catch (e) {
+      setError(e?.message || 'Error al agregar administrador')
     } finally {
       setAdding(false)
     }
