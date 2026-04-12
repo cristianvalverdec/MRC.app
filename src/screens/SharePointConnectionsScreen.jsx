@@ -186,13 +186,35 @@ async function testListByName(listName, token) {
 }
 
 async function testDriveFile(fileName, token) {
-  const siteBase = getSiteBase()
-  if (!siteBase) return { ok: false, error: 'VITE_SHAREPOINT_SITE_URL no configurado' }
-  const res = await fetch(`${siteBase}/drive/root:/${fileName}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (res.status === 404) return { ok: false, error: 'Archivo no existe aún' }
-  if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+  const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL
+  if (!raw) return { ok: false, error: 'VITE_SHAREPOINT_SITE_URL no configurado' }
+
+  // Paso 1: resolver el siteId real (igual que sharepointSync.js).
+  // No usar getSiteBase() + /drive/root:/ — la combinación de path-based site
+  // addressing y path-based drive item addressing causa HTTP 400 en Graph API.
+  const url = new URL(raw)
+  const siteRes = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${url.pathname}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!siteRes.ok) {
+    return { ok: false, error: `Error resolviendo sitio: HTTP ${siteRes.status}` }
+  }
+  const siteData = await siteRes.json()
+  const siteId = siteData.id
+
+  // Paso 2: obtener metadata del archivo con GUID-based addressing.
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${fileName}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (res.status === 404) {
+    return { ok: false, error: 'Archivo no existe aún (se crea al guardar el primer override)' }
+  }
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '')
+    return { ok: false, error: `HTTP ${res.status}`, detail: txt }
+  }
   const data = await res.json()
   return { ok: true, size: data.size, lastModified: data.lastModifiedDateTime }
 }
