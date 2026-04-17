@@ -472,7 +472,10 @@ function SectionsMode({ form, formType }) {
   const { saveDraft, clearDraft, addToPendingQueue, syncQueue, drafts } = useFormStore()
   const { name: userName, email: userEmail, jobTitle: userJobTitle, branch } = useUserStore()
 
-  const [answers, setAnswers] = useState(() => drafts[formType] || {})
+  // Prioridad: borrador guardado → prefillData de navigation state → vacío
+  const [answers, setAnswers] = useState(
+    () => drafts[formType] || location.state?.prefillData || {}
+  )
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)

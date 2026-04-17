@@ -1,9 +1,9 @@
 // ── ContratistasScreen ────────────────────────────────────────────────────
 //
 // Pantalla de gestión de Permisos de Trabajo para Contratistas.
-// Muestra los permisos activos en la instalación y ofrece dos acciones:
-//   1. Iniciar un nuevo Permiso de Trabajo
-//   2. Dar Cierre a un trabajo activo (obliga al supervisor a ir a terreno)
+// Muestra los permisos activos y ofrece dos acciones:
+//   1. Nuevo Permiso de Trabajo
+//   2. Cierre de Trabajos (obliga a las jefaturas a ir a terreno)
 
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -14,17 +14,18 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useContratistasStore from '../store/contratistasStore'
-import useFormStore from '../store/formStore'
 
 export default function ContratistasScreen() {
-  const navigate   = useNavigate()
+  const navigate    = useNavigate()
   const { unitType } = useParams()
-  const permisosActivos = useContratistasStore(
-    (s) => s.permisosActivos.filter((p) => p.estado === 'activo')
-  )
-  const { saveDraft } = useFormStore()
-  const [showCierreModal, setShowCierreModal] = useState(false)
 
+  // Selector defensivo — (s.permisosActivos || []) evita crash si el store
+  // devuelve undefined durante hidratación inicial de Zustand persist
+  const permisosActivos = useContratistasStore(
+    (s) => (s.permisosActivos || []).filter((p) => p.estado === 'activo')
+  )
+
+  const [showCierreModal, setShowCierreModal] = useState(false)
   const returnTo = `/unit/${unitType}/contratistas`
 
   // ── Nuevo Permiso ────────────────────────────────────────────────────────
@@ -33,20 +34,24 @@ export default function ContratistasScreen() {
   }
 
   // ── Seleccionar permiso para cierre ─────────────────────────────────────
+  // Pasa los datos del permiso como prefillData en navigation state.
+  // FormScreen los usa para pre-rellenar el borrador sin depender de formStore aquí.
   const handleCierreSelect = (permiso) => {
-    // Pre-rellena el borrador de cierre con los datos del permiso de origen
-    saveDraft('cierre-trabajo-contratista', {
-      ctc_01: permiso.empresa,
-      ctc_02: permiso.ubicacion,
-      ctc_03: permiso.tipoTrabajo,
-    })
     setShowCierreModal(false)
     navigate('/form/cierre-trabajo-contratista', {
-      state: { returnTo, permisoId: permiso.id },
+      state: {
+        returnTo,
+        permisoId: permiso.id,
+        prefillData: {
+          ctc_01: permiso.empresa  || '',
+          ctc_02: permiso.ubicacion || '',
+          ctc_03: permiso.tipoTrabajo || '',
+        },
+      },
     })
   }
 
-  // ── Botón "Cierre de Trabajos" ────────────────────────────────────────
+  // ── Botón "Cierre de Trabajos" ─────────────────────────────────────────
   const handleCierreClick = () => {
     if (permisosActivos.length === 0) return
     if (permisosActivos.length === 1) {
@@ -66,7 +71,7 @@ export default function ContratistasScreen() {
       <AppHeader title="Permiso de Trabajo" />
 
       {/* ── Panel de trabajos activos ──────────────────────────────────── */}
-      <div style={{ flex: 1, padding: '20px 16px 120px', overflowY: 'auto' }}>
+      <div style={{ flex: 1, padding: '20px 16px 140px', overflowY: 'auto' }}>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -105,7 +110,7 @@ export default function ContratistasScreen() {
             )}
           </div>
 
-          {/* Lista de permisos activos / estado vacío */}
+          {/* Estado vacío */}
           {permisosActivos.length === 0 ? (
             <div style={{
               background: 'var(--color-surface)',
@@ -129,6 +134,7 @@ export default function ContratistasScreen() {
               </div>
             </div>
           ) : (
+            /* Lista de permisos activos */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {permisosActivos.map((permiso, i) => (
                 <motion.div
@@ -144,7 +150,6 @@ export default function ContratistasScreen() {
                     padding: '14px 16px',
                   }}
                 >
-                  {/* Empresa + badge ACTIVO */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -177,9 +182,8 @@ export default function ContratistasScreen() {
                     </span>
                   </div>
 
-                  {/* Detalles */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {permiso.tipoTrabajo && (
+                    {permiso.tipoTrabajo ? (
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         fontFamily: 'var(--font-body)', fontSize: 12,
@@ -188,8 +192,8 @@ export default function ContratistasScreen() {
                         <Wrench size={12} style={{ flexShrink: 0 }} />
                         {permiso.tipoTrabajo}
                       </div>
-                    )}
-                    {permiso.ubicacion && (
+                    ) : null}
+                    {permiso.ubicacion ? (
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         fontFamily: 'var(--font-body)', fontSize: 12,
@@ -198,8 +202,8 @@ export default function ContratistasScreen() {
                         <MapPin size={12} style={{ flexShrink: 0 }} />
                         {permiso.ubicacion}
                       </div>
-                    )}
-                    {permiso.horaMaxima && (
+                    ) : null}
+                    {permiso.horaMaxima ? (
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         fontFamily: 'var(--font-body)', fontSize: 12,
@@ -209,7 +213,7 @@ export default function ContratistasScreen() {
                         <Clock size={12} style={{ flexShrink: 0 }} />
                         Vence: {permiso.horaMaxima}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </motion.div>
               ))}
@@ -218,7 +222,7 @@ export default function ContratistasScreen() {
         </motion.div>
       </div>
 
-      {/* ── Botones de acción ──────────────────────────────────────────────── */}
+      {/* ── Botones de acción (fijos en el fondo) ─────────────────────────── */}
       <div style={{
         position: 'fixed',
         bottom: 0,
@@ -233,7 +237,6 @@ export default function ContratistasScreen() {
         flexDirection: 'column',
         gap: 10,
       }}>
-        {/* Nuevo Permiso */}
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={handleNuevoPermiso}
@@ -260,7 +263,6 @@ export default function ContratistasScreen() {
           Permiso de Trabajo
         </motion.button>
 
-        {/* Cierre de Trabajos */}
         <motion.button
           whileTap={permisosActivos.length > 0 ? { scale: 0.97 } : undefined}
           onClick={handleCierreClick}
@@ -274,9 +276,7 @@ export default function ContratistasScreen() {
               ? 'rgba(39,174,96,0.55)'
               : 'var(--color-border)'}`,
             borderRadius: 'var(--radius-btn)',
-            color: permisosActivos.length > 0
-              ? '#27AE60'
-              : 'var(--color-text-muted)',
+            color: permisosActivos.length > 0 ? '#27AE60' : 'var(--color-text-muted)',
             fontFamily: 'var(--font-display)',
             fontSize: 16,
             fontWeight: 700,
@@ -293,7 +293,7 @@ export default function ContratistasScreen() {
         >
           <ClipboardCheck size={18} />
           Cierre de Trabajos
-          {permisosActivos.length > 0 && <ChevronRight size={16} />}
+          {permisosActivos.length > 0 ? <ChevronRight size={16} /> : null}
         </motion.button>
       </div>
 
@@ -330,7 +330,6 @@ export default function ContratistasScreen() {
                 overflowY: 'auto',
               }}
             >
-              {/* Encabezado del modal */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -361,7 +360,6 @@ export default function ContratistasScreen() {
                 </button>
               </div>
 
-              {/* Lista de permisos activos para seleccionar */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {permisosActivos.map((permiso) => (
                   <motion.button
@@ -396,9 +394,7 @@ export default function ContratistasScreen() {
                         fontSize: 12,
                         color: 'var(--color-text-muted)',
                       }}>
-                        {[permiso.tipoTrabajo, permiso.ubicacion]
-                          .filter(Boolean)
-                          .join(' · ')}
+                        {[permiso.tipoTrabajo, permiso.ubicacion].filter(Boolean).join(' · ')}
                       </div>
                     </div>
                     <ChevronRight size={16} color="var(--color-text-muted)" style={{ flexShrink: 0 }} />

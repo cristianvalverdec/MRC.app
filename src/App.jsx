@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, Component } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { useMsal, useIsAuthenticated } from '@azure/msal-react'
@@ -35,6 +35,50 @@ const LideresAdminScreen          = lazy(() => import('./screens/LideresAdminScr
 const InstalacionDetailScreen     = lazy(() => import('./screens/InstalacionDetailScreen'))
 const SharePointConnectionsScreen = lazy(() => import('./screens/SharePointConnectionsScreen'))
 const ContratistasScreen           = lazy(() => import('./screens/ContratistasScreen'))
+
+// ── Error Boundary — evita blank screen total ante cualquier error de render ──
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, info) {
+    console.error('[MRC] Error en render:', error, info?.componentStack)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: '#1B2A4A', padding: '24px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 44, marginBottom: 16 }}>⚠️</div>
+          <div style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            Error al cargar la pantalla
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'sans-serif', fontSize: 13, marginBottom: 28, maxWidth: 320 }}>
+            {this.state.error?.message || 'Error desconocido'}
+          </div>
+          <button
+            onClick={() => { this.setState({ hasError: false, error: null }); window.history.back() }}
+            style={{
+              background: '#F57C20', color: '#fff', border: 'none',
+              borderRadius: 10, padding: '14px 28px',
+              fontFamily: 'sans-serif', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            ← Volver
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function PageFallback() {
   return (
@@ -167,7 +211,9 @@ export default function App() {
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}
         {!IS_DEV_MODE && <ResumeHandler />}
-        <AnimatedRoutes />
+        <ErrorBoundary>
+          <AnimatedRoutes />
+        </ErrorBoundary>
       </Suspense>
     </BrowserRouter>
   )
