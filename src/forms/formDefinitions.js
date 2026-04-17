@@ -428,6 +428,192 @@ export const formDefinitions = {
 
     ], // fin sections
   },
+  // ── 8. PERMISO DE TRABAJO — CONTRATISTAS ─────────────────────────────────
+  'permiso-trabajo-contratista': {
+    id: 'permiso-trabajo-contratista',
+    title: 'Permiso de Trabajo — Contratistas',
+    description: 'Verificación de condiciones para inicio de faenas en instalaciones',
+    sections: [
+
+      // ── S1: DATOS DE LA EMPRESA Y FAENA ──────────────────────────────────
+      {
+        id: 'ptc_s1',
+        title: 'Datos de la Empresa y Faena',
+        questions: [
+          { id: 'ptc_01', type: 'text', label: 'Nombre de la empresa contratista', required: true },
+          { id: 'ptc_02', type: 'text', label: 'RUT de la empresa contratista', required: true },
+          { id: 'ptc_03', type: 'text', label: 'Nombre del supervisor de la empresa contratista', required: true },
+          { id: 'ptc_04', type: 'text', label: 'Teléfono de contacto del supervisor', required: true },
+          { id: 'ptc_05', type: 'text', label: 'Ubicación específica de la faena (sala, área, piso)', required: true, placeholder: 'Ej: Sala de máquinas, andén 3' },
+          { id: 'ptc_06', type: 'text', label: 'Descripción del trabajo a realizar', required: true },
+          { id: 'ptc_07', type: 'text', label: 'Fecha de inicio', required: true, inputType: 'date' },
+          { id: 'ptc_08', type: 'text', label: 'Fecha de término estimada', required: true, inputType: 'date' },
+          { id: 'ptc_09', type: 'text', label: 'Número de trabajadores involucrados', required: true, inputType: 'number' },
+          { id: 'ptc_10', type: 'people-picker', label: 'Responsable Agrosuper que supervisa la faena', required: true, options: '__DYNAMIC_AZURE_AD__' },
+        ],
+      },
+
+      // ── S2: CLASIFICACIÓN Y PELIGROS ─────────────────────────────────────
+      {
+        id: 'ptc_s2',
+        title: 'Clasificación y Peligros',
+        questions: [
+          { id: 'ptc_11', type: 'select', label: 'Tipo de trabajo a realizar', required: true, options: ['Trabajo General', 'Trabajo en Altura', 'Trabajo en Caliente', 'Trabajo Eléctrico', 'Espacio Confinado', 'Múltiples tipos'] },
+          { id: 'ptc_12', type: 'checkbox', label: 'Peligros identificados (seleccione todos los que aplican)', required: false, options: ['Caída a distinto nivel', 'Contacto eléctrico', 'Incendio / explosión', 'Atmósfera peligrosa', 'Atrapamiento', 'Golpes / aplastamiento', 'Exposición a químicos', 'Ruido excesivo', 'Temperaturas extremas', 'Otros'] },
+          { id: 'ptc_13', type: 'select', label: 'Nivel de riesgo global estimado', required: true, options: ['Alto', 'Medio', 'Bajo'] },
+          { id: 'ptc_14', type: 'yesno', label: '¿Existe procedimiento escrito o IPERC para este trabajo?', required: true },
+          { id: 'ptc_15', type: 'text', label: 'Observaciones sobre el procedimiento o evaluación de riesgo', required: false },
+        ],
+      },
+
+      // ── S3: COMPETENCIAS E INDUCCIÓN ──────────────────────────────────────
+      {
+        id: 'ptc_s3',
+        title: 'Competencias e Inducción',
+        questions: [
+          { id: 'ptc_16', type: 'yesno', label: '¿Los trabajadores cuentan con capacitación específica para este trabajo?', required: true },
+          { id: 'ptc_17', type: 'yesno', label: '¿Las certificaciones de los trabajadores están vigentes?', required: true },
+          { id: 'ptc_18', type: 'text', label: 'Detalle certificaciones y fechas de vencimiento', required: false, placeholder: 'Ej: Trabajo en altura vigente hasta 12/2025' },
+          { id: 'ptc_19', type: 'yesno', label: '¿Se realizó inducción de seguridad en la instalación?', required: true },
+          { id: 'ptc_20', type: 'photo', label: 'Evidencia de inducción o certificaciones (opcional)', required: false, maxPhotos: 3 },
+        ],
+      },
+
+      // ── S4: EPP REQUERIDO ─────────────────────────────────────────────────
+      {
+        id: 'ptc_s4',
+        title: 'EPP Requerido',
+        questions: [
+          { id: 'ptc_21', type: 'checkbox', label: 'EPP que se utilizará en la faena', required: false, options: ['Casco de seguridad', 'Lentes protectores', 'Protección auditiva', 'Mascarilla / respirador', 'Guantes de trabajo', 'Botas de seguridad con punta acero', 'Chaleco reflectante', 'Arnés de cuerpo completo', 'Ropa resistente al fuego', 'Guantes dieléctricos', 'Calzado dieléctrico', 'Protección facial'] },
+          { id: 'ptc_22', type: 'yesno', label: '¿Todo el EPP está disponible, inspeccionado y en buen estado?', required: true },
+          { id: 'ptc_23', type: 'yesno', label: '¿El personal ha sido instruido en el uso correcto del EPP?', required: true },
+        ],
+      },
+
+      // ── S5A: TRABAJO EN ALTURA ────────────────────────────────────────────
+      {
+        id: 'ptc_s5a',
+        title: 'Trabajo en Altura',
+        visibleWhen: (a) => ['Trabajo en Altura', 'Múltiples tipos'].includes(a.ptc_11),
+        questions: [
+          { id: 'ptc_a01', type: 'text', label: 'Altura máxima de trabajo (metros)', required: true, inputType: 'number' },
+          { id: 'ptc_a02', type: 'select', label: 'Método de acceso', required: false, options: ['Escalera portátil', 'Escalera fija', 'Andamiaje', 'Plataforma elevadora', 'Línea de vida vertical', 'Otro'] },
+          { id: 'ptc_a03', type: 'select', label: 'Sistema de protección contra caídas', required: false, options: ['Arnés + eslinga doble', 'Arnés + SRL (retráctil)', 'Arnés + anclaje puntual', 'Baranda perimetral', 'Red de seguridad'] },
+          { id: 'ptc_a04', type: 'yesno', label: '¿Los puntos de anclaje han sido inspeccionados y son aptos?', required: true },
+          { id: 'ptc_a05', type: 'yesno', label: '¿El arnés y eslingas han sido inspeccionados (sin daño visible)?', required: true },
+          { id: 'ptc_a06', type: 'yesno', label: '¿Existe zona de exclusión delimitada y señalizada bajo el área de trabajo?', required: true },
+          { id: 'ptc_a07', type: 'yesno', label: '¿Las condiciones climáticas son aceptables para trabajar en altura?', required: true },
+          { id: 'ptc_a08', type: 'yesno', label: '¿Existe plan de rescate documentado para este trabajo?', required: true },
+          { id: 'ptc_a09', type: 'yesno', label: '¿El personal está capacitado en el procedimiento de rescate?', required: true },
+        ],
+      },
+
+      // ── S5B: TRABAJO EN CALIENTE ──────────────────────────────────────────
+      {
+        id: 'ptc_s5b',
+        title: 'Trabajo en Caliente',
+        visibleWhen: (a) => ['Trabajo en Caliente', 'Múltiples tipos'].includes(a.ptc_11),
+        questions: [
+          { id: 'ptc_b01', type: 'select', label: 'Tipo de trabajo en caliente', required: false, options: ['Soldadura eléctrica', 'Soldadura autógena / oxicorte', 'Corte con plasma', 'Esmerilado', 'Torchado / calentamiento', 'Otro'] },
+          { id: 'ptc_b02', type: 'yesno', label: '¿Se han removido o protegido combustibles en radio de 11 metros?', required: true },
+          { id: 'ptc_b03', type: 'yesno', label: '¿Las aberturas en paredes, pisos y techos han sido selladas?', required: true },
+          { id: 'ptc_b04', type: 'yesno', label: '¿Los sistemas de rociadores (sprinklers) del área están operativos?', required: true },
+          { id: 'ptc_b05', type: 'yesno', label: '¿Hay extintores disponibles y accesibles en el área de trabajo?', required: true },
+          { id: 'ptc_b06', type: 'yesno', label: '¿Se ha designado un vigía contra incendio para este trabajo?', required: true },
+          { id: 'ptc_b07', type: 'text', label: 'Nombre del vigía contra incendio designado', required: false },
+          { id: 'ptc_b08', type: 'yesno', label: '¿El vigía permanecerá al menos 30 minutos después del término del trabajo?', required: true },
+          { id: 'ptc_b09', type: 'yesno', label: '¿El equipo de soldadura / corte está en buen estado?', required: true },
+          { id: 'ptc_b10', type: 'photo', label: 'Fotografía del área antes de iniciar', required: false, maxPhotos: 2 },
+        ],
+      },
+
+      // ── S5C: TRABAJO ELÉCTRICO ────────────────────────────────────────────
+      {
+        id: 'ptc_s5c',
+        title: 'Trabajo Eléctrico',
+        visibleWhen: (a) => ['Trabajo Eléctrico', 'Múltiples tipos'].includes(a.ptc_11),
+        questions: [
+          { id: 'ptc_c01', type: 'text', label: 'Voltaje del sistema eléctrico a intervenir (V)', required: true, inputType: 'number' },
+          { id: 'ptc_c02', type: 'text', label: 'Identificación del tablero / circuito / equipo', required: true },
+          { id: 'ptc_c03', type: 'yesno', label: '¿El trabajo se realizará con el equipo sin energía (LOTO aplicado)?', required: true },
+          { id: 'ptc_c04', type: 'yesno', label: '¿Se realizó prueba de ausencia de tensión antes de iniciar?', required: true },
+          { id: 'ptc_c05', type: 'text', label: 'Nombre de la persona responsable del bloqueo / LOTO', required: true },
+          { id: 'ptc_c06', type: 'yesno', label: '¿El electricista posee certificación vigente de competencia?', required: true },
+          { id: 'ptc_c07', type: 'yesno', label: '¿Los guantes dieléctricos corresponden al voltaje del sistema y están inspeccionados?', required: true },
+          { id: 'ptc_c08', type: 'yesno', label: '¿Se estableció zona de exclusión y señalización de peligro eléctrico?', required: true },
+          { id: 'ptc_c09', type: 'yesno', label: '¿Se utilizarán herramientas con aislamiento certificado?', required: true },
+        ],
+      },
+
+      // ── S5D: ESPACIO CONFINADO ────────────────────────────────────────────
+      {
+        id: 'ptc_s5d',
+        title: 'Espacio Confinado',
+        visibleWhen: (a) => ['Espacio Confinado', 'Múltiples tipos'].includes(a.ptc_11),
+        questions: [
+          { id: 'ptc_d01', type: 'select', label: 'Tipo de espacio confinado', required: false, options: ['Tanque', 'Cisterna', 'Silo', 'Pozo / sumidero', 'Conducto / tubería', 'Bóveda / cámara subterránea', 'Otro'] },
+          { id: 'ptc_d02', type: 'text', label: 'Sustancia anteriormente contenida en el espacio', required: true },
+          { id: 'ptc_d03', type: 'yesno', label: '¿Se realizaron mediciones de atmósfera antes de la entrada?', required: true },
+          { id: 'ptc_d04', type: 'text', label: 'Resultado medición oxígeno (%) — rango aceptable: 19.5%–23.5%', required: false, inputType: 'number', placeholder: 'Ej: 20.9' },
+          { id: 'ptc_d05', type: 'text', label: 'Resultado medición gases explosivos (% LEL) — máximo aceptable: < 10%', required: false, inputType: 'number', placeholder: 'Ej: 0' },
+          { id: 'ptc_d06', type: 'yesno', label: '¿Las mediciones atmosféricas están dentro de rangos seguros?', required: true },
+          { id: 'ptc_d07', type: 'yesno', label: '¿Se estableció ventilación (natural o forzada) antes de la entrada?', required: true },
+          { id: 'ptc_d08', type: 'yesno', label: '¿Hay un vigilante / guardián designado que NO ingresará al espacio?', required: true },
+          { id: 'ptc_d09', type: 'text', label: 'Nombre del vigilante / guardián designado', required: false },
+          { id: 'ptc_d10', type: 'yesno', label: '¿Hay equipo de rescate disponible (arnés, trípode, comunicaciones)?', required: true },
+          { id: 'ptc_d11', type: 'yesno', label: '¿Hay personal capacitado en rescate presente en el sitio?', required: true },
+          { id: 'ptc_d12', type: 'yesno', label: '¿El monitoreo de atmósfera será continuo durante el trabajo?', required: true },
+        ],
+      },
+
+      // ── S6: CONTROL Y COORDINACIÓN ────────────────────────────────────────
+      {
+        id: 'ptc_s6',
+        title: 'Control y Coordinación',
+        questions: [
+          { id: 'ptc_31', type: 'text', label: 'Principales medidas de control implementadas', required: true, placeholder: 'Describe las medidas de seguridad activas para esta faena…' },
+          { id: 'ptc_32', type: 'yesno', label: '¿Se realizó charla de inicio (toolbox talk) con todo el personal?', required: true },
+          { id: 'ptc_33', type: 'yesno', label: '¿El área fue delimitada y señalizada para el trabajo?', required: true },
+          { id: 'ptc_34', type: 'yesno', label: '¿Se verificó que la faena no afecta otras operaciones activas en el sector?', required: true },
+          { id: 'ptc_35', type: 'yesno', label: '¿Los trabajadores conocen el plan de emergencia y punto de reunión?', required: true },
+          { id: 'ptc_36', type: 'text', label: 'Observaciones o condiciones especiales', required: false },
+          { id: 'ptc_37', type: 'photo', label: 'Fotografía del área preparada para iniciar', required: false, maxPhotos: 3 },
+        ],
+      },
+
+      // ── S7: AUTORIZACIÓN ──────────────────────────────────────────────────
+      {
+        id: 'ptc_s7',
+        title: 'Autorización',
+        questions: [
+          { id: 'ptc_41', type: 'people-picker', label: 'Supervisor Agrosuper que autoriza el inicio', required: true, options: '__DYNAMIC_AZURE_AD__' },
+          { id: 'ptc_42', type: 'yesno', label: 'El supervisor declara haber verificado in situ las condiciones indicadas en este formulario', required: true },
+          { id: 'ptc_43', type: 'yesno', label: '¿La faena queda autorizada para iniciar?', required: true },
+          { id: 'ptc_44', type: 'text', label: 'Hora de inicio autorizada', required: true, placeholder: 'Ej: 09:30' },
+          { id: 'ptc_45', type: 'text', label: 'Hora máxima de término del permiso (renovar si se extiende)', required: true, placeholder: 'Ej: 17:00' },
+          { id: 'ptc_46', type: 'text', label: 'Observaciones del autorizante', required: false },
+        ],
+      },
+
+      // ── S8: CIERRE DE FAENA ───────────────────────────────────────────────
+      {
+        id: 'ptc_s8',
+        title: 'Cierre de Faena',
+        questions: [
+          { id: 'ptc_51', type: 'yesno', label: '¿El trabajo fue completado en su totalidad?', required: true },
+          { id: 'ptc_52', type: 'yesno', label: '¿El área fue restaurada a condiciones normales?', required: true },
+          { id: 'ptc_53', type: 'yesno', label: '¿Se retiraron todos los aislamientos, bloqueos y etiquetas?', required: true },
+          { id: 'ptc_54', type: 'yesno', label: '¿Se recogió todo el equipamiento utilizado?', required: true },
+          { id: 'ptc_55', type: 'yesno', label: '¿Ocurrió algún incidente o accidente durante la faena?', required: true },
+          { id: 'ptc_56', type: 'text', label: 'Descripción del incidente (si aplica)', required: false, placeholder: 'Describe el incidente, personas involucradas y acciones tomadas…' },
+          { id: 'ptc_57', type: 'photo', label: 'Fotografía del área al término del trabajo', required: false, maxPhotos: 2 },
+          { id: 'ptc_58', type: 'text', label: 'Observaciones de cierre', required: false },
+        ],
+      },
+
+    ], // fin sections
+  },
+
 }
 
 // Helper: calcula total de preguntas requeridas de un formulario

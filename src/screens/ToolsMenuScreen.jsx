@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users, Database } from 'lucide-react'
+import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users, Database, HardHat } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
@@ -54,6 +54,13 @@ const toolsBySucursales = [
     sublabel: 'Test de fatiga para operadores de EQR',
     accentColor: '#0891B2',
     route: 'monitor-fatiga',
+  },
+  {
+    icon: <HardHat size={22} color="#fff" />,
+    label: 'Permiso de Trabajo',
+    sublabel: 'Verificación de condiciones para empresas contratistas',
+    accentColor: '#E85D04',
+    formType: 'permiso-trabajo-contratista',
   },
 ]
 

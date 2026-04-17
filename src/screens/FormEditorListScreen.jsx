@@ -76,6 +76,15 @@ const FORM_CATALOG = [
     mode: 'sections',
     unit: 'Fuerza de Ventas',
   },
+  {
+    id: 'permiso-trabajo-contratista',
+    label: 'Permiso de Trabajo — Contratistas',
+    sublabel: 'Verificación de condiciones para inicio de faenas en instalaciones',
+    icon: <ShieldCheck size={20} color="#fff" />,
+    accentColor: '#E85D04',
+    mode: 'sections',
+    unit: 'Sucursales',
+  },
 ]
 
 // Colores disponibles para nuevos formularios

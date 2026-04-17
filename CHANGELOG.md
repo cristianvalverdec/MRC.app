@@ -5,6 +5,17 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.6.0] — 2026-04-17
+
+### Nuevas Funcionalidades
+- **Formulario "Permiso de Trabajo — Contratistas":** nuevo formulario de verificación de condiciones para inicio de faenas de empresas contratistas en instalaciones. Incluye 8 secciones y ~58 preguntas que cubren datos de la empresa, clasificación de peligros, competencias e inducción, EPP, y 4 secciones de trabajo crítico con lógica condicional (`visibleWhen`): Trabajo en Altura, Trabajo en Caliente, Trabajo Eléctrico y Espacio Confinado. Además incluye sección de autorización y cierre de faena.
+- **Disponible en menú Herramientas Preventivas (Sucursales):** el formulario aparece en `ToolsMenuScreen` para todas las instalaciones.
+- **Editable desde el Editor de Formularios:** registrado en `FORM_CATALOG` de `FormEditorListScreen` para que el equipo SSO pueda ajustar preguntas junto al especialista en empresas contratistas.
+- **Mapeo SharePoint preparado:** función `mapPermisoTrabajoContratista` agregada en `sharepointData.js`. El GUID de la lista SharePoint se configurará desde el panel de Conexiones una vez creada la lista.
+- **Cumplimiento normativo:** diseño alineado con DS 44/2023, DS 594, Ley 16.744 e ISO 45001.
+
+---
+
 ## [1.5.3] — 2026-04-12
 
 ### Configuración

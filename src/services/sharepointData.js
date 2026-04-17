@@ -54,12 +54,13 @@ export function getAllConnectionOverrides() {
 
 // ── GUIDs de listas ───────────────────────────────────────────────────────
 const LIST_IDS = {
-  reglasOroSucursales: 'd123a245-0aeb-4f51-9b20-693639c963b6',
-  caminataSeguridad:   '04730b19-b235-4eef-b487-0234326fd4ac',
-  inspeccionSimple:    'de766ded-0d14-4e50-8254-710c533a2106',
-  reglasOroVentas:     '5edaee5a-2ee5-4fb4-a5aa-18f8068a1b25',
-  difusionesSso:       '2097a931-5615-472b-afc7-b2d2fc6fe805',
-  cierreCondiciones:   '00b25970-34f1-4026-9cc8-0df3f59c3383',
+  reglasOroSucursales:        'd123a245-0aeb-4f51-9b20-693639c963b6',
+  caminataSeguridad:          '04730b19-b235-4eef-b487-0234326fd4ac',
+  inspeccionSimple:           'de766ded-0d14-4e50-8254-710c533a2106',
+  reglasOroVentas:            '5edaee5a-2ee5-4fb4-a5aa-18f8068a1b25',
+  difusionesSso:              '2097a931-5615-472b-afc7-b2d2fc6fe805',
+  cierreCondiciones:          '00b25970-34f1-4026-9cc8-0df3f59c3383',
+  permisoTrabajoContratista:  '', // GUID pendiente — asignar al crear la lista SharePoint
 }
 
 // ── Helpers Graph API ─────────────────────────────────────────────────────
@@ -277,15 +278,53 @@ function mapCierreCondiciones(sub) {
   }
 }
 
+// ── 7. Permiso de Trabajo — Contratistas ─────────────────────────────────
+function mapPermisoTrabajoContratista(sub) {
+  const d = sub.answers || sub.data || {}
+
+  const peligros = Array.isArray(d.ptc_12) ? d.ptc_12.join(' | ') : (d.ptc_12 || '')
+  const epp      = Array.isArray(d.ptc_21) ? d.ptc_21.join(' | ') : (d.ptc_21 || '')
+
+  return {
+    Title:                          sub.userName || '',
+    Instalaci_x00f3_n:              sub.branch   || '',
+    Nombre:                         sub.userName  || '',
+    Cargo:                          sub.userJobTitle || '',
+    Empresa_x0020_Contratista:      d.ptc_01 || '',
+    RUT_x0020_Empresa:              d.ptc_02 || '',
+    Supervisor_x0020_Contratista:   d.ptc_03 || '',
+    Tel_x00e9_fono_x0020_Supervisor: d.ptc_04 || '',
+    Ubicaci_x00f3_n_x0020_Faena:    d.ptc_05 || '',
+    Descripci_x00f3_n_x0020_Trabajo: d.ptc_06 || '',
+    Fecha_x0020_Inicio:             d.ptc_07 || '',
+    Fecha_x0020_T_x00e9_rmino:      d.ptc_08 || '',
+    N_x00ba__x0020_Trabajadores:    d.ptc_09 || '',
+    Responsable_x0020_Agrosuper:    extractEmail(d.ptc_10),
+    Tipo_x0020_Trabajo:             d.ptc_11 || '',
+    Peligros_x0020_Identificados:   peligros,
+    Nivel_x0020_Riesgo:             d.ptc_13 || '',
+    EPP_x0020_Utilizado:            epp,
+    Autorizado:                     d.ptc_43 || '',
+    Hora_x0020_Inicio:              d.ptc_44 || '',
+    Hora_x0020_T_x00e9_rmino:       d.ptc_45 || '',
+    Trabajo_x0020_Completado:       d.ptc_51 || '',
+    Incidente_x0020_Reportado:      d.ptc_55 || '',
+    Descripci_x00f3_n_x0020_Incidente: d.ptc_56 || '',
+    Observaciones:                  d.ptc_46 || d.ptc_58 || '',
+    Correo_x0020_Remitente:         sub.userEmail || '',
+  }
+}
+
 // ── Router: formType → listId + mapper ───────────────────────────────────
 function getListConfig(formType) {
   const MAP = {
-    'pauta-verificacion-reglas-oro': { listId: LIST_IDS.reglasOroSucursales, mapFields: mapReglasOroSucursales },
-    'observacion-conductual':        { listId: LIST_IDS.reglasOroVentas,     mapFields: mapReglasOroVentas     },
-    'caminata-seguridad':            { listId: LIST_IDS.caminataSeguridad,   mapFields: mapCaminataSeguridad   },
-    'inspeccion-simple':             { listId: LIST_IDS.inspeccionSimple,    mapFields: mapInspeccionSimple    },
-    'difusiones-sso':                { listId: LIST_IDS.difusionesSso,       mapFields: mapDifusiones          },
-    'cierre-condiciones':            { listId: LIST_IDS.cierreCondiciones,   mapFields: mapCierreCondiciones   },
+    'pauta-verificacion-reglas-oro':  { listId: LIST_IDS.reglasOroSucursales,       mapFields: mapReglasOroSucursales       },
+    'observacion-conductual':         { listId: LIST_IDS.reglasOroVentas,           mapFields: mapReglasOroVentas           },
+    'caminata-seguridad':             { listId: LIST_IDS.caminataSeguridad,         mapFields: mapCaminataSeguridad         },
+    'inspeccion-simple':              { listId: LIST_IDS.inspeccionSimple,          mapFields: mapInspeccionSimple          },
+    'difusiones-sso':                 { listId: LIST_IDS.difusionesSso,             mapFields: mapDifusiones                },
+    'cierre-condiciones':             { listId: LIST_IDS.cierreCondiciones,         mapFields: mapCierreCondiciones         },
+    'permiso-trabajo-contratista':    { listId: LIST_IDS.permisoTrabajoContratista, mapFields: mapPermisoTrabajoContratista },
   }
   const base = MAP[formType]
   if (!base) return null
