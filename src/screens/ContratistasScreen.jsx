@@ -5,7 +5,7 @@
 //   1. Nuevo Permiso de Trabajo
 //   2. Cierre de Trabajos (obliga a las jefaturas a ir a terreno)
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -19,10 +19,16 @@ export default function ContratistasScreen() {
   const navigate    = useNavigate()
   const { unitType } = useParams()
 
-  // Selector defensivo — (s.permisosActivos || []) evita crash si el store
-  // devuelve undefined durante hidratación inicial de Zustand persist
-  const permisosActivos = useContratistasStore(
-    (s) => (s.permisosActivos || []).filter((p) => p.estado === 'activo')
+  // CRÍTICO: el selector de Zustand debe devolver una referencia ESTABLE.
+  // En Zustand v5 no hay auto-shallow-compare; si el selector crea un array
+  // nuevo (ej. .filter()) en cada render, React detecta cambio infinito
+  // en getSnapshot y lanza error #185 (Maximum update depth / getSnapshot
+  // should be cached). Por eso seleccionamos el array crudo (referencia
+  // estable) y filtramos FUERA del selector con useMemo.
+  const todosLosPermisos = useContratistasStore((s) => s.permisosActivos)
+  const permisosActivos = useMemo(
+    () => (todosLosPermisos || []).filter((p) => p.estado === 'activo'),
+    [todosLosPermisos]
   )
 
   const [showCierreModal, setShowCierreModal] = useState(false)
