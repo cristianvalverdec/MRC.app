@@ -85,6 +85,15 @@ const FORM_CATALOG = [
     mode: 'sections',
     unit: 'Sucursales',
   },
+  {
+    id: 'cierre-trabajo-contratista',
+    label: 'Cierre de Trabajo — Contratistas',
+    sublabel: 'Verificación de condiciones al término de la faena',
+    icon: <ShieldCheck size={20} color="#fff" />,
+    accentColor: '#27AE60',
+    mode: 'sections',
+    unit: 'Sucursales',
+  },
 ]
 
 // Colores disponibles para nuevos formularios

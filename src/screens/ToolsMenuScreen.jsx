@@ -60,7 +60,7 @@ const toolsBySucursales = [
     label: 'Permiso de Trabajo',
     sublabel: 'Verificación de condiciones para empresas contratistas',
     accentColor: '#E85D04',
-    formType: 'permiso-trabajo-contratista',
+    route: 'contratistas',
   },
 ]
 

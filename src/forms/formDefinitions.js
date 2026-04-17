@@ -459,7 +459,18 @@ export const formDefinitions = {
         title: 'Clasificación y Peligros',
         questions: [
           { id: 'ptc_11', type: 'select', label: 'Tipo de trabajo a realizar', required: true, options: ['Trabajo General', 'Trabajo en Altura', 'Trabajo en Caliente', 'Trabajo Eléctrico', 'Espacio Confinado', 'Múltiples tipos'] },
-          { id: 'ptc_12', type: 'checkbox', label: 'Peligros identificados (seleccione todos los que aplican)', required: false, options: ['Caída a distinto nivel', 'Contacto eléctrico', 'Incendio / explosión', 'Atmósfera peligrosa', 'Atrapamiento', 'Golpes / aplastamiento', 'Exposición a químicos', 'Ruido excesivo', 'Temperaturas extremas', 'Otros'] },
+          { id: 'ptc_12', type: 'checkbox', label: 'Peligros identificados (seleccione todos los que aplican)', required: false, options: [
+            { value: 'caida_nivel',          label: 'Caída a distinto nivel' },
+            { value: 'contacto_electrico',   label: 'Contacto eléctrico' },
+            { value: 'incendio_explosion',   label: 'Incendio / explosión' },
+            { value: 'atmosfera_peligrosa',  label: 'Atmósfera peligrosa' },
+            { value: 'atrapamiento',         label: 'Atrapamiento' },
+            { value: 'golpes',               label: 'Golpes / aplastamiento' },
+            { value: 'quimicos',             label: 'Exposición a químicos' },
+            { value: 'ruido',                label: 'Ruido excesivo' },
+            { value: 'temperatura',          label: 'Temperaturas extremas' },
+            { value: 'otros',                label: 'Otros' },
+          ] },
           { id: 'ptc_13', type: 'select', label: 'Nivel de riesgo global estimado', required: true, options: ['Alto', 'Medio', 'Bajo'] },
           { id: 'ptc_14', type: 'yesno', label: '¿Existe procedimiento escrito o IPERC para este trabajo?', required: true },
           { id: 'ptc_15', type: 'text', label: 'Observaciones sobre el procedimiento o evaluación de riesgo', required: false },
@@ -484,7 +495,20 @@ export const formDefinitions = {
         id: 'ptc_s4',
         title: 'EPP Requerido',
         questions: [
-          { id: 'ptc_21', type: 'checkbox', label: 'EPP que se utilizará en la faena', required: false, options: ['Casco de seguridad', 'Lentes protectores', 'Protección auditiva', 'Mascarilla / respirador', 'Guantes de trabajo', 'Botas de seguridad con punta acero', 'Chaleco reflectante', 'Arnés de cuerpo completo', 'Ropa resistente al fuego', 'Guantes dieléctricos', 'Calzado dieléctrico', 'Protección facial'] },
+          { id: 'ptc_21', type: 'checkbox', label: 'EPP que se utilizará en la faena', required: false, options: [
+            { value: 'casco',               label: 'Casco de seguridad' },
+            { value: 'lentes',              label: 'Lentes protectores' },
+            { value: 'auditiva',            label: 'Protección auditiva' },
+            { value: 'mascarilla',          label: 'Mascarilla / respirador' },
+            { value: 'guantes',             label: 'Guantes de trabajo' },
+            { value: 'botas',               label: 'Botas de seguridad con punta acero' },
+            { value: 'chaleco',             label: 'Chaleco reflectante' },
+            { value: 'arnes',               label: 'Arnés de cuerpo completo' },
+            { value: 'ropa_fuego',          label: 'Ropa resistente al fuego' },
+            { value: 'guantes_dielectricos', label: 'Guantes dieléctricos' },
+            { value: 'calzado_dielectrico', label: 'Calzado dieléctrico' },
+            { value: 'proteccion_facial',   label: 'Protección facial' },
+          ] },
           { id: 'ptc_22', type: 'yesno', label: '¿Todo el EPP está disponible, inspeccionado y en buen estado?', required: true },
           { id: 'ptc_23', type: 'yesno', label: '¿El personal ha sido instruido en el uso correcto del EPP?', required: true },
         ],
@@ -595,19 +619,51 @@ export const formDefinitions = {
         ],
       },
 
-      // ── S8: CIERRE DE FAENA ───────────────────────────────────────────────
+    ], // fin sections
+  },
+
+  // ── 9. CIERRE DE TRABAJO — CONTRATISTAS ──────────────────────────────────
+  'cierre-trabajo-contratista': {
+    id: 'cierre-trabajo-contratista',
+    title: 'Cierre de Trabajo — Contratistas',
+    description: 'Verificación de condiciones al término de la faena',
+    sections: [
+
+      // ── S1: REFERENCIA AL PERMISO ─────────────────────────────────────────
       {
-        id: 'ptc_s8',
-        title: 'Cierre de Faena',
+        id: 'ctc_s1',
+        title: 'Referencia al Permiso de Trabajo',
         questions: [
-          { id: 'ptc_51', type: 'yesno', label: '¿El trabajo fue completado en su totalidad?', required: true },
-          { id: 'ptc_52', type: 'yesno', label: '¿El área fue restaurada a condiciones normales?', required: true },
-          { id: 'ptc_53', type: 'yesno', label: '¿Se retiraron todos los aislamientos, bloqueos y etiquetas?', required: true },
-          { id: 'ptc_54', type: 'yesno', label: '¿Se recogió todo el equipamiento utilizado?', required: true },
-          { id: 'ptc_55', type: 'yesno', label: '¿Ocurrió algún incidente o accidente durante la faena?', required: true },
-          { id: 'ptc_56', type: 'text', label: 'Descripción del incidente (si aplica)', required: false, placeholder: 'Describe el incidente, personas involucradas y acciones tomadas…' },
-          { id: 'ptc_57', type: 'photo', label: 'Fotografía del área al término del trabajo', required: false, maxPhotos: 2 },
-          { id: 'ptc_58', type: 'text', label: 'Observaciones de cierre', required: false },
+          { id: 'ctc_01', type: 'text', label: 'Nombre de la empresa contratista', required: true },
+          { id: 'ctc_02', type: 'text', label: 'Ubicación de la faena (sala, área, piso)', required: true },
+          { id: 'ctc_03', type: 'select', label: 'Tipo de trabajo realizado', required: true, options: ['Trabajo General', 'Trabajo en Altura', 'Trabajo en Caliente', 'Trabajo Eléctrico', 'Espacio Confinado', 'Múltiples tipos'] },
+          { id: 'ctc_04', type: 'people-picker', label: 'Responsable Agrosuper que cierra la faena', required: true, options: '__DYNAMIC_AZURE_AD__' },
+        ],
+      },
+
+      // ── S2: VERIFICACIÓN DE CIERRE ────────────────────────────────────────
+      {
+        id: 'ctc_s2',
+        title: 'Verificación de Cierre',
+        questions: [
+          { id: 'ctc_11', type: 'yesno', label: '¿El trabajo fue completado en su totalidad?', required: true },
+          { id: 'ctc_12', type: 'yesno', label: '¿El área fue restaurada a condiciones normales?', required: true },
+          { id: 'ctc_13', type: 'yesno', label: '¿Se retiraron todos los aislamientos, bloqueos y etiquetas?', required: true },
+          { id: 'ctc_14', type: 'yesno', label: '¿Se recogió todo el equipamiento y herramientas utilizadas?', required: true },
+          { id: 'ctc_15', type: 'yesno', label: '¿El personal contratista abandonó la instalación?', required: true },
+          { id: 'ctc_16', type: 'yesno', label: '¿Se verificó el área en terreno antes de dar cierre?', required: true },
+        ],
+      },
+
+      // ── S3: INCIDENTES Y OBSERVACIONES ───────────────────────────────────
+      {
+        id: 'ctc_s3',
+        title: 'Incidentes y Observaciones',
+        questions: [
+          { id: 'ctc_21', type: 'yesno', label: '¿Ocurrió algún incidente o accidente durante la faena?', required: true },
+          { id: 'ctc_22', type: 'text', label: 'Descripción del incidente (si aplica)', required: false, placeholder: 'Describe el incidente, personas involucradas y acciones tomadas…' },
+          { id: 'ctc_23', type: 'photo', label: 'Fotografía del área al término del trabajo', required: false, maxPhotos: 3 },
+          { id: 'ctc_24', type: 'text', label: 'Observaciones de cierre', required: false },
         ],
       },
 

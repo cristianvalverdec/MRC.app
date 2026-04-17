@@ -5,13 +5,31 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.6.1] — 2026-04-17
+
+### Nuevas Funcionalidades
+- **Pantalla "Permiso de Trabajo" (ContratistasScreen):** nueva pantalla de gestión de contratos activos. Muestra en tiempo real los permisos de trabajo en curso (empresa, tipo de trabajo, ubicación, hora máxima), y ofrece dos acciones: iniciar un nuevo permiso o dar cierre a un trabajo activo. Obliga a las jefaturas a ir a terreno para cerrar las faenas.
+- **Formulario "Cierre de Trabajo — Contratistas":** nuevo formulario separado para el cierre formal de faenas (`cierre-trabajo-contratista`). Incluye sección de referencia al permiso original (con pre-relleno automático al venir desde la pantalla de contratistas), verificación de 6 condiciones de cierre e incidentes/observaciones.
+- **Store de contratistas (`contratistasStore`):** Zustand + localStorage. Registra los permisos activos al enviar el formulario de apertura y los marca como cerrados al enviar el formulario de cierre. Persiste entre sesiones.
+- **`QuestionPeoplePicker` habilitado en SectionsMode:** el tipo de pregunta `people-picker` ahora funciona en formularios tipo secciones (anteriormente solo en el wizard). Afecta a los campos de Responsable Agrosuper en los formularios de contratistas.
+- **Botón "Cierre de Trabajos" con selección inteligente:** si hay un solo permiso activo, navega directamente al formulario de cierre; si hay varios, muestra un bottom-sheet para seleccionar cuál cerrar.
+- **Retorno automático a ContratistasScreen:** tras enviar cualquiera de los dos formularios, el botón "Ir al menú" regresa a la pantalla de contratistas en vez de retroceder 2 niveles genéricos.
+- **Mapeo SharePoint para cierre preparado:** función `mapCierreTrabajoContratista` en `sharepointData.js`. El GUID se configura desde el panel de Conexiones SharePoint cuando el equipo SSO cree la lista.
+- **Ambos formularios editables:** `cierre-trabajo-contratista` agregado al `FORM_CATALOG` del Editor de Formularios.
+
+### Correcciones
+- **Opciones checkbox sin texto (Peligros identificados / EPP):** las opciones del formulario `permiso-trabajo-contratista` estaban definidas como strings simples, pero `QuestionCheckbox` requiere objetos `{value, label}`. Convertidas las 22 opciones (10 peligros + 12 EPP) al formato correcto.
+- **Sección de cierre separada del formulario de apertura:** la sección 8 (Cierre de Faena) fue extraída del formulario `permiso-trabajo-contratista` y se convirtió en el formulario independiente `cierre-trabajo-contratista`, forzando el flujo de doble presencia física en terreno.
+
+---
+
 ## [1.6.0] — 2026-04-17
 
 ### Nuevas Funcionalidades
-- **Formulario "Permiso de Trabajo — Contratistas":** nuevo formulario de verificación de condiciones para inicio de faenas de empresas contratistas en instalaciones. Incluye 8 secciones y ~58 preguntas que cubren datos de la empresa, clasificación de peligros, competencias e inducción, EPP, y 4 secciones de trabajo crítico con lógica condicional (`visibleWhen`): Trabajo en Altura, Trabajo en Caliente, Trabajo Eléctrico y Espacio Confinado. Además incluye sección de autorización y cierre de faena.
+- **Formulario "Permiso de Trabajo — Contratistas":** nuevo formulario de verificación de condiciones para inicio de faenas de empresas contratistas en instalaciones. Incluye 8 secciones y ~58 preguntas que cubren datos de la empresa, clasificación de peligros, competencias e inducción, EPP, y 4 secciones de trabajo crítico con lógica condicional (`visibleWhen`): Trabajo en Altura, Trabajo en Caliente, Trabajo Eléctrico y Espacio Confinado.
 - **Disponible en menú Herramientas Preventivas (Sucursales):** el formulario aparece en `ToolsMenuScreen` para todas las instalaciones.
-- **Editable desde el Editor de Formularios:** registrado en `FORM_CATALOG` de `FormEditorListScreen` para que el equipo SSO pueda ajustar preguntas junto al especialista en empresas contratistas.
-- **Mapeo SharePoint preparado:** función `mapPermisoTrabajoContratista` agregada en `sharepointData.js`. El GUID de la lista SharePoint se configurará desde el panel de Conexiones una vez creada la lista.
+- **Editable desde el Editor de Formularios:** registrado en `FORM_CATALOG` de `FormEditorListScreen`.
+- **Mapeo SharePoint preparado:** función `mapPermisoTrabajoContratista` en `sharepointData.js`.
 - **Cumplimiento normativo:** diseño alineado con DS 44/2023, DS 594, Ley 16.744 e ISO 45001.
 
 ---

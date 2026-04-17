@@ -61,6 +61,7 @@ const LIST_IDS = {
   difusionesSso:              '2097a931-5615-472b-afc7-b2d2fc6fe805',
   cierreCondiciones:          '00b25970-34f1-4026-9cc8-0df3f59c3383',
   permisoTrabajoContratista:  '', // GUID pendiente — asignar al crear la lista SharePoint
+  cierreTrabajoContratista:   '', // GUID pendiente — asignar al crear la lista SharePoint
 }
 
 // ── Helpers Graph API ─────────────────────────────────────────────────────
@@ -315,6 +316,30 @@ function mapPermisoTrabajoContratista(sub) {
   }
 }
 
+// ── 8. Cierre de Trabajo — Contratistas ──────────────────────────────────
+function mapCierreTrabajoContratista(sub) {
+  const d = sub.answers || sub.data || {}
+  return {
+    Title:                          sub.userName || '',
+    Instalaci_x00f3_n:              sub.branch   || '',
+    Nombre:                         sub.userName  || '',
+    Empresa_x0020_Contratista:      d.ctc_01 || '',
+    Ubicaci_x00f3_n_x0020_Faena:    d.ctc_02 || '',
+    Tipo_x0020_Trabajo:             d.ctc_03 || '',
+    Responsable_x0020_Cierre:       extractEmail(d.ctc_04),
+    Trabajo_x0020_Completado:       d.ctc_11 || '',
+    _x00c1_rea_x0020_Restaurada:    d.ctc_12 || '',
+    Aislamientos_x0020_Retirados:   d.ctc_13 || '',
+    Equipamiento_x0020_Retirado:    d.ctc_14 || '',
+    Personal_x0020_Retirado:        d.ctc_15 || '',
+    Verificaci_x00f3_n_x0020_Ter:   d.ctc_16 || '',
+    Incidente_x0020_Reportado:      d.ctc_21 || '',
+    Descripci_x00f3_n_x0020_Incidente: d.ctc_22 || '',
+    Observaciones:                  d.ctc_24 || '',
+    Correo_x0020_Remitente:         sub.userEmail || '',
+  }
+}
+
 // ── Router: formType → listId + mapper ───────────────────────────────────
 function getListConfig(formType) {
   const MAP = {
@@ -325,6 +350,7 @@ function getListConfig(formType) {
     'difusiones-sso':                 { listId: LIST_IDS.difusionesSso,             mapFields: mapDifusiones                },
     'cierre-condiciones':             { listId: LIST_IDS.cierreCondiciones,         mapFields: mapCierreCondiciones         },
     'permiso-trabajo-contratista':    { listId: LIST_IDS.permisoTrabajoContratista, mapFields: mapPermisoTrabajoContratista },
+    'cierre-trabajo-contratista':     { listId: LIST_IDS.cierreTrabajoContratista,  mapFields: mapCierreTrabajoContratista  },
   }
   const base = MAP[formType]
   if (!base) return null

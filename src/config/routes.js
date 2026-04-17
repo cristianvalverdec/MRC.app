@@ -13,6 +13,8 @@ export const ROUTES = {
   ADMIN_INSTALACION: '/admin/lideres/:instalacion',
   // Admin — panel de conexiones SharePoint
   ADMIN_CONNECTIONS: '/admin/sharepoint-connections',
+  // Gestión de Permisos de Trabajo — Contratistas
+  CONTRATISTAS: '/unit/:unitType/contratistas',
 }
 
 export const unitTypes = {

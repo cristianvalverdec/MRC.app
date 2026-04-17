@@ -34,6 +34,7 @@ const LideresScreen               = lazy(() => import('./screens/LideresScreen')
 const LideresAdminScreen          = lazy(() => import('./screens/LideresAdminScreen'))
 const InstalacionDetailScreen     = lazy(() => import('./screens/InstalacionDetailScreen'))
 const SharePointConnectionsScreen = lazy(() => import('./screens/SharePointConnectionsScreen'))
+const ContratistasScreen           = lazy(() => import('./screens/ContratistasScreen'))
 
 function PageFallback() {
   return (
@@ -69,6 +70,7 @@ function AnimatedRoutes() {
         <Route path="/unit/:unitType/salud"             element={<GestionSaludScreen />} />
         <Route path="/unit/:unitType/difusiones-sso"  element={<DifusionesSSOScreen />} />
         <Route path="/unit/:unitType/monitor-fatiga"  element={<MonitorFatigaScreen />} />
+        <Route path="/unit/:unitType/contratistas"   element={<ContratistasScreen />} />
         <Route path="/profile"                           element={<ProfileScreen />} />
         {/* Directorio de líderes (lectura) */}
         <Route path="/unit/:unitType/lideres"        element={<LideresScreen />} />

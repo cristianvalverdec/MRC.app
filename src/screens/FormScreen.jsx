@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, AlertCircle, ChevronRight, Users } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
@@ -9,23 +9,26 @@ import QuestionText     from '../components/form/QuestionText'
 import QuestionSelect   from '../components/form/QuestionSelect'
 import QuestionRadio    from '../components/form/QuestionRadio'
 import QuestionCheckbox from '../components/form/QuestionCheckbox'
-import QuestionPhoto    from '../components/form/QuestionPhoto'
+import QuestionPhoto        from '../components/form/QuestionPhoto'
+import QuestionPeoplePicker from '../components/form/QuestionPeoplePicker'
 import { formDefinitions } from '../forms/formDefinitions'
 import useFormStore from '../store/formStore'
 import useFormEditorStore from '../store/formEditorStore'
 import useUserStore from '../store/userStore'
+import useContratistasStore from '../store/contratistasStore'
 import { IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Question dispatcher (shared) ──────────────────────────────────────────
 function QuestionRenderer({ question, value, onChange, hasError }) {
   const Component = {
-    yesno:    QuestionYesNo,
-    rating:   QuestionRating,
-    text:     QuestionText,
-    select:   QuestionSelect,
-    radio:    QuestionRadio,
-    checkbox: QuestionCheckbox,
-    photo:    QuestionPhoto,
+    yesno:          QuestionYesNo,
+    rating:         QuestionRating,
+    text:           QuestionText,
+    select:         QuestionSelect,
+    radio:          QuestionRadio,
+    checkbox:       QuestionCheckbox,
+    photo:          QuestionPhoto,
+    'people-picker': QuestionPeoplePicker,
   }[question.type]
 
   if (!Component) return null
@@ -464,7 +467,8 @@ function WizardMode({ form, formType, cphsMode }) {
 
 // ── SECTIONS MODE (original) ──────────────────────────────────────────────
 function SectionsMode({ form, formType }) {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
   const { saveDraft, clearDraft, addToPendingQueue, syncQueue, drafts } = useFormStore()
   const { name: userName, email: userEmail, jobTitle: userJobTitle, branch } = useUserStore()
 
@@ -514,6 +518,15 @@ function SectionsMode({ form, formType }) {
     clearDraft(formType)
     setSubmitted(true)
     setSubmitting(false)
+
+    // ── Actualizar store de contratistas según tipo de formulario ──────────
+    if (formType === 'permiso-trabajo-contratista') {
+      useContratistasStore.getState().addPermiso(answers)
+    }
+    if (formType === 'cierre-trabajo-contratista' && location.state?.permisoId) {
+      useContratistasStore.getState().cerrarPermiso(location.state.permisoId)
+    }
+
     // Disparar sync inmediatamente al enviar (no esperar al dashboard)
     if (!IS_DEV_MODE) syncQueue().catch(() => {})
   }
@@ -523,7 +536,7 @@ function SectionsMode({ form, formType }) {
       <SuccessScreen
         formTitle={form.title}
         onNewRecord={() => { setAnswers({}); setSubmitted(false); setSubmitAttempted(false) }}
-        onGoMenu={() => navigate(-2)}
+        onGoMenu={() => navigate(location.state?.returnTo || -2)}
       />
     )
   }
