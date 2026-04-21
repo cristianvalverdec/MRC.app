@@ -64,12 +64,17 @@ const useNotificationStore = create(
       /**
        * Carga notificaciones del usuario desde SharePoint.
        * Se llama desde useNotifications hook en el ciclo de polling.
+       *
+       * @param {string} email       Email del usuario
+       * @param {string} instalacion Instalación asignada
+       * @param {number} nivel       Nivel jerárquico MRC
+       * @param {string} [role]      'admin'|'user' — para recibir notificaciones de tipo 'admins'
        */
-      cargar: async (email, instalacion, nivel) => {
+      cargar: async (email, instalacion, nivel, role) => {
         set({ loading: true, error: null })
         try {
           const [notifs, leidasSet] = await Promise.all([
-            getNotificaciones(email, instalacion, nivel),
+            getNotificaciones(email, instalacion, nivel, role),
             getLeidasIds(email),
           ])
           set({

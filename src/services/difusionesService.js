@@ -25,6 +25,7 @@
 //   ArchivosAdjuntos — Texto multilínea (URLs separadas por \n)
 
 import { getGraphToken } from '../config/msalInstance'
+import { createValidacion } from './validacionService'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -73,7 +74,19 @@ async function createListItem(token, fields) {
   return await response.json()
 }
 
-export async function submitDifusion({ instalacion, equipo, turno, fecha, participantes, files }) {
+/**
+ * Registra una charla de difusión SSO en SharePoint.
+ *
+ * @param {object} payload
+ * @param {string}   payload.instalacion    Nombre de la instalación
+ * @param {string}   payload.equipo         'Operaciones' | 'Administración' | 'Distribuidoras'
+ * @param {string}   payload.turno          'Mañana' | 'Tarde' | 'Noche'
+ * @param {string}   payload.fecha          Fecha ISO (YYYY-MM-DD)
+ * @param {string}   payload.participantes  Número de participantes
+ * @param {File[]}   payload.files          Archivos de evidencia (máx. 5)
+ * @param {string}   [payload.userEmail]    Email del usuario que sube el registro (para validación)
+ */
+export async function submitDifusion({ instalacion, equipo, turno, fecha, participantes, files, userEmail = '' }) {
   if (IS_DEV_MODE) {
     console.info('[MRC Difusiones] Modo dev — registro simulado', {
       instalacion, equipo, turno, fecha, participantes,
@@ -94,16 +107,32 @@ export async function submitDifusion({ instalacion, equipo, turno, fecha, partic
       uploadedFiles.push(result)
     }
 
+    const archivosUrl = uploadedFiles.map((f) => f.url).join('\n')
+
     // Crear ítem en lista SharePoint
-    await createListItem(token, {
-      Title: `Difusión SSO — ${instalacion} — ${equipo} — ${fecha}`,
-      Instalacion: instalacion,
-      Equipo: equipo,
-      Turno: turno,
-      FechaCharla: fecha,
+    const listItem = await createListItem(token, {
+      Title:            `Difusión SSO — ${instalacion} — ${equipo} — ${fecha}`,
+      Instalacion:      instalacion,
+      Equipo:           equipo,
+      Turno:            turno,
+      FechaCharla:      fecha,
       NroParticipantes: parseInt(participantes, 10),
-      ArchivosAdjuntos: uploadedFiles.map((f) => f.url).join('\n'),
+      ArchivosAdjuntos: archivosUrl,
     })
+
+    // Crear registro de validación pendiente (fire-and-forget — si falla no bloquea al usuario)
+    const nombreDoc = `Difusión SSO — ${instalacion} — ${equipo} — ${new Date(fecha).toLocaleDateString('es-CL')}`
+    createValidacion({
+      tipoRegistro:      'difusion',
+      referenciaId:      listItem?.id || 0,
+      referenciaLista:   import.meta.env.VITE_SP_DIFUSIONES_LIST_ID || '',
+      nombreDocumento:   nombreDoc,
+      instalacionOrigen: instalacion,
+      subidoPor:         userEmail,
+      archivoUrl:        archivosUrl,
+    }).catch(err =>
+      console.warn('[MRC Difusiones] createValidacion falló (no crítico):', err.message)
+    )
 
     console.info('[MRC Difusiones] Charla registrada exitosamente ✓')
     return { success: true }

@@ -139,12 +139,18 @@ function mapLeida(item) {
  *
  * Formatos del campo Destinatarios:
  *   'todos'                   — todos los usuarios autenticados
+ *   'admins'                  — solo usuarios con role === 'admin'
  *   'instalacion:Miraflores'  — solo usuarios de esa instalación
  *   'nivel:3'                 — usuarios con nivelJerarquico >= N
  *   'email:x@agrosuper.cl'    — usuario específico
  */
-function destinatarioMatch(destinatarios, email, instalacion, nivel) {
+function destinatarioMatch(destinatarios, email, instalacion, nivel, role) {
   if (!destinatarios || destinatarios === 'todos') return true
+
+  // Notificaciones dirigidas exclusivamente a administradores (p. ej. solicitudes de validación)
+  if (destinatarios === 'admins') {
+    return role === 'admin'
+  }
 
   if (destinatarios.startsWith('instalacion:')) {
     const target = destinatarios.split(':').slice(1).join(':').trim()
@@ -170,8 +176,13 @@ function destinatarioMatch(destinatarios, email, instalacion, nivel) {
  * Devuelve notificaciones activas y vigentes para un usuario específico.
  * El filtrado de destinatarios se hace en cliente para mayor robustez con
  * caracteres especiales en columnas de SharePoint.
+ *
+ * @param {string} email       Email del usuario
+ * @param {string} instalacion Instalación asignada (para filtro instalacion:X)
+ * @param {number} nivel       Nivel jerárquico MRC (para filtro nivel:N)
+ * @param {string} [role]      Rol del usuario ('admin'|'user') — necesario para filtro 'admins'
  */
-export async function getNotificaciones(email, instalacion, nivel) {
+export async function getNotificaciones(email, instalacion, nivel, role) {
   const token    = await getToken()
   const siteBase = getSiteBase()
   const listId   = await resolveListId(token, LIST_NOTIFS, COLS_NOTIFS)
@@ -190,7 +201,7 @@ export async function getNotificaciones(email, instalacion, nivel) {
     .filter(n => {
       if (!n.activa) return false
       if (n.fechaExpiracion && new Date(n.fechaExpiracion) < ahora) return false
-      return destinatarioMatch(n.destinatarios, email, instalacion, nivel)
+      return destinatarioMatch(n.destinatarios, email, instalacion, nivel, role)
     })
 }
 

@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell } from 'lucide-react'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell, ClipboardCheck, FileText } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
 import useNotificationStore from '../store/notificationStore'
+import useValidacionStore from '../store/validacionStore'
 import { msalInstance } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
 import { getAdmins, addAdmin, removeAdmin, SUPER_ADMIN } from '../services/adminService'
@@ -384,6 +385,144 @@ function NotificacionesResumen() {
   )
 }
 
+// ── Acceso rápido a "Mis Documentos" (todos los usuarios) ─────────────────
+function MisDocumentosResumen() {
+  const navigate       = useNavigate()
+  const unit           = useUserStore(s => s.unit)
+  const misValidaciones = useValidacionStore(s => s.misValidaciones)
+  const pendientes     = misValidaciones.filter(v => v.estado === 'pendiente').length
+  const rechazados     = misValidaciones.filter(v => v.estado === 'rechazado').length
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.16 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate(`/unit/${unit || 'sucursales'}/mis-documentos`)}
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 12, padding: '14px 16px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: rechazados > 0 ? 'rgba(235,87,87,0.12)' : pendientes > 0 ? 'rgba(245,124,32,0.12)' : 'rgba(39,174,96,0.1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <FileText size={18} color={rechazados > 0 ? '#EB5757' : pendientes > 0 ? 'var(--color-orange)' : '#27AE60'} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>
+          Mis Documentos
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+          color: rechazados > 0 ? '#EB5757' : pendientes > 0 ? 'var(--color-orange)' : '#27AE60',
+        }}>
+          {rechazados > 0
+            ? `${rechazados} rechazado${rechazados > 1 ? 's' : ''} — revisar`
+            : pendientes > 0
+            ? `${pendientes} en revisión`
+            : misValidaciones.length > 0 ? 'Al día' : 'Sin registros enviados'}
+        </div>
+      </div>
+      <ChevronDown size={15} color="rgba(255,255,255,0.25)" style={{ transform: 'rotate(-90deg)' }} />
+    </motion.div>
+  )
+}
+
+// ── Accesos rápidos de administración ─────────────────────────────────────────
+function AdminLinks() {
+  const navigate  = useNavigate()
+  const pendientes = useValidacionStore(s => s.pendientes)
+
+  const links = [
+    {
+      label:    'Validaciones',
+      icon:     ClipboardCheck,
+      color:    '#F57C20',
+      ruta:     '/admin/validaciones',
+      badge:    pendientes.length,
+    },
+    {
+      label:    'Notificaciones',
+      icon:     Bell,
+      color:    '#7B3FE4',
+      ruta:     '/admin/notificaciones',
+      badge:    0,
+    },
+  ]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.18 }}
+      style={{
+        background: 'var(--color-navy-mid)',
+        border: '1px solid rgba(96,165,250,0.2)',
+        borderRadius: 12, overflow: 'hidden',
+      }}
+    >
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border)' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: '#60A5FA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Panel Administrador
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {links.map((link, idx) => {
+          const Icon = link.icon
+          return (
+            <motion.button
+              key={link.ruta}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(link.ruta)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 16px',
+                background: 'transparent', border: 'none',
+                borderBottom: idx < links.length - 1 ? '1px solid var(--color-border)' : 'none',
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                background: `${link.color}18`,
+                border: `1px solid ${link.color}33`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={15} color={link.color} />
+              </div>
+              <span style={{
+                flex: 1,
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+                color: 'var(--color-text-primary)',
+              }}>
+                {link.label}
+              </span>
+              {link.badge > 0 && (
+                <span style={{
+                  background: link.color, color: '#fff',
+                  fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800,
+                  padding: '2px 8px', borderRadius: 999,
+                  minWidth: 20, textAlign: 'center',
+                }}>
+                  {link.badge}
+                </span>
+              )}
+              <ChevronDown size={15} color="rgba(255,255,255,0.2)" style={{ transform: 'rotate(-90deg)' }} />
+            </motion.button>
+          )
+        })}
+      </div>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const navigate  = useNavigate()
@@ -507,7 +646,15 @@ export default function ProfileScreen() {
         {/* ── Resumen de notificaciones ── */}
         <NotificacionesResumen />
 
-        {/* ── Panel de administración (solo admins) ── */}
+        {/* ── Acceso rápido a "Mis Documentos" (todos los usuarios) ── */}
+        <MisDocumentosResumen />
+
+        {/* ── Accesos rápidos admin (panel de validación + notificaciones) ── */}
+        {(role === 'admin' || IS_DEV_MODE) && (
+          <AdminLinks />
+        )}
+
+        {/* ── Panel de gestión de administradores (solo admins en producción) ── */}
         {role === 'admin' && !IS_DEV_MODE && (
           <AdminPanel currentEmail={email} />
         )}

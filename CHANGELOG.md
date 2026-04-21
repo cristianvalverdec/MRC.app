@@ -5,6 +5,24 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.8.0] — 2026-04-21
+
+### Nuevas Funcionalidades — Sistema de Validación de Documentos
+- **`validacionService.js`:** nuevo servicio CRUD contra la lista SharePoint "Validaciones MRC" (auto-provisioning de lista y 12 columnas en primera ejecución). Expone `createValidacion()`, `getValidacionesPendientes()`, `getTodasValidaciones()`, `getValidacionesUsuario()`, `aprobarValidacion()` y `rechazarValidacion()`. Las notificaciones a admin/usuario son fire-and-forget: si fallan, no bloquean el flujo principal.
+- **`validacionStore.js`:** store Zustand con persistencia localStorage. Separa estado de usuario (`misValidaciones`) del estado admin (`pendientes`, `todasValidaciones`). Optimistic updates con rollback automático en caso de error de SharePoint. Mock data completo para dev mode.
+- **Panel de Validación Admin (`/admin/validaciones`):** nueva pantalla exclusiva para administradores con 4 pestañas (Pendientes / Aprobados / Rechazados / Todos), KPIs de conteo por estado, polling automático cada 5 minutos con `visibilitychange`. Al aprobar: actualización optimista + notificación automática al usuario. Al rechazar: modal con motivo de rechazo obligatorio + notificación automática al usuario.
+- **Mis Documentos (`/unit/:unitType/mis-documentos`):** nueva pantalla para todos los usuarios. Muestra el historial de registros enviados con su estado de validación (⏳ En revisión / ✅ Aprobado / ❌ Rechazado), motivo de rechazo cuando aplica, validador y archivos adjuntos. Caché de 5 minutos en localStorage.
+- **Notificaciones para admins (`destinatarios: 'admins'`):** nuevo target de destinatarios en el sistema de notificaciones. Las notificaciones con `destinatarios === 'admins'` solo se entregan a usuarios con `role === 'admin'`. Requirió agregar el parámetro `role` a `getNotificaciones()`, `notificationStore.cargar()` y `useNotifications` hook.
+- **Integración con Difusiones SSO:** `submitDifusion()` acepta `userEmail` y `userName`. Tras crear el ítem en SharePoint, crea automáticamente un registro de validación pendiente (fire-and-forget). La pantalla de éxito muestra aviso "Pendiente de validación" con instrucciones al usuario.
+- **Accesos rápidos en ProfileScreen:** nuevo componente `MisDocumentosResumen` (todos los usuarios, con badge de rechazados/pendientes) y `AdminLinks` (solo admins, con badge de pendientes en Validaciones).
+- **Rutas nuevas:** `/admin/validaciones` y `/unit/:unitType/mis-documentos` registradas en `routes.js` y `App.jsx` como lazy imports.
+
+### Arquitectura
+- La lista "Validaciones MRC" referencia ítems de otras listas por `ReferenciaId` (ID del ítem) y `ReferenciaLista` (GUID de la lista origen), permitiendo extender el sistema de validación a cualquier formulario en el futuro.
+- El campo `Estado` de la lista de validaciones es independiente de los ítems de las listas de formularios: no modifica listas existentes para mantener compatibilidad y evitar regresiones.
+
+---
+
 ## [1.7.2] — 2026-04-21
 
 ### Correcciones críticas del sistema de notificaciones

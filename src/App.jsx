@@ -38,6 +38,8 @@ const SharePointConnectionsScreen = lazy(() => import('./screens/SharePointConne
 const ContratistasScreen           = lazy(() => import('./screens/ContratistasScreen'))
 const NotificationsScreen          = lazy(() => import('./screens/NotificationsScreen'))
 const NotificacionesAdminScreen    = lazy(() => import('./screens/NotificacionesAdminScreen'))
+const ValidacionAdminScreen        = lazy(() => import('./screens/ValidacionAdminScreen'))
+const MisDocumentosScreen          = lazy(() => import('./screens/MisDocumentosScreen'))
 
 // ── Error Boundary — evita blank screen total ante cualquier error de render ──
 class ErrorBoundary extends Component {
@@ -129,8 +131,11 @@ function AnimatedRoutes() {
         <Route path="/admin/lideres/:instalacion"    element={<InstalacionDetailScreen />} />
         <Route path="/admin/sharepoint-connections" element={<SharePointConnectionsScreen />} />
         <Route path="/admin/notificaciones"         element={<NotificacionesAdminScreen />} />
+        <Route path="/admin/validaciones"           element={<ValidacionAdminScreen />} />
         {/* Buzón de notificaciones del usuario */}
         <Route path="/notifications"               element={<NotificationsScreen />} />
+        {/* Historial de documentos enviados por el usuario */}
+        <Route path="/unit/:unitType/mis-documentos" element={<MisDocumentosScreen />} />
         {/* Fallback */}
         <Route path="*" element={<SplashScreen />} />
       </Routes>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Download, ChevronRight, Users, Calendar,
   MapPin, Clock, CheckCircle, X, Paperclip, Camera,
-  AlertCircle, Loader, Megaphone,
+  AlertCircle, Loader, Megaphone, ClipboardCheck,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
@@ -292,6 +292,7 @@ function FileItem({ file, onRemove }) {
 
 function RegistroForm() {
   const branch = useUserStore((s) => s.branch)
+  const email  = useUserStore((s) => s.email)
 
   const [instalacion,   setInstalacion]   = useState(branch || '')
   const [equipo,        setEquipo]        = useState('')
@@ -317,7 +318,7 @@ function RegistroForm() {
     setStatus('uploading')
     setErrorMsg('')
     try {
-      await submitDifusion({ instalacion, equipo, turno, fecha, participantes, files })
+      await submitDifusion({ instalacion, equipo, turno, fecha, participantes, files, userEmail: email })
       setStatus('success')
     } catch (err) {
       setErrorMsg(err.message || 'Error al enviar el registro')
@@ -369,11 +370,29 @@ function RegistroForm() {
           El registro de la charla en <strong>{instalacion}</strong> fue enviado
           exitosamente. {files.length > 0 && `Se adjuntaron ${files.length} archivo${files.length > 1 ? 's' : ''}.`}
         </div>
+
+        {/* Aviso de validación pendiente */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'rgba(245,124,32,0.08)',
+          border: '1px solid rgba(245,124,32,0.2)',
+          borderRadius: 10, padding: '11px 13px',
+          width: '100%', boxSizing: 'border-box', textAlign: 'left',
+        }}>
+          <ClipboardCheck size={15} color="var(--color-orange)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{
+            fontFamily: 'var(--font-body)', fontSize: 11,
+            color: 'rgba(255,165,50,0.85)', lineHeight: 1.5,
+          }}>
+            Tu registro está <strong>pendiente de validación</strong>. El equipo SSO lo revisará en los próximos días hábiles. Puedes consultar el estado en <strong>Perfil → Mis Documentos</strong>.
+          </span>
+        </div>
+
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={handleReset}
           style={{
-            marginTop: 8, background: 'var(--color-surface)',
+            marginTop: 4, background: 'var(--color-surface)',
             border: '1px solid var(--color-border)', borderRadius: 10,
             padding: '10px 24px', cursor: 'pointer',
             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,

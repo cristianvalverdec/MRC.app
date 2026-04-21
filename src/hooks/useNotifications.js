@@ -22,7 +22,7 @@ const IS_DEV_MODE =
 const POLL_INTERVAL = 5 * 60 * 1000   // 5 minutos
 
 export function useNotifications() {
-  const { email, instalacionMRC, mrcNivel, isAuthenticated } = useUserStore()
+  const { email, instalacionMRC, mrcNivel, isAuthenticated, role } = useUserStore()
   const { cargar, cargarMock, ultimaSync } = useNotificationStore()
   const timerRef  = useRef(null)
   const seenIdsRef = useRef(null)  // null = primera carga (no dispara alertas)
@@ -43,7 +43,7 @@ export function useNotifications() {
     const ultimaMs = ultimaSync ? new Date(ultimaSync).getTime() : 0
     if (ahora - ultimaMs < POLL_INTERVAL) return
 
-    await cargar(email, instalacionMRC, mrcNivel)
+    await cargar(email, instalacionMRC, mrcNivel, role)
 
     // Tras la carga: detectar arrivals nuevos y disparar notificación nativa del SO.
     try {
@@ -68,7 +68,7 @@ export function useNotifications() {
     } catch (err) {
       console.warn('[useNotifications] auto-trigger nativo falló:', err)
     }
-  }, [email, instalacionMRC, mrcNivel, isAuthenticated, ultimaSync, cargar, cargarMock])
+  }, [email, instalacionMRC, mrcNivel, isAuthenticated, role, ultimaSync, cargar, cargarMock])
 
   useEffect(() => {
     if (!isAuthenticated) return

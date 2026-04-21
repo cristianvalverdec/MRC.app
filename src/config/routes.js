@@ -19,6 +19,10 @@ export const ROUTES = {
   NOTIFICATIONS: '/notifications',
   // Admin — gestión de notificaciones
   ADMIN_NOTIFICACIONES: '/admin/notificaciones',
+  // Admin — panel de validación de documentos y registros
+  ADMIN_VALIDACIONES: '/admin/validaciones',
+  // Usuario — historial de documentos enviados con estado de validación
+  MIS_DOCUMENTOS: '/unit/:unitType/mis-documentos',
 }
 
 export const unitTypes = {
