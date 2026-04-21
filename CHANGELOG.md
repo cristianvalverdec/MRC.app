@@ -5,6 +5,23 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.7.0] — 2026-04-20
+
+### Nuevas Funcionalidades
+- **Sistema de notificaciones completo:** notificaciones in-app + nativas del SO para usuarios con y sin PWA instalada. Polling automático cada 5 minutos con SharePoint como backend.
+- **Buzón de notificaciones (`/notifications`):** pantalla con tabs "Sin leer" / "Todas", marcado individual y masivo de leídas, navegación directa a la ruta de acción de cada notificación. Soporte offline con datos persistidos en localStorage.
+- **Panel de administración (`/admin/notificaciones`):** formulario para crear notificaciones con targeting segmentado (todos / por instalación / por nivel jerárquico / email específico), tipo de notificación (actividad, plan de acción, difusión, sistema), fecha de expiración opcional y ruta de acción interna. Lista de todas las notificaciones con opción de desactivación (soft-delete).
+- **Campana de notificaciones en AppHeader:** icono Bell con badge naranja animado mostrando el conteo de no leídas. Solo visible cuando el usuario está autenticado.
+- **Notificaciones nativas del SO:** solicitud de permisos opt-in desde el buzón (solo para usuarios con PWA instalada en modo standalone). Usa `serviceWorker.ready.showNotification()` cuando el SW está activo, con fallback a `new Notification()`.
+- **`notificationService.js`:** servicio de CRUD contra dos listas SharePoint nuevas (`Notificaciones MRC` y `Notificaciones MRC Leídas`). Auto-provisioning de listas y columnas en primera ejecución. Filtrado de destinatarios 100% en cliente.
+- **`notificationStore.js`:** estado Zustand con persistencia localStorage para `notificaciones` y `leidasIds`. Las notificaciones del panel admin (`todasNotificaciones`) son efímeras (no persisten).
+- **`useNotifications` hook:** ciclo de polling con `visibilitychange` + `setInterval`. En dev mode usa datos mock sin llamadas a SharePoint. Limpieza de recursos al desmontar (sin memory leaks).
+- **Resumen de notificaciones en ProfileScreen:** widget con conteo de no leídas y acceso directo al buzón.
+- **Rutas nuevas:** `/notifications` y `/admin/notificaciones` registradas en App.jsx y routes.js.
+- **Tests centinela:** `regression-notifications.test.js` con 20 tests que validan autenticación segura, estructura del store, comportamiento del polling y rutas registradas.
+
+---
+
 ## [1.6.1] — 2026-04-17
 
 ### Nuevas Funcionalidades
