@@ -138,6 +138,19 @@ const CONNECTIONS = [
     ],
   },
   {
+    category: 'Validación de Documentos',
+    items: [
+      {
+        name: 'Validaciones MRC',
+        listId: null,
+        type: 'dynamic',
+        formLabel: 'Registros de validación — aprobaciones y rechazos de documentos',
+        unit: 'Global',
+        service: 'validacionService.js',
+      },
+    ],
+  },
+  {
     category: 'Archivos de Configuración',
     items: [
       {
@@ -644,6 +657,7 @@ export default function SharePointConnectionsScreen() {
     'Gestión de Líderes': { line: 'rgba(8,145,178,0.2)', text: 'rgba(34,211,238,0.7)' },
     Sistema: { line: 'rgba(123,63,228,0.2)', text: 'rgba(192,132,252,0.7)' },
     Notificaciones: { line: 'rgba(123,63,228,0.2)', text: 'rgba(167,139,250,0.7)' },
+    'Validación de Documentos': { line: 'rgba(245,124,32,0.2)', text: 'rgba(245,166,35,0.7)' },
     'Archivos de Configuración': { line: 'rgba(245,124,32,0.2)', text: 'rgba(245,166,35,0.7)' },
   }
 
