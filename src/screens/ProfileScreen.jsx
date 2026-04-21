@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon } from 'lucide-react'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
+import useNotificationStore from '../store/notificationStore'
 import { msalInstance } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
 import { getAdmins, addAdmin, removeAdmin, SUPER_ADMIN } from '../services/adminService'
@@ -336,6 +337,53 @@ function ThemeToggle() {
   )
 }
 
+// ── Resumen de notificaciones en perfil ────────────────────────────────────
+function NotificacionesResumen() {
+  const navigate       = useNavigate()
+  const notificaciones = useNotificationStore(s => s.notificaciones)
+  const leidasIds      = useNotificationStore(s => s.leidasIds)
+  const noLeidas       = notificaciones.filter(n => !leidasIds.includes(n.id)).length
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.14 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate('/notifications')}
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 12, padding: '14px 16px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: noLeidas > 0 ? 'rgba(245,124,32,0.15)' : 'rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Bell size={18} color={noLeidas > 0 ? 'var(--color-orange)' : 'rgba(255,255,255,0.3)'} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>
+          Notificaciones
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+            color: noLeidas > 0 ? 'var(--color-orange)' : '#27AE60',
+          }}>
+            {noLeidas > 0 ? `${noLeidas} sin leer` : 'Al día'}
+          </div>
+        </div>
+      </div>
+      <ChevronDown size={15} color="rgba(255,255,255,0.25)" style={{ transform: 'rotate(-90deg)' }} />
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const navigate  = useNavigate()
@@ -455,6 +503,9 @@ export default function ProfileScreen() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Resumen de notificaciones ── */}
+        <NotificacionesResumen />
 
         {/* ── Panel de administración (solo admins) ── */}
         {role === 'admin' && !IS_DEV_MODE && (

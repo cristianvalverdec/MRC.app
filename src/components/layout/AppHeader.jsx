@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import useUserStore from '../../store/userStore'
 import useAuthHealthStore from '../../store/authHealthStore'
 import NetworkStatus from '../ui/NetworkStatus'
+import NotificationBell from '../ui/NotificationBell'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
 function AgrosuperLogo({ height = 28 }) {
@@ -169,15 +170,18 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
           )}
         </div>
 
-        {/* Derecha: avatar con dot de red */}
-        <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          {rightAction || (
-            isAuthenticated && (
-              <div onClick={() => navigate('/profile')}>
-                <MiniAvatar name={name} photoUrl={photoUrl} />
-              </div>
-            )
-          )}
+        {/* Derecha: bell de notificaciones + avatar con dot de red */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {isAuthenticated && !rightAction && <NotificationBell />}
+          <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+            {rightAction || (
+              isAuthenticated && (
+                <div onClick={() => navigate('/profile')}>
+                  <MiniAvatar name={name} photoUrl={photoUrl} />
+                </div>
+              )
+            )}
+          </div>
         </div>
       </header>
 

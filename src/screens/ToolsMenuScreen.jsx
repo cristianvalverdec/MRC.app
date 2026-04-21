@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users, Database, HardHat } from 'lucide-react'
+import { ClipboardList, PersonStanding, Search, Megaphone, Eye, CalendarCheck, Settings2, FileText, ShieldCheck, Brain, Users, Database, HardHat, Bell } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
@@ -278,6 +278,16 @@ export default function ToolsMenuScreen() {
                   accentColor="#E67E22"
                   badge="ADMIN"
                   onClick={() => navigate('/admin/sharepoint-connections')}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <MenuCard
+                  icon={<Bell size={22} color="#fff" />}
+                  label="Gestión de Notificaciones"
+                  sublabel="Crear y enviar comunicados al equipo"
+                  accentColor="#7B3FE4"
+                  badge="ADMIN"
+                  onClick={() => navigate('/admin/notificaciones')}
                 />
               </motion.div>
             </>

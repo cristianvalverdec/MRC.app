@@ -15,6 +15,10 @@ export const ROUTES = {
   ADMIN_CONNECTIONS: '/admin/sharepoint-connections',
   // Gestión de Permisos de Trabajo — Contratistas
   CONTRATISTAS: '/unit/:unitType/contratistas',
+  // Buzón de notificaciones del usuario
+  NOTIFICATIONS: '/notifications',
+  // Admin — gestión de notificaciones
+  ADMIN_NOTIFICACIONES: '/admin/notificaciones',
 }
 
 export const unitTypes = {

@@ -10,6 +10,7 @@ import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
 import { getGraphToken } from './config/msalInstance'
 import { useBootstrap } from './hooks/useBootstrap'
+import { useNotifications } from './hooks/useNotifications'
 
 // ── Lazy-loaded screens (performance: code splitting per route) ───────
 const SplashScreen          = lazy(() => import('./screens/SplashScreen'))
@@ -35,6 +36,8 @@ const LideresAdminScreen          = lazy(() => import('./screens/LideresAdminScr
 const InstalacionDetailScreen     = lazy(() => import('./screens/InstalacionDetailScreen'))
 const SharePointConnectionsScreen = lazy(() => import('./screens/SharePointConnectionsScreen'))
 const ContratistasScreen           = lazy(() => import('./screens/ContratistasScreen'))
+const NotificationsScreen          = lazy(() => import('./screens/NotificationsScreen'))
+const NotificacionesAdminScreen    = lazy(() => import('./screens/NotificacionesAdminScreen'))
 
 // ── Error Boundary — evita blank screen total ante cualquier error de render ──
 class ErrorBoundary extends Component {
@@ -125,6 +128,9 @@ function AnimatedRoutes() {
         <Route path="/admin/lideres"                 element={<LideresAdminScreen />} />
         <Route path="/admin/lideres/:instalacion"    element={<InstalacionDetailScreen />} />
         <Route path="/admin/sharepoint-connections" element={<SharePointConnectionsScreen />} />
+        <Route path="/admin/notificaciones"         element={<NotificacionesAdminScreen />} />
+        {/* Buzón de notificaciones del usuario */}
+        <Route path="/notifications"               element={<NotificationsScreen />} />
         {/* Fallback */}
         <Route path="*" element={<SplashScreen />} />
       </Routes>
@@ -165,6 +171,11 @@ const IS_DEV_MODE =
 
 function BootstrapHandler() {
   useBootstrap()
+  return null
+}
+
+function NotificationsHandler() {
+  useNotifications()
   return null
 }
 
@@ -211,6 +222,7 @@ export default function App() {
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}
         {!IS_DEV_MODE && <ResumeHandler />}
+        <NotificationsHandler />
         <ErrorBoundary>
           <AnimatedRoutes />
         </ErrorBoundary>
