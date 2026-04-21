@@ -5,6 +5,14 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.7.1] — 2026-04-21
+
+### Correcciones
+- **Header centrado:** el título de cada pantalla quedaba desplazado a la izquierda tras incorporar la campana de notificaciones. Se corrigió usando posicionamiento absoluto para el título, garantizando centrado perfecto independiente del ancho de los controles laterales.
+- **Conexiones SharePoint — Notificaciones:** agregadas las dos listas del sistema de notificaciones (`Notificaciones MRC` y `Notificaciones MRC Leídas`) al panel de Conexiones SharePoint, con badge "Auto-creada" y referencia a `notificationService.js`. El contador de conexiones sube de 10 a 12.
+
+---
+
 ## [1.7.0] — 2026-04-20
 
 ### Nuevas Funcionalidades
