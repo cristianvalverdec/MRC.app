@@ -128,6 +128,7 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        position: 'relative',
         padding: '12px 16px',
         paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
         background: 'rgba(27, 42, 74, 0.92)',
@@ -155,23 +156,32 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
           )}
         </div>
 
-        {/* Centro: título o logo */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        {/* Centro: absolutamente centrado para no depender del ancho de los lados */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          pointerEvents: 'none',
+        }}>
           {title ? (
             <span style={{
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17,
               letterSpacing: '0.04em', textTransform: 'uppercase',
               color: '#FFFFFF', textAlign: 'center',
+              pointerEvents: 'auto',
+              maxWidth: 'calc(100% - 180px)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {title}
             </span>
           ) : (
-            <AgrosuperLogo height={24} />
+            <div style={{ pointerEvents: 'auto' }}>
+              <AgrosuperLogo height={24} />
+            </div>
           )}
         </div>
 
         {/* Derecha: bell de notificaciones + avatar con dot de red */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 'auto' }}>
           {isAuthenticated && !rightAction && <NotificationBell />}
           <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
             {rightAction || (

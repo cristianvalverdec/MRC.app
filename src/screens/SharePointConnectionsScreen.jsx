@@ -117,6 +117,27 @@ const CONNECTIONS = [
     ],
   },
   {
+    category: 'Notificaciones',
+    items: [
+      {
+        name: 'Notificaciones MRC',
+        listId: null,
+        type: 'dynamic',
+        formLabel: 'Buzón de notificaciones enviadas a usuarios',
+        unit: 'Global',
+        service: 'notificationService.js',
+      },
+      {
+        name: 'Notificaciones MRC Leídas',
+        listId: null,
+        type: 'dynamic',
+        formLabel: 'Registro de lecturas por usuario (trazabilidad)',
+        unit: 'Global',
+        service: 'notificationService.js',
+      },
+    ],
+  },
+  {
     category: 'Archivos de Configuración',
     items: [
       {
@@ -622,6 +643,7 @@ export default function SharePointConnectionsScreen() {
     Formularios: { line: 'rgba(47,128,237,0.2)', text: 'rgba(96,165,250,0.7)' },
     'Gestión de Líderes': { line: 'rgba(8,145,178,0.2)', text: 'rgba(34,211,238,0.7)' },
     Sistema: { line: 'rgba(123,63,228,0.2)', text: 'rgba(192,132,252,0.7)' },
+    Notificaciones: { line: 'rgba(123,63,228,0.2)', text: 'rgba(167,139,250,0.7)' },
     'Archivos de Configuración': { line: 'rgba(245,124,32,0.2)', text: 'rgba(245,166,35,0.7)' },
   }
 
