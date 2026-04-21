@@ -5,6 +5,19 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.7.2] — 2026-04-21
+
+### Correcciones críticas del sistema de notificaciones
+- **Columna "Tipo" renombrada a "TipoNotif":** SharePoint reserva el nombre `Tipo` para la columna por defecto de tipo de contenido (ContentType icon). Al intentar crear una columna con ese nombre o hacer POST con ese campo, SharePoint rechazaba silenciosamente la operación. Esto causaba que el botón "Enviar" quedara aparentemente colgado y las notificaciones nunca se crearan. Se renombró internamente a `TipoNotif` manteniendo fallback a `Tipo` en el mapper por retrocompatibilidad.
+- **Errores de SharePoint ahora se muestran en la UI:** las acciones `crear` y `desactivar` del store exponen el error en `state.error` y la pantalla admin ya lo renderiza con banner rojo — antes los errores solo aparecían en la consola.
+- **Mensaje de error más descriptivo** en `crearNotificacion`: muestra el detalle de SharePoint (no solo el código HTTP) para diagnosticar rápido problemas de esquema/permisos.
+
+### Nuevas Funcionalidades
+- **Notificaciones nativas automáticas en polling:** cada vez que el ciclo de polling detecta notificaciones nuevas no leídas, se dispara automáticamente `showNotification()` del service worker, mostrando la alerta en el tray del SO sin necesidad de abrir la app. Antes solo se disparaban manualmente desde el buzón.
+- **Ícono de notificación con emoji 👌:** el ícono que aparecía como cuadrado blanco en la barra de estado de Android (al monocromizar el PWA icon) se reemplaza por el emoji característico de MRC, generado al vuelo vía canvas. Se usa tanto en `icon` (cuerpo de la notif) como en `badge` (barra de estado).
+
+---
+
 ## [1.7.1] — 2026-04-21
 
 ### Correcciones

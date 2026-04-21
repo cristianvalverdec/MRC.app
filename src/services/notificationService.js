@@ -84,9 +84,12 @@ async function ensureColumns(siteBase, listId, columnasDef, headers) {
 
 // ── Definición de columnas ────────────────────────────────────────────────────
 
+// NOTA IMPORTANTE: la columna se llama 'TipoNotif', NO 'Tipo'.
+// 'Tipo' es una columna reservada por SharePoint (ContentType icon) y colisiona al intentar crearla.
+// Al hacer PATCH/POST con 'Tipo', SharePoint rechaza la operación silenciosamente o devuelve 400.
 const COLS_NOTIFS = [
   { name: 'Cuerpo',          text: { allowMultipleLines: true } },
-  { name: 'Tipo',            text: {} },
+  { name: 'TipoNotif',       text: {} },
   { name: 'Destinatarios',   text: {} },
   { name: 'CreadoPor',       text: {} },
   { name: 'FechaExpiracion', text: {} },
@@ -108,7 +111,8 @@ function mapNotif(item) {
     id:              item.id,
     titulo:          f.Title          || '',
     cuerpo:          f.Cuerpo         || '',
-    tipo:            f.Tipo           || 'sistema',
+    // Fallback a f.Tipo por retrocompatibilidad si quedaron ítems creados con el nombre antiguo
+    tipo:            f.TipoNotif      || f.Tipo || 'sistema',
     destinatarios:   f.Destinatarios  || 'todos',
     creadoPor:       f.CreadoPor      || '',
     fechaExpiracion: f.FechaExpiracion || null,
@@ -268,7 +272,7 @@ export async function crearNotificacion(notif, adminEmail) {
       fields: {
         Title:           notif.titulo,
         Cuerpo:          notif.cuerpo,
-        Tipo:            notif.tipo,
+        TipoNotif:       notif.tipo,
         Destinatarios:   notif.destinatarios,
         CreadoPor:       adminEmail,
         FechaExpiracion: notif.fechaExpiracion || '',
@@ -278,7 +282,10 @@ export async function crearNotificacion(notif, adminEmail) {
     }),
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(`crearNotificacion error ${res.status}: ${JSON.stringify(data)}`)
+  if (!res.ok) {
+    const spMsg = data?.error?.message || JSON.stringify(data)
+    throw new Error(`SharePoint rechazó el envío (HTTP ${res.status}): ${spMsg}`)
+  }
   return mapNotif(data)
 }
 

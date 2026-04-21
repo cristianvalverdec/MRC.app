@@ -6,6 +6,10 @@
 //   - Intervalo de 5 min mientras la app está visible
 //   - Al regresar de background (visibilitychange): carga inmediata
 //   - Dev mode: usa datos mock, no hace llamadas a SharePoint
+//
+// Cada vez que una carga detecta notificaciones nuevas no leídas, se dispara
+// `mostrarNotificacionNativa()` (si el permiso está concedido), asegurando que
+// el usuario reciba la alerta del SO automáticamente — no solo al abrir la app.
 
 import { useEffect, useRef, useCallback } from 'react'
 import useUserStore from '../store/userStore'
@@ -20,7 +24,8 @@ const POLL_INTERVAL = 5 * 60 * 1000   // 5 minutos
 export function useNotifications() {
   const { email, instalacionMRC, mrcNivel, isAuthenticated } = useUserStore()
   const { cargar, cargarMock, ultimaSync } = useNotificationStore()
-  const timerRef = useRef(null)
+  const timerRef  = useRef(null)
+  const seenIdsRef = useRef(null)  // null = primera carga (no dispara alertas)
 
   const fetchIfStale = useCallback(async () => {
     if (!isAuthenticated) return
@@ -39,6 +44,30 @@ export function useNotifications() {
     if (ahora - ultimaMs < POLL_INTERVAL) return
 
     await cargar(email, instalacionMRC, mrcNivel)
+
+    // Tras la carga: detectar arrivals nuevos y disparar notificación nativa del SO.
+    try {
+      const after   = useNotificationStore.getState()
+      const leidas  = new Set(after.leidasIds)
+      const idsNow  = new Set(after.notificaciones.map(n => n.id))
+
+      if (seenIdsRef.current !== null) {
+        // No es la primera carga — hay baseline para comparar
+        const nuevas = after.notificaciones.filter(n =>
+          !seenIdsRef.current.has(n.id) && !leidas.has(n.id)
+        )
+        for (const n of nuevas) {
+          await mostrarNotificacionNativa({
+            titulo:     n.titulo,
+            cuerpo:     n.cuerpo,
+            accionRuta: n.accionRuta,
+          })
+        }
+      }
+      seenIdsRef.current = idsNow
+    } catch (err) {
+      console.warn('[useNotifications] auto-trigger nativo falló:', err)
+    }
   }, [email, instalacionMRC, mrcNivel, isAuthenticated, ultimaSync, cargar, cargarMock])
 
   useEffect(() => {
@@ -73,6 +102,35 @@ export async function requestNotificationPermission() {
   return Notification.requestPermission()
 }
 
+// ── Generación del ícono 👌 como PNG data URL (cacheado) ───────────────────────
+// El PWA-icon monocromizado por Android se veía como un cuadrado blanco en la barra
+// de estado. Renderizar el emoji característico de MRC 👌 a PNG resuelve el problema:
+//   - En el cuerpo de la notificación (icon) → se ve a color completo
+//   - En el badge de la barra de estado → Android convierte a silueta monocromática
+//     pero la forma del emoji (mano OK) se mantiene reconocible.
+let _emojiIconCache = null
+function getEmojiIconUrl() {
+  if (_emojiIconCache) return _emojiIconCache
+  if (typeof document === 'undefined') return null
+  try {
+    const SIZE = 192
+    const canvas = document.createElement('canvas')
+    canvas.width  = SIZE
+    canvas.height = SIZE
+    const ctx = canvas.getContext('2d')
+    ctx.textAlign    = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = `${Math.round(SIZE * 0.78)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Android Emoji",sans-serif`
+    // Ligero offset vertical para centrado óptico (los emojis suelen rendear un poco altos)
+    ctx.fillText('👌', SIZE / 2, SIZE / 2 + 8)
+    _emojiIconCache = canvas.toDataURL('image/png')
+    return _emojiIconCache
+  } catch (err) {
+    console.warn('[useNotifications] no se pudo generar ícono emoji:', err)
+    return null
+  }
+}
+
 /**
  * Envía una notificación nativa al OS si el permiso está concedido.
  * Con PWA instalada: aparece en el tray del sistema operativo, incluso con la app cerrada.
@@ -80,14 +138,21 @@ export async function requestNotificationPermission() {
  *
  * NO modifica la configuración del SW (registerType/prompt y el UpdateBanner siguen intactos).
  * Usa showNotification() del SW si está activo; si no, usa new Notification() como fallback.
+ *
+ * El ícono es el emoji 👌 (identidad visual de Misión Riesgo Cero) generado al vuelo
+ * vía canvas — evita depender de archivos PNG adicionales en /public.
  */
 export async function mostrarNotificacionNativa({ titulo, cuerpo, accionRuta }) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
 
+  const emojiUrl = getEmojiIconUrl()
+  const fallback = `${import.meta.env.BASE_URL}icons/icon-192.png`
+  const iconUrl  = emojiUrl || fallback
+
   const options = {
     body:      cuerpo,
-    icon:      `${import.meta.env.BASE_URL}icons/icon-192.png`,
-    badge:     `${import.meta.env.BASE_URL}icons/icon-192.png`,
+    icon:      iconUrl,
+    badge:     iconUrl,
     tag:       'mrc-notif',
     renotify:  false,
     data:      { accionRuta },

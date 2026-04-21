@@ -145,25 +145,41 @@ const useNotificationStore = create(
 
       /**
        * Crea una nueva notificación y la agrega al estado del admin.
+       * Si falla, el error se expone en state.error para que la UI lo muestre.
        */
       crear: async (notif, adminEmail) => {
-        const nueva = await crearNotificacion(notif, adminEmail)
-        set(state => ({
-          todasNotificaciones: [nueva, ...state.todasNotificaciones],
-        }))
-        return nueva
+        try {
+          const nueva = await crearNotificacion(notif, adminEmail)
+          set(state => ({
+            todasNotificaciones: [nueva, ...state.todasNotificaciones],
+            error: null,
+          }))
+          return nueva
+        } catch (err) {
+          const msg = err?.message || 'Error enviando notificación a SharePoint'
+          console.error('[notificationStore] crear error:', err)
+          set({ error: msg })
+          throw err
+        }
       },
 
       /**
        * Desactiva una notificación (soft-delete).
        */
       desactivar: async (id) => {
-        await desactivarNotificacion(id)
-        set(state => ({
-          todasNotificaciones: state.todasNotificaciones.map(n =>
-            n.id === id ? { ...n, activa: false } : n
-          ),
-        }))
+        try {
+          await desactivarNotificacion(id)
+          set(state => ({
+            todasNotificaciones: state.todasNotificaciones.map(n =>
+              n.id === id ? { ...n, activa: false } : n
+            ),
+            error: null,
+          }))
+        } catch (err) {
+          console.error('[notificationStore] desactivar error:', err)
+          set({ error: err?.message || 'Error desactivando notificación' })
+          throw err
+        }
       },
     }),
     {
