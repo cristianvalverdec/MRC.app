@@ -2,6 +2,8 @@
 // Previene regresiones v1.2.6 y v1.2.7:
 // - initQuestions no leía override.sections → preguntas eliminadas reaparecían
 // - opciones select como strings no se normalizaban → aparecían en blanco
+// Previene regresión v1.3.x:
+// - visibleWhen se pierde en JSON.stringify → todas las secciones visibles al mismo tiempo
 
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
@@ -13,6 +15,11 @@ const editorScreen = readFileSync(
   'utf-8'
 )
 
+const formScreen = readFileSync(
+  resolve(import.meta.dirname, '../screens/FormScreen.jsx'),
+  'utf-8'
+)
+
 describe('FormEditorDetailScreen — initQuestions (regresión v1.2.6)', () => {
   it('debe leer override.questions para formularios wizard', () => {
     expect(editorScreen).toContain('override?.questions')
@@ -20,6 +27,21 @@ describe('FormEditorDetailScreen — initQuestions (regresión v1.2.6)', () => {
 
   it('debe leer override.sections para formularios seccionados', () => {
     expect(editorScreen).toContain('override?.sections')
+  })
+})
+
+describe('FormScreen — merge de override restaura visibleWhen (regresión v1.3.x)', () => {
+  it('debe restaurar visibleWhen del estático al hacer merge de secciones con override', () => {
+    expect(formScreen).toContain('visibleWhen: staticSec.visibleWhen')
+  })
+
+  it('debe restaurar visibleWhen del estático al hacer merge de preguntas con override', () => {
+    expect(formScreen).toContain('visibleWhen: sq.visibleWhen')
+  })
+
+  it('handleSave del editor debe eliminar _section/_sectionTitle/visibleWhen del override', () => {
+    expect(editorScreen).toContain('stripInternal')
+    expect(editorScreen).toContain('_section, _sectionTitle, visibleWhen: _vw')
   })
 })
 

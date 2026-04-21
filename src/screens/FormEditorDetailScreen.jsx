@@ -885,12 +885,17 @@ export default function FormEditorDetailScreen() {
           }
       updateCustomForm(formId, updatedForm)
     } else {
+      // Strip campos internos del editor y funciones no serializables antes de guardar.
+      // visibleWhen es una función → se pierde en JSON.stringify; se restaura desde el estático en FormScreen.
+      // _section / _sectionTitle son metadata del editor, no deben persistirse en el override.
+      const stripInternal = ({ _section, _sectionTitle, visibleWhen: _vw, ...q }) => q
       const override = isWizard
-        ? { questions: arrayToDict(questions) }
+        ? { questions: arrayToDict(questions.map(stripInternal)) }
         : {
             sections: staticForm.sections.map((s) => ({
-              ...s,
-              questions: questions.filter((q) => q._section === s.id),
+              id: s.id,
+              title: s.title,
+              questions: questions.filter((q) => q._section === s.id).map(stripInternal),
             })),
           }
       saveFormEdits(formId, override)

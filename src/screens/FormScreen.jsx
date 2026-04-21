@@ -689,9 +689,43 @@ export default function FormScreen() {
   const customForms    = useFormEditorStore((s) => s.customForms)
   const editedOverride = editedForms[formType]
   const staticForm     = formDefinitions[formType] || customForms[formType] || null
-  const form = editedOverride
-    ? { ...staticForm, ...editedOverride }
-    : staticForm
+
+  // Merge del override restaurando visibleWhen desde el estático.
+  // Las funciones visibleWhen no sobreviven JSON.stringify (se pierden al persistir en localStorage).
+  // Un spread simple sobreescribiría sections/questions sin visibleWhen → todo visible al mismo tiempo.
+  const form = (() => {
+    if (!editedOverride) return staticForm
+
+    // Formularios de secciones: restaurar visibleWhen a nivel de sección y de pregunta
+    if (editedOverride.sections && staticForm?.sections) {
+      const mergedSections = staticForm.sections.map((staticSec) => {
+        const overrideSec = editedOverride.sections.find((s) => s.id === staticSec.id)
+        if (!overrideSec) return staticSec
+        const baseQuestions = overrideSec.questions?.length ? overrideSec.questions : staticSec.questions
+        const mergedQuestions = baseQuestions.map((oq) => {
+          const sq = staticSec.questions.find((q) => q.id === oq.id)
+          return sq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : oq
+        })
+        return { ...staticSec, ...overrideSec, visibleWhen: staticSec.visibleWhen, questions: mergedQuestions }
+      })
+      return { ...staticForm, ...editedOverride, sections: mergedSections }
+    }
+
+    // Formularios wizard: restaurar visibleWhen en cada pregunta del dict
+    if (editedOverride.questions && staticForm?.questions) {
+      const mergedQuestions = {}
+      const allQids = new Set([...Object.keys(editedOverride.questions), ...Object.keys(staticForm.questions)])
+      allQids.forEach((qid) => {
+        const sq = staticForm.questions[qid]
+        const oq = editedOverride.questions[qid]
+        if (!oq) return
+        mergedQuestions[qid] = sq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : oq
+      })
+      return { ...staticForm, ...editedOverride, questions: mergedQuestions }
+    }
+
+    return { ...staticForm, ...editedOverride }
+  })()
 
   if (!form) {
     return (

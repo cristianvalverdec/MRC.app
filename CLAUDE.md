@@ -223,6 +223,7 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 3. **Nunca usar `prefers-color-scheme`** en media queries CSS — la app controla su propio tema vía `data-theme`.
 4. **Nunca poner `color-scheme: light`** en el meta tag o CSS del html — Android interpreta esto y puede forzar barras blancas.
 5. **Al editar `initQuestions`** en FormEditorDetailScreen: siempre verificar que lee TANTO `override.questions` como `override.sections`.
+5b. **`visibleWhen` no sobrevive JSON.stringify** — las funciones `visibleWhen` se pierden al persistir el override en localStorage. `FormScreen.jsx` siempre debe restaurar `visibleWhen` desde el estático al hacer merge (sección y pregunta). `FormEditorDetailScreen.jsx` siempre debe usar `stripInternal` en `handleSave` para excluir `visibleWhen`, `_section` y `_sectionTitle` del override guardado.
 6. **Al agregar un formulario nuevo** en formDefinitions: agregar también su mapeo en `sharepointData.js` y crear la lista en SharePoint.
 7. **Al modificar el catálogo** (mrcCatalog.js): verificar que `lideresService.js` y `useBootstrap.js` siguen funcionando con los nuevos niveles.
 8. **Super-admin hardcodeado:** `cvalverde@agrosuper.com` no se puede eliminar desde la UI. Es intencional.
