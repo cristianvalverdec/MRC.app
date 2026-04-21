@@ -139,20 +139,24 @@ function getEmojiIconUrl() {
  * NO modifica la configuración del SW (registerType/prompt y el UpdateBanner siguen intactos).
  * Usa showNotification() del SW si está activo; si no, usa new Notification() como fallback.
  *
- * El ícono es el emoji 👌 (identidad visual de Misión Riesgo Cero) generado al vuelo
- * vía canvas — evita depender de archivos PNG adicionales en /public.
+ * Campos de ícono:
+ *   - `icon` se omite intencionalmente: iOS/Android usan el ícono de la PWA instalada
+ *     (el thumbnail del manifest, que ya aparece a la izquierda de la notificación).
+ *     Si se incluye `icon`, iOS lo renderiza como una imagen adicional a la derecha.
+ *   - `badge` lleva el emoji 👌 generado vía canvas: Android lo usa como ícono
+ *     monocromático en la barra de estado (reemplaza el cuadrado blanco).
  */
 export async function mostrarNotificacionNativa({ titulo, cuerpo, accionRuta }) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
 
   const emojiUrl = getEmojiIconUrl()
   const fallback = `${import.meta.env.BASE_URL}icons/icon-192.png`
-  const iconUrl  = emojiUrl || fallback
+  const badgeUrl = emojiUrl || fallback
 
   const options = {
     body:      cuerpo,
-    icon:      iconUrl,
-    badge:     iconUrl,
+    // icon: omitido — el OS usa el ícono de la PWA (manifest) automáticamente
+    badge:     badgeUrl,   // Android: silueta monocromática en barra de estado
     tag:       'mrc-notif',
     renotify:  false,
     data:      { accionRuta },
