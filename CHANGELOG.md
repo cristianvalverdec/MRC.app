@@ -5,6 +5,17 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.8.1] — 2026-04-21
+
+### Correcciones — Editor de Formularios (Pauta Verificación Reglas de Oro)
+
+- **Bug crítico: `visibleWhen` se perdía al guardar overrides del editor.** Las funciones `visibleWhen` no sobreviven `JSON.stringify` (localStorage). El spread simple `{ ...staticForm, ...editedOverride }` en `FormScreen.jsx` reemplazaba las secciones sin esas funciones, haciendo que todas las secciones y preguntas fueran visibles simultáneamente. Se reemplazó por un merge profundo que restaura `visibleWhen` desde la definición estática a nivel de sección y de pregunta individual. Afectaba: ramificación Q18→Q20/Q21, lógica op1-op7 y adm1-adm5.
+- **Bug: campos internos del editor se filtraban al override persistido.** `handleSave` en `FormEditorDetailScreen` guardaba `_section`, `_sectionTitle` y `visibleWhen` dentro del override (bloat innecesario). Se agrega `stripInternal` para limpiar esos campos antes de persistir.
+- **Bug: Q19 "Turno observado" aparecía siempre, independiente del área seleccionada.** La pregunta carecía de `visibleWhen` y se mostraba tanto para Área Operaciones como Administración. Se agrega `visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal'` alineándola con la lógica de Q20 y las secciones op1-op7.
+- **Test centinela agregado** en `regression-forms.test.js` para prevenir regresión del merge de `visibleWhen` en `FormScreen` y del `stripInternal` en el editor.
+
+---
+
 ## [1.8.0] — 2026-04-21
 
 ### Nuevas Funcionalidades — Sistema de Validación de Documentos
