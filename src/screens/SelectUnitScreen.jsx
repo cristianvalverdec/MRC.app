@@ -65,7 +65,7 @@ function TeamIllustration() {
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',
-        maxWidth: 500,
+        maxWidth: 'var(--content-max-w)',
         height: 'auto',
         display: 'block',
         mixBlendMode: 'screen',
@@ -235,7 +235,7 @@ export default function SelectUnitScreen() {
         </motion.div>
 
         {/* Unit cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="content-col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {unitCards.map((unit, i) => (
             <motion.button
               key={unit.id}

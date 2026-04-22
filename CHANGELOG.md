@@ -5,6 +5,19 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.2] — 2026-04-22
+
+### Mejora UI — Gold standard columna centrada extendido a todas las pantallas
+
+Completa la implementación del patrón `.content-col` en las pantallas de entrada y formularios, haciendo el estándar universal en toda la app.
+
+- **`SplashScreen`:** ilustración y botón "INGRESAR" centrados y acotados a 680px en desktop; fondo gradient y partículas permanecen a pantalla completa.
+- **`SelectUnitScreen`:** logo MRC y cards de Sucursales / Fuerza de Ventas centrados a 680px; fondo splash permanece a pantalla completa.
+- **`FormScreen`:** barra de estadísticas, área de scroll del formulario y botón "Enviar registro" del footer centrados. El border-top y background del footer siguen a ancho completo para consistencia visual.
+- **`FormEditorDetailScreen`:** panel de lista de preguntas y vista de flujo centrados a 680px; header de acciones (guardar/reset) y tabs permanecen a ancho completo.
+
+---
+
 ## [1.9.1] — 2026-04-21
 
 ### Mejora UI — Columna centrada en pantallas anchas (desktop/notebook)

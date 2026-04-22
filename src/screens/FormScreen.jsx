@@ -557,6 +557,7 @@ function SectionsMode({ form, formType }) {
       </div>
 
       <div
+        className="content-col"
         style={{
           display: 'flex', justifyContent: 'space-between',
           padding: '8px 16px 0',
@@ -569,7 +570,7 @@ function SectionsMode({ form, formType }) {
         </span>
       </div>
 
-      <div style={{ flex: 1, padding: '16px 16px 0', overflowY: 'auto' }}>
+      <div className="content-col" style={{ flex: 1, padding: '16px 16px 0', overflowY: 'auto' }}>
         {(() => {
           // Compute the first error question ID before rendering (avoids reading ref during render)
           const firstErrorId = unansweredIds.size > 0
@@ -620,12 +621,11 @@ function SectionsMode({ form, formType }) {
 
       <div
         style={{
-          padding: '12px 16px',
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
           borderTop: '1px solid var(--color-border)',
           background: 'var(--color-navy)', flexShrink: 0,
         }}
       >
+        <div className="content-col" style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}>
         {submitAttempted && !isValid && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
@@ -670,6 +670,7 @@ function SectionsMode({ form, formType }) {
             'Enviar registro'
           )}
         </motion.button>
+        </div>
       </div>
     </div>
   )

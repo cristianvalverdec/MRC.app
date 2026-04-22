@@ -1056,7 +1056,7 @@ export default function FormEditorDetailScreen() {
       </div>
 
       {/* Contenido */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="content-col" style={{ flex: 1, overflowY: 'auto', padding: '16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
         <AnimatePresence mode="wait">
           {activeTab === 'lista' ? (
             <motion.div key="lista" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

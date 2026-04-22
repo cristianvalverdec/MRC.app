@@ -32,7 +32,7 @@ function TeamIllustration() {
       alt="#MisiónRiesgoCero — Trabajemos juntos por una cultura preventiva"
       style={{
         width: '100%',
-        maxWidth: 500,
+        maxWidth: 'var(--content-max-w)',
         height: 'auto',
         display: 'block',
         mixBlendMode: 'screen',
@@ -176,6 +176,7 @@ export default function SplashScreen() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, ease: 'easeOut', delay: 0.5 }}
+          style={{ maxWidth: 'var(--content-max-w)', margin: '0 auto', width: '100%' }}
         >
           <motion.button
             whileTap={{ scale: 0.97 }}
