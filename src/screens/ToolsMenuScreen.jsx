@@ -128,6 +128,7 @@ export default function ToolsMenuScreen() {
       <AppHeader title="Herramientas Preventivas" />
 
       <div style={{ flex: 1, padding: '24px 16px' }}>
+        <div className="content-col">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -293,6 +294,7 @@ export default function ToolsMenuScreen() {
             </>
           )}
         </motion.div>
+        </div>
       </div>
     </div>
   )

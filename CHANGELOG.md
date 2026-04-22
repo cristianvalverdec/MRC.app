@@ -5,6 +5,19 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.1] — 2026-04-21
+
+### Mejora UI — Columna centrada en pantallas anchas (desktop/notebook)
+
+**Motivación:** al abrir la app maximizada en un monitor o notebook, las tarjetas de menú se estiraban al 100% del viewport, lo que resulta visualmente desequilibrado. Se adopta el patrón gold-standard de apps mobile-first en desktop: columna centrada de ancho fijo.
+
+- **`src/index.css`:** token `--content-max-w: 680px` + clase utilitaria `.content-col` (`max-width: var(--content-max-w); margin: 0 auto; width: 100%`).
+- **17 pantallas actualizadas** con `className="content-col"` o `maxWidth: var(--content-max-w)` en estilos objeto: `ToolsMenuScreen`, `UnitMenuScreen`, `AnalyticsScreen`, `CierreCondicionesScreen`, `ContratistasScreen`, `DailyStatusScreen`, `FADataEntryScreen`, `FormEditorListScreen`, `GestionCPHSScreen`, `GestionSaludScreen`, `InstalacionDetailScreen`, `LideresAdminScreen`, `LideresScreen`, `MisDocumentosScreen`, `NotificacionesAdminScreen`, `NotificationsScreen`, `ProfileScreen`, `ProgramGoalsScreen`, `ProgramaTrabajoScreen`, `SharePointConnectionsScreen`, `ValidacionAdminScreen`.
+- **`AppHeader.jsx`:** campana de notificaciones pegada al avatar (`gap: 0`); título con `maxWidth: calc(100% - 196px)` para mayor holgura en viewports angostos.
+- En mobile (< 680px) el comportamiento visual es idéntico al anterior.
+
+---
+
 ## [1.9.0] — 2026-04-21
 
 ### Nueva Funcionalidad — Sistema de URLs Configurables (sin redeploy)

@@ -279,7 +279,7 @@ export default function ProgramaTrabajoScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Programa de Trabajo" />
 
-      <div style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="content-col" style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* Banner instalación + mes */}
         <motion.div

@@ -260,7 +260,7 @@ export default function NotificationsScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Notificaciones" rightAction={HeaderRight} />
 
-      <div style={{ flex: 1, padding: '16px 16px 32px' }}>
+      <div className="content-col" style={{ flex: 1, padding: '16px 16px 32px' }}>
         {/* Activar notificaciones nativas (solo en PWA instalada) */}
         <PermisosNativos />
 

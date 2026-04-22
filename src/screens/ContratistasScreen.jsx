@@ -77,7 +77,7 @@ export default function ContratistasScreen() {
       <AppHeader title="Permiso de Trabajo" />
 
       {/* ── Panel de trabajos activos ──────────────────────────────────── */}
-      <div style={{ flex: 1, padding: '20px 16px 140px', overflowY: 'auto' }}>
+      <div className="content-col" style={{ flex: 1, padding: '20px 16px 140px', overflowY: 'auto' }}>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

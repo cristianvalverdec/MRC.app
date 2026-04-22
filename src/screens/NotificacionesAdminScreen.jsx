@@ -496,7 +496,7 @@ export default function NotificacionesAdminScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Gestión de Notificaciones" />
 
-      <div style={{ flex: 1, padding: '16px 16px 40px' }}>
+      <div className="content-col" style={{ flex: 1, padding: '16px 16px 40px' }}>
         {/* Resumen */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {[

@@ -294,7 +294,7 @@ export default function ProgramGoalsScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Metas del Programa" rightAction={adminAction} />
 
-      <div style={{ flex: 1, padding: '20px 16px', overflowY: 'auto', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="content-col" style={{ flex: 1, padding: '20px 16px', overflowY: 'auto', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Fórmula colapsable */}
         <FormulaCard />

@@ -46,7 +46,7 @@ export default function GestionSaludScreen() {
     >
       <AppHeader title="Gestión Salud" />
 
-      <div style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="content-col" style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Hero banner */}
         <motion.div

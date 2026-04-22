@@ -392,7 +392,7 @@ export default function InstalacionDetailScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title={instalacion} />
 
-      <div style={{
+      <div className="content-col" style={{
         flex: 1, overflowY: 'auto', padding: '16px 16px',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         display: 'flex', flexDirection: 'column', gap: 14,

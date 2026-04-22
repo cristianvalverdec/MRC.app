@@ -349,6 +349,7 @@ export default function LideresScreen() {
         flex: 1, padding: '20px 16px',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16,
+        maxWidth: 'var(--content-max-w)', marginLeft: 'auto', marginRight: 'auto', width: '100%', boxSizing: 'border-box',
       }}>
 
         {/* ── Cabecera con instalación ── */}

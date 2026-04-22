@@ -94,41 +94,43 @@ export default function UnitMenuScreen() {
       {/* AppHeader muestra su propio avatar+NetworkDot cuando no se pasa rightAction */}
       <AppHeader title={label} />
 
-      <div style={{ flex: 1, padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Unit label */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 13,
-            color: 'var(--color-text-muted)',
-            marginBottom: 4,
-          }}
-        >
-          Selecciona una opción
-        </motion.div>
+      <div style={{ flex: 1, padding: '24px 16px' }}>
+        <div className="content-col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Unit label */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: 'var(--color-text-muted)',
+              marginBottom: 4,
+            }}
+          >
+            Selecciona una opción
+          </motion.div>
 
-        {/* Menu cards */}
-        <motion.div
-          variants={containerVariants}
-          initial="initial"
-          animate="animate"
-          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-        >
-          {items.map((item, i) => (
-            <motion.div key={i} variants={itemVariants}>
-              <MenuCard
-                icon={item.icon}
-                label={item.label}
-                sublabel={item.sublabel}
-                accentColor={item.accentColor}
-                onClick={() => navigate(item.route(unitType))}
-              />
-            </motion.div>
-          ))}
-        </motion.div>
+          {/* Menu cards */}
+          <motion.div
+            variants={containerVariants}
+            initial="initial"
+            animate="animate"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            {items.map((item, i) => (
+              <motion.div key={i} variants={itemVariants}>
+                <MenuCard
+                  icon={item.icon}
+                  label={item.label}
+                  sublabel={item.sublabel}
+                  accentColor={item.accentColor}
+                  onClick={() => navigate(item.route(unitType))}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
       </div>
     </div>
   )

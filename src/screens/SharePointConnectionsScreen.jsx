@@ -309,7 +309,7 @@ async function resolveToListId(input, token) {
 
 const s = {
   page: { minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' },
-  content: { flex: 1, padding: '20px 16px 32px' },
+  content: { flex: 1, padding: '20px 16px 32px', maxWidth: 'var(--content-max-w)', marginLeft: 'auto', marginRight: 'auto', width: '100%', boxSizing: 'border-box' },
   siteUrl: {
     background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-card)', padding: '12px 16px', marginBottom: 16,

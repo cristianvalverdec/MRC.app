@@ -215,6 +215,7 @@ const url = getLink('semana-op')  // null si no configurado
 
 - **Imports:** React hooks primero, luego router, luego framer, luego lucide, luego componentes propios, luego stores/services.
 - **Estilos:** Inline styles con objetos JS (no Tailwind classes en JSX). Tailwind solo en index.css para base/utilities.
+- **Layout responsive (desktop):** Todas las pantallas deben tener su contenido principal centrado con `className="content-col"` (o `maxWidth: 'var(--content-max-w)', margin: '0 auto', width: '100%'` en estilos objeto). La clase `.content-col` está definida en `index.css` y aplica `max-width: var(--content-max-w)` (680px) + centrado automático. El `<AppHeader>` permanece siempre a ancho completo. El div raíz de pantalla (`minHeight: 100dvh, flex-column`) no se restringe — solo el div de contenido interior. Pantallas excluidas: `SplashScreen`, `SelectUnitScreen` (centrado propio), `MonitorFatigaScreen` (iframe fullscreen), `FormScreen` (wizard con controles sticky).
 - **Stores:** Zustand con `persist` middleware donde se necesita persistencia. `partialize` para excluir funciones del localStorage.
 - **Screens:** Cada pantalla es un default export, lazy-loaded en App.jsx.
 - **Formularios:** Tipos de pregunta: `yesno`, `radio`, `checkbox`, `select`, `text`, `rating`, `photo`.

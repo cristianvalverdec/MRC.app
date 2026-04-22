@@ -561,7 +561,7 @@ export default function FormEditorListScreen() {
         }
       />
 
-      <div style={{ flex: 1, padding: '20px 16px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="content-col" style={{ flex: 1, padding: '20px 16px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
 
         {/* Banner admin */}
         <motion.div

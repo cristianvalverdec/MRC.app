@@ -59,6 +59,7 @@
   --radius-card:    12px;
   --radius-btn:     8px;
   --radius-pill:    999px;
+  --content-max-w:  680px;
 }
 
 /* ─── Modo claro ────────────────────────────────────────────────────── */
@@ -271,6 +272,14 @@ body {
   min-height: 44px;
 }
 .btn-outline:active { background: var(--color-surface); }
+
+/* ─── Columna centrada (desktop) ───────────────────────────────────── */
+.content-col {
+  max-width: var(--content-max-w);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
 
 /* ─── Menu Card ─────────────────────────────────────────────────────── */
 .menu-card {

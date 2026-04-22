@@ -166,6 +166,7 @@ export default function CierreCondicionesScreen() {
           flex: 1, padding: '20px 16px',
           paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
           overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14,
+          maxWidth: 'var(--content-max-w)', marginLeft: 'auto', marginRight: 'auto', width: '100%', boxSizing: 'border-box',
         }}
       >
         {/* Banner informativo */}

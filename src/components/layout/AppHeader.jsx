@@ -168,7 +168,7 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
               letterSpacing: '0.04em', textTransform: 'uppercase',
               color: '#FFFFFF', textAlign: 'center',
               pointerEvents: 'auto',
-              maxWidth: 'calc(100% - 180px)',
+              maxWidth: 'calc(100% - 196px)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {title}
@@ -181,7 +181,7 @@ export default function AppHeader({ title, showBack = true, onBack, rightAction 
         </div>
 
         {/* Derecha: bell de notificaciones + avatar con dot de red */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginLeft: 'auto' }}>
           {isAuthenticated && !rightAction && <NotificationBell />}
           <div style={{ width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
             {rightAction || (

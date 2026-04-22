@@ -307,7 +307,7 @@ export default function MisDocumentosScreen() {
       <div style={{
         flex: 1, padding: '16px 16px 48px',
         paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
-        overflowY: 'auto', maxWidth: 600, width: '100%', margin: '0 auto',
+        overflowY: 'auto', maxWidth: 'var(--content-max-w)', width: '100%', margin: '0 auto',
         boxSizing: 'border-box',
       }}>
 

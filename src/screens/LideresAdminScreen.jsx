@@ -151,7 +151,7 @@ export default function LideresAdminScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Gestión de Líderes" />
 
-      <div style={{
+      <div className="content-col" style={{
         flex: 1, overflowY: 'auto',
         padding: '16px 16px',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',

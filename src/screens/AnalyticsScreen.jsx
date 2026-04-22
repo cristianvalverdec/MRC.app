@@ -139,7 +139,7 @@ export default function AnalyticsScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Analítica del Programa" />
 
-      <div style={{ flex: 1, padding: '16px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+      <div className="content-col" style={{ flex: 1, padding: '16px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
 
         {/* Selector de período */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>

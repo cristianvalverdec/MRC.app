@@ -553,7 +553,7 @@ export default function ProfileScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Mi Perfil" />
 
-      <div style={{ flex: 1, padding: '24px 16px', overflowY: 'auto', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="content-col" style={{ flex: 1, padding: '24px 16px', overflowY: 'auto', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── Cabecera de perfil ── */}
         <motion.div

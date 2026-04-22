@@ -528,7 +528,7 @@ export default function ValidacionAdminScreen() {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
       <AppHeader title="Validaciones de Registros" />
 
-      <div style={{ flex: 1, padding: '16px 16px 48px', overflowY: 'auto' }}>
+      <div className="content-col" style={{ flex: 1, padding: '16px 16px 48px', overflowY: 'auto' }}>
 
         {/* ── Resumen KPIs ── */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
