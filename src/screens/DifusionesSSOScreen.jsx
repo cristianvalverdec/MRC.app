@@ -8,6 +8,7 @@ import {
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import { submitDifusion } from '../services/difusionesService'
+import { getLink } from '../services/urlLinksService'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function getWeekInfo() {
@@ -33,10 +34,10 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const EQUIPOS = [
-  { id: 'operaciones',    label: 'Operaciones',    color: '#1A52B8', spUrl: import.meta.env.VITE_SP_SEMANA_OP },
-  { id: 'administracion', label: 'Administración', color: '#27AE60', spUrl: import.meta.env.VITE_SP_SEMANA_ADM },
-  { id: 'distribuidoras', label: 'Distribuidoras', color: '#F57C20', spUrl: import.meta.env.VITE_SP_SEMANA_DIST },
+const EQUIPOS_BASE = [
+  { id: 'operaciones',    label: 'Operaciones',    color: '#1A52B8', linkId: 'semana-op' },
+  { id: 'administracion', label: 'Administración', color: '#27AE60', linkId: 'semana-adm' },
+  { id: 'distribuidoras', label: 'Distribuidoras', color: '#F57C20', linkId: 'semana-dist' },
 ]
 const TURNOS = ['Mañana', 'Tarde', 'Noche']
 const MAX_FILES = 5
@@ -44,6 +45,7 @@ const MAX_FILES = 5
 // ── Sección 1: Material de la Semana ─────────────────────────────────────
 function WeekMaterialCard() {
   const { week, range } = getWeekInfo()
+  const equipos = EQUIPOS_BASE.map((e) => ({ ...e, spUrl: getLink(e.linkId) }))
   return (
     <div style={{
       background: 'linear-gradient(135deg, #1A3A8F 0%, #0d2b72 100%)',
@@ -91,7 +93,7 @@ function WeekMaterialCard() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {EQUIPOS.map((equipo) => (
+        {equipos.map((equipo) => (
           <motion.button
             key={equipo.id}
             whileTap={{ scale: equipo.spUrl ? 0.97 : 1 }}
@@ -132,7 +134,7 @@ function WeekMaterialCard() {
 
 // ── Sección 2: Biblioteca ─────────────────────────────────────────────────
 function BibliotecaCard() {
-  const url = import.meta.env.VITE_SP_BIBLIOTECA_URL
+  const url = getLink('biblioteca-anual')
   return (
     <motion.button
       whileTap={{ scale: url ? 0.98 : 1 }}

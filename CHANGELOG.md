@@ -5,6 +5,28 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.0] — 2026-04-21
+
+### Nueva Funcionalidad — Sistema de URLs Configurables (sin redeploy)
+
+**Motivación:** las URLs de carpetas SharePoint (charlas semanales por área, biblioteca anual) estaban hardcodeadas en variables de entorno `VITE_SP_SEMANA_*` y `VITE_SP_BIBLIOTECA_URL`. Cambiarlas exigía editar `.env` + rebuild + redeploy: un ciclo costoso para contenido que rota semanalmente. Este módulo elimina esa dependencia y sienta la infraestructura para que cualquier enlace futuro sea autogestionado desde la propia app.
+
+- **`src/services/urlLinksService.js` (nuevo):** servicio CRUD para gestionar overrides de URL en localStorage (`mrc-url-links`). Exporta:
+  - `URL_LINK_CATALOG` — catálogo de enlaces configurables (fuente de verdad del módulo). Para agregar un enlace nuevo al sistema: basta con agregar una entrada aquí.
+  - `getLink(id)` — resuelve URL con prioridad: override local → variable de entorno → `null`.
+  - `getLinkSource(id)` — retorna `'override' | 'env' | 'none'` para mostrar el origen en la UI.
+  - `saveLink(id, url)` / `clearLink(id)` / `getAllLinks()` — CRUD sobre localStorage.
+  - Patrón defensivo con `try/catch` idéntico al de `getConnectionOverride` en `sharepointData.js`.
+- **`SharePointConnectionsScreen.jsx` — sección "URLs Configurables" (nueva):** aparece entre las categorías de listas y el panel de Variables de Entorno. Muestra una tarjeta por cada entrada del catálogo con indicador de origen (verde = override local, naranja = env var, rojo = sin configurar) y panel de edición desplegable con lápiz, igual al patrón visual de los overrides de GUIDs.
+- **`DifusionesSSOScreen.jsx` — desacoplado de `import.meta.env`:** los botones de Operaciones / Administración / Distribuidoras y la Biblioteca ahora leen su URL mediante `getLink()` en cada render, en lugar de consumir `import.meta.env.*` fijo en tiempo de build. El admin puede actualizar cualquier enlace semanal desde el dispositivo sin reiniciar la app.
+
+### Arquitectura
+- El sistema replica el patrón de override que ya existía para GUIDs de listas (`mrc-sp-connections-override`) pero para URLs, con su propia clave (`mrc-url-links`) para mantener separación de responsabilidades.
+- **Extensibilidad:** agregar un nuevo enlace configurable (ej. "Reglamento Interno", "Manual de Contratistas") requiere solo: (1) entrada en `URL_LINK_CATALOG`, (2) `getLink('nuevo-id')` en el componente consumidor. La tarjeta en Conexiones SharePoint aparece automáticamente sin tocar UI.
+- Las variables de entorno `VITE_SP_SEMANA_*` y `VITE_SP_BIBLIOTECA_URL` continúan funcionando como fallback para entornos donde ya estén configuradas, garantizando compatibilidad total con el despliegue actual.
+
+---
+
 ## [1.8.1] — 2026-04-21
 
 ### Correcciones — Editor de Formularios (Pauta Verificación Reglas de Oro)

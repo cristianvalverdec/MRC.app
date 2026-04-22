@@ -14,6 +14,14 @@ import {
   clearConnectionOverride,
   getAllConnectionOverrides,
 } from '../services/sharepointData'
+import {
+  URL_LINK_CATALOG,
+  getLink,
+  getLinkSource,
+  saveLink,
+  clearLink,
+  getAllLinks,
+} from '../services/urlLinksService'
 
 // ── Registro estático de conexiones SharePoint ──────────────────────────────
 const SITE_URL = import.meta.env.VITE_SHAREPOINT_SITE_URL || '(no configurado)'
@@ -536,6 +544,96 @@ function ConnectionCard({ item, status, override, onSave, onClear, getToken }) {
   )
 }
 
+// ── Tarjeta de URL configurable ──────────────────────────────────────────────
+
+function UrlLinkCard({ entry, onSave, onClear }) {
+  const [open, setOpen] = useState(false)
+  const [input, setInput] = useState('')
+
+  const source = getLinkSource(entry.id)
+  const currentUrl = getLink(entry.id)
+  const hasOverride = source === 'override'
+
+  const dotColor = source === 'override' ? '#27AE60' : source === 'env' ? '#F5A623' : '#E74C3C'
+  const sourceLabel = source === 'override'
+    ? (currentUrl.length > 42 ? currentUrl.slice(0, 42) + '…' : currentUrl)
+    : source === 'env' ? 'Usando variable de entorno' : 'No configurada'
+
+  const handleSave = () => {
+    if (!input.trim()) return
+    onSave(entry.id, input.trim())
+    setInput('')
+    setOpen(false)
+  }
+
+  return (
+    <motion.div variants={itemVariants} style={s.card}>
+      <div style={s.cardHeader}>
+        <div style={{ ...s.iconBox, background: 'rgba(47,128,237,0.12)' }}>
+          <Link2 size={18} color="#60A5FA" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={s.cardTitle}>{entry.label}</span>
+            {hasOverride && (
+              <span style={{ ...s.tag, background: 'rgba(39,174,96,0.15)', color: '#4ADE80', border: '1px solid rgba(39,174,96,0.3)', marginTop: 0 }}>
+                OVERRIDE
+              </span>
+            )}
+          </div>
+          <div style={s.cardSub}>{entry.description}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'monospace', fontSize: 10, color: source === 'none' ? '#E74C3C' : 'var(--color-text-muted)', wordBreak: 'break-all' }}>
+              {sourceLabel}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: open ? '#60A5FA' : 'var(--color-text-muted)', flexShrink: 0 }}
+          title="Configurar enlace"
+        >
+          <Pencil size={14} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={s.cfgPanel}>
+              <div style={s.cfgLabel}>
+                {hasOverride ? `Override activo — pega una nueva URL para reemplazar` : 'Pega la URL completa del archivo en SharePoint'}
+              </div>
+              <input
+                style={s.cfgInput}
+                placeholder="https://agrosuper.sharepoint.com/sites/..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+              />
+              <div style={s.cfgRow}>
+                <button style={s.cfgBtn('primary')} onClick={handleSave} disabled={!input.trim()}>
+                  <Save size={12} /> Guardar
+                </button>
+                {hasOverride && (
+                  <button style={s.cfgBtn('secondary')} onClick={() => { onClear(entry.id); setOpen(false) }}>
+                    <Trash2 size={12} /> Quitar override
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function SharePointConnectionsScreen() {
@@ -573,9 +671,11 @@ export default function SharePointConnectionsScreen() {
     localStorage.removeItem('mrc-sp-panel-open')
     return getAllConnectionOverrides()
   })
+  const [urlLinks, setUrlLinks] = useState(() => getAllLinks())
   const [expandedCategories, setExpandedCategories] = useState(() => {
     const init = {}
     CONNECTIONS.forEach((cat) => { init[cat.category] = true })
+    init['URLs Configurables'] = true
     init['Variables de Entorno'] = false
     return init
   })
@@ -595,6 +695,16 @@ export default function SharePointConnectionsScreen() {
   const handleClearOverride = useCallback((formId) => {
     clearConnectionOverride(formId)
     setOverrides(getAllConnectionOverrides())
+  }, [])
+
+  const handleSaveLink = useCallback((linkId, url) => {
+    saveLink(linkId, url)
+    setUrlLinks(getAllLinks())
+  }, [])
+
+  const handleClearLink = useCallback((linkId) => {
+    clearLink(linkId)
+    setUrlLinks(getAllLinks())
   }, [])
 
   const testAll = useCallback(async () => {
@@ -738,6 +848,26 @@ export default function SharePointConnectionsScreen() {
               </div>
             )
           })}
+
+          {/* URLs Configurables */}
+          <motion.div variants={itemVariants}>
+            <div style={s.catHeader} onClick={() => toggleCategory('URLs Configurables')}>
+              <div style={{ ...s.catLine, background: 'rgba(96,165,250,0.2)' }} />
+              <span style={{ ...s.catLabel, color: 'rgba(96,165,250,0.7)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Link2 size={11} /> URLs Configurables ({URL_LINK_CATALOG.length})
+                {expandedCategories['URLs Configurables'] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </span>
+              <div style={{ ...s.catLine, background: 'rgba(96,165,250,0.2)' }} />
+            </div>
+          </motion.div>
+          {expandedCategories['URLs Configurables'] && URL_LINK_CATALOG.map((entry) => (
+            <UrlLinkCard
+              key={`${entry.id}-${urlLinks[entry.id]?.savedAt || 'none'}`}
+              entry={entry}
+              onSave={handleSaveLink}
+              onClear={handleClearLink}
+            />
+          ))}
 
           {/* Variables de entorno */}
           <motion.div variants={itemVariants}>

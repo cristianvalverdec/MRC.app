@@ -112,7 +112,8 @@ src/
 │   ├── sharepointSync.js        Sync de config de formularios (mrc-forms-config.json)
 │   ├── lideresService.js        CRUD líderes + historial + reportes
 │   ├── adminService.js          Lista de administradores
-│   └── difusionesService.js     Envío de charlas SSO
+│   ├── difusionesService.js     Envío de charlas SSO
+│   └── urlLinksService.js       URLs configurables desde la app (override > env var > null)
 │
 ├── hooks/
 │   ├── useAuth.js               Login/logout, adquisición de token
@@ -165,7 +166,30 @@ src/
 - **Poll cada 60s** para detectar nuevas versiones.
 - El manifest NO tiene `edge_to_edge_enabled` (no es estándar, Chrome lo ignora).
 
-### 5.6 Barra de navegación inferior Android
+### 5.7 URLs Configurables (urlLinksService)
+
+El módulo `urlLinksService.js` permite que el equipo SSO actualice desde la propia app cualquier URL de SharePoint (charlas semanales, biblioteca, documentos, etc.) sin editar código ni hacer redeploy.
+
+**Patrón de resolución (prioridad):** override en localStorage → variable de entorno `VITE_*` → `null`.
+
+**Catálogo (`URL_LINK_CATALOG`):** array en `urlLinksService.js` que es la fuente de verdad del módulo. Cada entrada tiene `id`, `label`, `description`, `category`, `envFallback`. Agregar una entrada nueva es suficiente para que aparezca automáticamente en la pantalla de Conexiones SharePoint.
+
+**Clave localStorage:** `mrc-url-links` (separada de `mrc-sp-connections-override` que es para GUIDs de listas).
+
+**Para consumir un enlace configurable en cualquier componente:**
+```js
+import { getLink } from '../services/urlLinksService'
+const url = getLink('semana-op')  // null si no configurado
+```
+
+**Para agregar un nuevo enlace gestionable desde la app:**
+1. Agregar entrada a `URL_LINK_CATALOG` en `urlLinksService.js`
+2. Llamar `getLink('nuevo-id')` en el componente que lo necesita
+3. La tarjeta aparece sola en Conexiones SharePoint — no se toca UI
+
+**IMPORTANTE:** nunca leer `import.meta.env.VITE_SP_SEMANA_*` o `import.meta.env.VITE_SP_BIBLIOTECA_URL` directamente en componentes. Siempre usar `getLink()` para respetar los overrides del admin.
+
+### 5.8 Barra de navegación inferior Android
 - **Limitación conocida:** las PWAs NO pueden controlar el color de la barra inferior del sistema en Android. Solo apps nativas (Play Store) tienen `navigationBarColor`.
 - `theme_color` en manifest controla la barra SUPERIOR (status bar).
 - La barra inferior sigue el tema del sistema operativo del dispositivo.
@@ -231,6 +255,7 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 10. **Logos referenciados como `.png`, no `.webp`** — ver sección 9. No cambiar extensión sin verificar que el archivo existe y tiene contenido.
 11. **Antes de hacer commit, ejecutar `npm test`** — los tests centinela validan automáticamente las reglas 1-10. Si un test falla, NO hacer commit.
 12. **Al agregar una regla anti-regresión nueva**, agregar también un test centinela en `src/__tests__/`.
+13. **Nunca leer `import.meta.env.VITE_SP_SEMANA_*` o `import.meta.env.VITE_SP_BIBLIOTECA_URL` directamente en componentes.** Usar siempre `getLink(id)` de `urlLinksService.js` para respetar los overrides configurados por el admin desde la app. Los env vars siguen funcionando como fallback — solo se omite el override si se bypasea el servicio.
 
 ---
 
@@ -283,4 +308,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-09 — v1.3.0 — Tests centinela + Husky + Claude Code hooks*
+*Última actualización: 2026-04-21 — v1.9.0 — Sistema de URLs Configurables (urlLinksService)*
