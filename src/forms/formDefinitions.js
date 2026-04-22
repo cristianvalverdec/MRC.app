@@ -288,7 +288,7 @@ export const formDefinitions = {
         id: 'cfg', title: 'CONFIGURACIÓN',
         questions: [
           { id: 'Q18', type: 'select', label: 'Área en la que verificará el cumplimiento de las Reglas de Oro', required: true, options: ['Área Administrativa Sucursal','Área Operaciones Sucursal'] },
-          { id: 'Q19', type: 'select', label: 'Turno observado', required: true, options: ['Mañana','Tarde','Noche'] },
+          { id: 'Q19', type: 'select', label: 'Turno observado', required: true, visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal', options: ['Mañana','Tarde','Noche'] },
           { id: 'Q20', type: 'select', label: 'Regla de Oro que Verificará — OPERACIONES', required: true,
             placeholder: 'Selecciona la Regla de Oro',
             visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal',
