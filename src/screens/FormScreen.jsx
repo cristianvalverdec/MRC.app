@@ -486,8 +486,19 @@ function SectionsMode({ form, formType }) {
   }, [answers, formType, saveDraft])
 
   const handleChange = useCallback((questionId, value) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }))
-  }, [])
+    setAnswers((prev) => {
+      const next = { ...prev, [questionId]: value }
+      // Al cambiar una respuesta que controla visibilidad (ej: área), eliminar del
+      // estado las respuestas de preguntas que quedan ocultas con el nuevo valor.
+      // Esto evita que respuestas del área anterior contaminen el envío o el borrador.
+      const visibleIds = new Set(
+        form.sections
+          .filter(s => !s.visibleWhen || s.visibleWhen(next))
+          .flatMap(s => s.questions.filter(q => !q.visibleWhen || q.visibleWhen(next)).map(q => q.id))
+      )
+      return Object.fromEntries(Object.entries(next).filter(([id]) => visibleIds.has(id)))
+    })
+  }, [form.sections])
 
   // Filtrar secciones y preguntas según visibleWhen(answers)
   const visibleSections = form.sections.filter(s => !s.visibleWhen || s.visibleWhen(answers))
@@ -517,7 +528,10 @@ function SectionsMode({ form, formType }) {
     }
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
+    // Solo enviar respuestas de preguntas visibles (red de seguridad para borradores previos al fix)
+    const visibleIds = new Set(allQuestions.map(q => q.id))
+    const cleanAnswers = Object.fromEntries(Object.entries(answers).filter(([id]) => visibleIds.has(id)))
+    addToPendingQueue({ formType, answers: cleanAnswers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
     clearDraft(formType)
     setSubmitted(true)
     setSubmitting(false)

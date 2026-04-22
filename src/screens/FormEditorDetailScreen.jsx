@@ -867,6 +867,17 @@ export default function FormEditorDetailScreen() {
     const id = newQId(questions)
     const order = questions.length + 1
     const newQ = emptyQuestion(id, order)
+    // Formularios seccionados: la pregunta nueva debe tener _section para que
+    // handleSave la incluya al agrupar por sección (undefined !== sectionId → se pierde).
+    // Se infiere de la última pregunta de la lista; si está vacía usa la primera sección estática.
+    if (!isWizard && staticForm?.sections?.length > 0) {
+      const lastQ = questions[questions.length - 1]
+      const target = lastQ?._section
+        ? { id: lastQ._section, title: lastQ._sectionTitle }
+        : staticForm.sections[0]
+      newQ._section = target.id
+      newQ._sectionTitle = target.title
+    }
     markChanged([...questions, newQ])
     setEditingQ(newQ)
   }
