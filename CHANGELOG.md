@@ -5,6 +5,16 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [Pendiente de versión] — 2026-04-22
+
+### Correcciones — Editor de Formularios y Formulario Pauta Verificación Reglas de Oro
+
+- **Bug: preguntas nuevas agregadas por el admin se perdían al guardar (ej. Q48).** `emptyQuestion()` en `FormEditorDetailScreen` no asignaba `_section` a la pregunta creada. Al guardar, `handleSave` agrupa las preguntas por sección filtrando `q._section === s.id`; como la pregunta nueva tenía `_section: undefined`, era excluida de todas las secciones silenciosamente (el toast de éxito aparecía igual). Al recargar el editor la pregunta había desaparecido. Se corrige asignando `_section` y `_sectionTitle` en `addQuestion()`, infiriendo la sección de la última pregunta de la lista (o la primera sección estática si la lista está vacía). Solo afecta formularios seccionados; el modo wizard queda sin cambios.
+
+- **Bug: respuestas del área incorrecta contaminaban el registro enviado a SharePoint.** Al rellenar el formulario seleccionando primero "Área Operaciones Sucursal" (completando Q19, Q20 y secciones op1-op7) y luego cambiando Q18 a "Área Administrativa Sucursal", las respuestas ya ingresadas para Operaciones permanecían en el estado de React aunque las preguntas quedaran ocultas por `visibleWhen`. Esas respuestas se guardaban en el borrador (localStorage) y se enviaban a SharePoint junto con las respuestas de Administración, produciendo un registro mezclado. Se corrige en dos capas: (1) `handleChange` en `SectionsMode` ahora recalcula las preguntas visibles con el nuevo estado y descarta inmediatamente las respuestas de preguntas ocultas, evitando que el borrador se contamine; (2) `handleSubmit` filtra el objeto `answers` al conjunto de preguntas visibles en el momento del envío, como red de seguridad para borradores creados antes del fix.
+
+---
+
 ## [1.9.2] — 2026-04-22
 
 ### Mejora UI — Gold standard columna centrada extendido a todas las pantallas
