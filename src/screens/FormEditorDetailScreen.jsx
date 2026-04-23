@@ -442,7 +442,7 @@ function FlowView({ questions }) {
 }
 
 // ── Panel editor de pregunta (bottom sheet) ───────────────────────────────
-function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
+function QuestionEditorPanel({ question, allQuestions, sections, onSave, onClose }) {
   // Normalizar options: si es string (ej '__DYNAMIC_AZURE_AD__') → array vacío;
   // si los items son strings simples (ej select de instalaciones) → convertir a objetos {value, label}
   const normalizedQuestion = {
@@ -640,6 +640,26 @@ function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Sección (solo en formularios seccionados) */}
+          {sections.length > 0 && (
+            <div style={sectionStyle}>
+              <label style={labelStyle}>Sección</label>
+              <select
+                value={draft._section || ''}
+                onChange={(e) => {
+                  const sec = sections.find((s) => s.id === e.target.value)
+                  setDraft((d) => ({ ...d, _section: sec?.id || null, _sectionTitle: sec?.title || null }))
+                }}
+                style={{ ...inputStyle, padding: '9px 12px' }}
+              >
+                <option value="">— Sin sección asignada</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Obligatorio */}
           <div style={{ ...sectionStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1376,6 +1396,7 @@ export default function FormEditorDetailScreen() {
             key={editingQ.id}
             question={editingQ}
             allQuestions={questions}
+            sections={staticForm?.sections || []}
             onSave={saveQuestion}
             onClose={() => setEditingQ(null)}
           />
