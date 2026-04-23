@@ -233,7 +233,14 @@ function WizardMode({ form, formType, cphsMode }) {
   const handleSubmit = async () => {
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers: { ...answers, ...(cphsMode ? { cphsRepresentante: true } : {}) }, formTitle: form.title, userName, userEmail, userJobTitle, branch })
+    // Solo enviar respuestas de las preguntas efectivamente recorridas (history).
+    // Si el usuario retrocedió en Q18 y cambió de área, las respuestas del camino
+    // abandonado quedan en answers pero NO en history → se excluyen aquí.
+    const historySet = new Set(history)
+    const cleanedAnswers = Object.fromEntries(
+      Object.entries(answers).filter(([qid]) => historySet.has(qid))
+    )
+    addToPendingQueue({ formType, answers: { ...cleanedAnswers, ...(cphsMode ? { cphsRepresentante: true } : {}) }, formTitle: form.title, userName, userEmail, userJobTitle, branch })
     clearDraft(formType)
     setSubmitted(true)
     setSubmitting(false)
@@ -473,9 +480,18 @@ function SectionsMode({ form, formType }) {
   const { name: userName, email: userEmail, jobTitle: userJobTitle, branch } = useUserStore()
 
   // Prioridad: borrador guardado → prefillData de navigation state → vacío
-  const [answers, setAnswers] = useState(
-    () => drafts[formType] || location.state?.prefillData || {}
-  )
+  const [answers, setAnswers] = useState(() => {
+    const raw = drafts[formType] || location.state?.prefillData || {}
+    // Limpiar el draft al cargar: solo conservar respuestas de secciones/preguntas
+    // visibles con los valores iniciales del draft. Evita que respuestas de una
+    // sección (ej. OP) persistan cuando el área ya apunta a otra (ej. ADM).
+    const visibleQIds = new Set(
+      form.sections
+        .filter((s) => !s.visibleWhen || s.visibleWhen(raw))
+        .flatMap((s) => s.questions.filter((q) => !q.visibleWhen || q.visibleWhen(raw)).map((q) => q.id))
+    )
+    return Object.fromEntries(Object.entries(raw).filter(([qid]) => visibleQIds.has(qid)))
+  })
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -532,14 +548,19 @@ function SectionsMode({ form, formType }) {
     }
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
-    addToPendingQueue({ formType, answers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
+    // Solo enviar respuestas de preguntas actualmente visibles (secciones filtradas por visibleWhen).
+    // Elimina respuestas de secciones ocultas que pudieran haber quedado del draft o de un
+    // cambio de área previo que no disparó handleChange (ej. área ya seleccionada al cargar).
+    const visibleQIds = new Set(allQuestions.map((q) => q.id))
+    const cleanedAnswers = Object.fromEntries(Object.entries(answers).filter(([qid]) => visibleQIds.has(qid)))
+    addToPendingQueue({ formType, answers: cleanedAnswers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
     clearDraft(formType)
     setSubmitted(true)
     setSubmitting(false)
 
     // ── Actualizar store de contratistas según tipo de formulario ──────────
     if (formType === 'permiso-trabajo-contratista') {
-      useContratistasStore.getState().addPermiso(answers)
+      useContratistasStore.getState().addPermiso(cleanedAnswers)
     }
     if (formType === 'cierre-trabajo-contratista' && location.state?.permisoId) {
       useContratistasStore.getState().cerrarPermiso(location.state.permisoId)
