@@ -486,8 +486,23 @@ function SectionsMode({ form, formType }) {
   }, [answers, formType, saveDraft])
 
   const handleChange = useCallback((questionId, value) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }))
-  }, [])
+    setAnswers((prev) => {
+      const next = { ...prev, [questionId]: value }
+      // Al cambiar una respuesta que controla visibleWhen (ej. área OP vs ADM),
+      // eliminamos las respuestas de preguntas que quedan ocultas con el nuevo valor.
+      // Esto evita que datos de la sección OP se mezclen con los de ADM al enviar.
+      const nowVisibleQIds = new Set(
+        form.sections
+          .filter(s => !s.visibleWhen || s.visibleWhen(next))
+          .flatMap(s => s.questions.filter(q => !q.visibleWhen || q.visibleWhen(next)).map(q => q.id))
+      )
+      const cleaned = {}
+      Object.keys(next).forEach(qid => {
+        if (nowVisibleQIds.has(qid)) cleaned[qid] = next[qid]
+      })
+      return cleaned
+    })
+  }, [form.sections])
 
   // Filtrar secciones y preguntas según visibleWhen(answers)
   const visibleSections = form.sections.filter(s => !s.visibleWhen || s.visibleWhen(answers))
