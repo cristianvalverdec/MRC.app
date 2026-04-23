@@ -1,11 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Plus, Trash2, ChevronUp, ChevronDown, Save,
   GitBranch, List, AlertTriangle, CheckCircle2,
-  RotateCcw, GripVertical, ArrowRight, Info,
-  PlusCircle, MinusCircle,
+  RotateCcw, ArrowRight, Cloud, CloudOff, RefreshCw,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { formDefinitions } from '../forms/formDefinitions'
@@ -38,18 +37,28 @@ function arrayToDict(questionsArray) {
   return Object.fromEntries(questionsArray.map((q) => [q.id, q]))
 }
 
-// Genera ID único para nueva pregunta
-function newQId(existing) {
-  const nums = existing
-    .map((q) => parseInt(q.id.replace(/\D/g, ''), 10))
+// Genera ID único para nueva pregunta.
+// Considera IDs del set actual EN el editor + los del formulario estático,
+// para evitar colisiones con preguntas que existan solo en formDefinitions.
+function newQId(existing, staticForm) {
+  const staticIds = staticForm?.sections
+    ? staticForm.sections.flatMap((s) => (s.questions || []).map((q) => q.id))
+    : Object.keys(staticForm?.questions ?? {})
+  const allIds = new Set([...existing.map((q) => q.id), ...staticIds])
+  const allNums = [...allIds]
+    .map((id) => parseInt(String(id).replace(/\D/g, ''), 10))
     .filter((n) => !isNaN(n))
-  const max = nums.length ? Math.max(...nums) : 0
-  return `Q${max + 1}`
+  let n = allNums.length ? Math.max(...allNums) + 1 : 1
+  while (allIds.has(`Q${n}`)) n++
+  return `Q${n}`
 }
 
-// Pregunta vacía de tipo radio (la más común en wizard)
-function emptyQuestion(id, order) {
-  return {
+// Pregunta vacía de tipo radio (la más común en wizard).
+// Para formularios seccionados se DEBE pasar sectionId + sectionTitle, si no
+// la pregunta queda huérfana y el handleSave tendrá que re-asignarla como red
+// de seguridad (ver regla 5c en CLAUDE.md).
+function emptyQuestion(id, order, sectionId = null, sectionTitle = null) {
+  const base = {
     id,
     order,
     label: 'Nueva pregunta',
@@ -62,6 +71,94 @@ function emptyQuestion(id, order) {
       { value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative', nextQuestion: 'END' },
     ],
   }
+  if (sectionId) {
+    base._section = sectionId
+    base._sectionTitle = sectionTitle
+  }
+  return base
+}
+
+// Trunca labels largos para mostrar en dropdowns de ramificación.
+function truncateLabel(str, n = 60) {
+  if (!str) return ''
+  const s = String(str).replace(/\s+/g, ' ').trim()
+  return s.length > n ? s.slice(0, n - 1) + '…' : s
+}
+
+// Formatea una opción de destino con su label para dropdowns "Ir a pregunta".
+// "Q18 — ¿Área en la que verificará el cumplimiento?"
+function formatDestinationLabel(id, questionsById) {
+  if (id === 'END') return '— FIN del formulario'
+  if (id === '__AREA_ROUTING__') return '⚙ Enrutamiento por área'
+  const q = questionsById[id]
+  if (!q || !q.label) return id
+  return `${id} — ${truncateLabel(q.label, 60)}`
+}
+
+// ── Validación pre-guardado ────────────────────────────────────────────────
+// Devuelve { errors: string[], warnings: string[] }.
+// errors bloquean el guardado; warnings solo informan.
+function validateForm(questions, staticForm, isWizard) {
+  const errors = []
+  const warnings = []
+  const ids = questions.map((q) => q.id)
+  const idSet = new Set(ids)
+
+  // 1. IDs duplicados
+  const seen = new Set()
+  const dups = new Set()
+  ids.forEach((id) => {
+    if (seen.has(id)) dups.add(id)
+    else seen.add(id)
+  })
+  if (dups.size) errors.push(`IDs duplicados: ${[...dups].join(', ')}`)
+
+  // 2. Labels vacíos
+  const emptyLabels = questions.filter((q) => !q.label || !String(q.label).trim())
+  if (emptyLabels.length) {
+    errors.push(`Preguntas sin texto: ${emptyLabels.map((q) => q.id).join(', ')}`)
+  }
+
+  // 3. Opciones requeridas en tipos que las usan
+  const withOpts = questions.filter((q) => ['radio', 'checkbox', 'select'].includes(q.type))
+  withOpts.forEach((q) => {
+    const opts = Array.isArray(q.options) ? q.options : []
+    if (opts.length === 0) {
+      errors.push(`${q.id}: tipo ${q.type} sin opciones`)
+    }
+    opts.forEach((o, i) => {
+      if (!o || !String(o.label || '').trim()) {
+        errors.push(`${q.id}: opción ${i + 1} sin texto`)
+      }
+    })
+  })
+
+  // 4. Referencias de ramificación válidas
+  const validDest = new Set([...idSet, 'END', '__AREA_ROUTING__'])
+  questions.forEach((q) => {
+    if (q.nextQuestion && !validDest.has(q.nextQuestion)) {
+      errors.push(`${q.id}: "nextQuestion" apunta a ${q.nextQuestion} (no existe)`)
+    }
+    const opts = Array.isArray(q.options) ? q.options : []
+    opts.forEach((o) => {
+      if (o?.nextQuestion && !validDest.has(o.nextQuestion)) {
+        errors.push(`${q.id} → opción "${o.label}": apunta a ${o.nextQuestion} (no existe)`)
+      }
+    })
+  })
+
+  // 5. Preguntas huérfanas en seccionados (warning, no error — handleSave las recoge)
+  if (!isWizard && staticForm?.sections) {
+    const sectionIds = new Set(staticForm.sections.map((s) => s.id))
+    const orphans = questions.filter((q) => !q._section || !sectionIds.has(q._section))
+    if (orphans.length) {
+      warnings.push(
+        `Preguntas sin sección asignada: ${orphans.map((q) => q.id).join(', ')} (se asignarán automáticamente a "${staticForm.sections[0]?.title}")`
+      )
+    }
+  }
+
+  return { errors, warnings }
 }
 
 // ── Tipo badge inline ──────────────────────────────────────────────────────
@@ -357,8 +454,8 @@ function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
       : [],
   }
   const [draft, setDraft] = useState(normalizedQuestion)
-  const allIds = allQuestions.map(q => q.id)
-  const destinationOptions = [...allIds.filter(id => id !== question.id), 'END', '__AREA_ROUTING__']
+  const questionsById = Object.fromEntries(allQuestions.map((q) => [q.id, q]))
+  const destinationIds = allQuestions.map((q) => q.id).filter((id) => id !== question.id)
 
   const update = (field, value) => setDraft(d => ({ ...d, [field]: value }))
 
@@ -734,11 +831,17 @@ function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
                           onChange={(e) => updateOption(idx, 'nextQuestion', e.target.value)}
                           style={{ ...inputStyle, padding: '7px 10px', fontSize: 12 }}
                         >
-                          {destinationOptions.map(id => (
-                            <option key={id} value={id}>
-                              {id === 'END' ? '— FIN del formulario' : id === '__AREA_ROUTING__' ? '⚙ Enrutamiento por área' : id}
-                            </option>
-                          ))}
+                          <optgroup label="Preguntas">
+                            {destinationIds.map((id) => (
+                              <option key={id} value={id}>
+                                {formatDestinationLabel(id, questionsById)}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Destinos especiales">
+                            <option value="END">— FIN del formulario</option>
+                            <option value="__AREA_ROUTING__">⚙ Enrutamiento por área</option>
+                          </optgroup>
                         </select>
                       </div>
                     )}
@@ -760,11 +863,17 @@ function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
                 onChange={(e) => update('nextQuestion', e.target.value)}
                 style={{ ...inputStyle, padding: '9px 12px' }}
               >
-                {destinationOptions.map(id => (
-                  <option key={id} value={id}>
-                    {id === 'END' ? '— FIN del formulario' : id === '__AREA_ROUTING__' ? '⚙ Enrutamiento por área' : id}
-                  </option>
-                ))}
+                <optgroup label="Preguntas">
+                  {destinationIds.map((id) => (
+                    <option key={id} value={id}>
+                      {formatDestinationLabel(id, questionsById)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Destinos especiales">
+                  <option value="END">— FIN del formulario</option>
+                  <option value="__AREA_ROUTING__">⚙ Enrutamiento por área</option>
+                </optgroup>
               </select>
             </div>
           )}
@@ -775,6 +884,46 @@ function QuestionEditorPanel({ question, allQuestions, onSave, onClose }) {
   )
 }
 
+// ── Indicador de sync cloud (nube con estado) ─────────────────────────────
+// Muestra tres estados: syncing (animado), success (verde, solo si hubo sync
+// reciente), error (rojo con tooltip + botón Reintentar).
+function SyncIndicator({ status, error, onRetry }) {
+  if (status === 'syncing') {
+    return (
+      <div title="Sincronizando con SharePoint…" style={{ display: 'flex', alignItems: 'center', padding: '0 6px' }}>
+        <RefreshCw size={16} color="#F2994A" style={{ animation: 'mrc-spin 1.2s linear infinite' }} />
+        <style>{`@keyframes mrc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+  if (status === 'error') {
+    return (
+      <button
+        onClick={onRetry}
+        title={`Error al sincronizar: ${error || 'desconocido'}. Clic para reintentar.`}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: 'rgba(235,87,87,0.1)', border: '1px solid rgba(235,87,87,0.3)',
+          borderRadius: 7, padding: '4px 8px', cursor: 'pointer',
+        }}
+      >
+        <CloudOff size={14} color="#EB5757" />
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#EB5757', fontWeight: 600 }}>
+          REINTENTAR
+        </span>
+      </button>
+    )
+  }
+  if (status === 'success') {
+    return (
+      <div title="Sincronizado con SharePoint" style={{ display: 'flex', alignItems: 'center', padding: '0 6px' }}>
+        <Cloud size={16} color="#6FCF97" />
+      </div>
+    )
+  }
+  return null
+}
+
 // ── Pantalla principal ────────────────────────────────────────────────────
 export default function FormEditorDetailScreen() {
   const { formId } = useParams()
@@ -782,7 +931,12 @@ export default function FormEditorDetailScreen() {
   const {
     saveFormEdits, resetFormEdits,
     customForms, updateCustomForm, deleteCustomForm,
+    retryCloudSync,
   } = useFormEditorStore()
+  // Subscripciones separadas para que los cambios de sync re-rendericen
+  const syncStatus    = useFormEditorStore((s) => s.syncStatus)
+  const lastSyncedAt  = useFormEditorStore((s) => s.lastSyncedAt)
+  const lastSyncError = useFormEditorStore((s) => s.lastSyncError)
 
   // ¿Es un formulario personalizado creado por admin (no existe en formDefinitions)?
   const isCustom   = !formDefinitions[formId] && !!customForms[formId]
@@ -825,12 +979,56 @@ export default function FormEditorDetailScreen() {
   const [hasChanges, setHasChanges] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showDeleteFormConfirm, setShowDeleteFormConfirm] = useState(false)
-  const [showSaveToast, setShowSaveToast] = useState(false)   // 'success' | 'error' | false
+  const [showSaveToast, setShowSaveToast] = useState(false)   // 'local' | 'cloud-ok' | 'cloud-error' | false
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  // Última sección usada al crear una pregunta (recordada entre clicks al FAB).
+  // null = preguntar. Para seccionados, arranca en la primera sección.
+  const isSectioned = !!staticForm?.sections && !isWizard
+  const firstSectionId = staticForm?.sections?.[0]?.id || null
+  const [addingToSection, setAddingToSection] = useState(null) // id de sección destino del próximo add (o null)
+  const [lastSectionUsed, setLastSectionUsed] = useState(firstSectionId)
+  const [validationResult, setValidationResult] = useState(null) // { errors, warnings } | null
+  const [discardNavConfirm, setDiscardNavConfirm] = useState(null) // función a ejecutar si se descarta
 
   const markChanged = (newQs) => {
     setQuestions(newQs)
     setHasChanges(true)
+  }
+
+  // Warn nativo del browser al cerrar pestaña / navegar fuera con cambios.
+  useEffect(() => {
+    if (!hasChanges) return undefined
+    const handler = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasChanges])
+
+  // Segundo toast: después del "Guardado local", al cambiar syncStatus
+  // mostramos el resultado real (cloud-ok / cloud-error). Solo corre si se
+  // disparó un guardado reciente (lastSyncedAt se actualiza al llamar save*).
+  useEffect(() => {
+    if (!lastSyncedAt) return undefined
+    if (syncStatus !== 'success' && syncStatus !== 'error') return undefined
+    const nextState = syncStatus === 'success' ? 'cloud-ok' : 'cloud-error'
+    const duration  = syncStatus === 'success' ? 2500 : 6000
+    // setTimeout(..., 0) evita el lint de "setState sincrónico en effect"
+    const show = setTimeout(() => setShowSaveToast(nextState), 0)
+    const hide = setTimeout(() => {
+      setShowSaveToast((curr) => (curr === nextState ? false : curr))
+    }, duration)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [syncStatus, lastSyncedAt])
+
+  // Navegar "Volver" con protección contra pérdida de cambios.
+  const handleBack = () => {
+    if (hasChanges) {
+      setDiscardNavConfirm(() => () => navigate('/admin/form-editor'))
+      return
+    }
+    navigate('/admin/form-editor')
   }
 
   // Reordenar
@@ -862,47 +1060,105 @@ export default function FormEditorDetailScreen() {
     setEditingQ(null)
   }
 
-  // Agregar nueva pregunta
-  const addQuestion = () => {
-    const id = newQId(questions)
+  // Agregar nueva pregunta.
+  // En formularios seccionados, primero abre el selector de sección (si hay >1).
+  // Si solo hay 1 sección (o es wizard), salta directo a crear la pregunta.
+  const addQuestion = (sectionIdOverride = null) => {
+    const sections = staticForm?.sections || []
+    // Para seccionados con múltiples secciones: pedir sección antes de crear
+    if (isSectioned && sections.length > 1 && !sectionIdOverride) {
+      setAddingToSection(lastSectionUsed || sections[0].id)
+      return
+    }
+    const sectionId = sectionIdOverride || (isSectioned ? sections[0]?.id : null)
+    const sectionTitle = sectionId ? sections.find((s) => s.id === sectionId)?.title : null
+    const id = newQId(questions, staticForm)
     const order = questions.length + 1
-    const newQ = emptyQuestion(id, order)
+    const newQ = emptyQuestion(id, order, sectionId, sectionTitle)
     markChanged([...questions, newQ])
     setEditingQ(newQ)
+    if (sectionId) setLastSectionUsed(sectionId)
+    setAddingToSection(null)
   }
 
-  // Guardar todo en el store (local save siempre exitoso; cloud sync es fire-and-forget)
+  // Strip campos internos del editor y funciones no serializables antes de guardar.
+  // visibleWhen es una función → se pierde en JSON.stringify; se restaura desde el estático en FormScreen.
+  // _section / _sectionTitle son metadata del editor, no deben persistirse en el override.
+  const stripInternal = ({ _section, _sectionTitle, visibleWhen: _vw, ...q }) => q
+
+  // Agrupa preguntas por sección con red de seguridad: preguntas sin _section
+  // (o con _section inválido) se asignan a la primera sección y se logean como warn.
+  // NUNCA se descartan silenciosamente (regla 5c en CLAUDE.md).
+  const groupQuestionsBySections = (qs, sections) => {
+    const bySection = new Map(sections.map((s) => [s.id, []]))
+    const orphans = []
+    qs.forEach((q) => {
+      if (q._section && bySection.has(q._section)) bySection.get(q._section).push(q)
+      else orphans.push(q)
+    })
+    if (orphans.length) {
+      const fallback = sections[0]
+      console.warn('[FormEditor] Preguntas huérfanas auto-asignadas a', fallback?.id, orphans.map((q) => q.id))
+      if (fallback) {
+        orphans.forEach((q) => {
+          bySection.get(fallback.id).push({ ...q, _section: fallback.id, _sectionTitle: fallback.title })
+        })
+      }
+    }
+    return bySection
+  }
+
+  // Intenta guardar: corre validación, si hay errores abre modal; si hay warnings
+  // pide confirmación (handleSaveConfirmed). Sin problemas, guarda directo.
   const handleSave = () => {
+    const result = validateForm(questions, staticForm, isWizard)
+    if (result.errors.length || result.warnings.length) {
+      setValidationResult(result)
+      return
+    }
+    handleSaveConfirmed()
+  }
+
+  // Guarda efectivamente el override en el store (el store dispara _syncToCloud).
+  const handleSaveConfirmed = () => {
     if (isCustom) {
       const updatedForm = isWizard
         ? { ...staticForm, questions: arrayToDict(questions) }
-        : {
-            ...staticForm,
-            sections: (staticForm.sections || []).map((s) => ({
-              ...s,
-              questions: questions.filter((q) => q._section === s.id),
-            })),
-          }
+        : (() => {
+            const bySection = groupQuestionsBySections(questions, staticForm.sections || [])
+            return {
+              ...staticForm,
+              sections: (staticForm.sections || []).map((s) => ({
+                ...s,
+                questions: bySection.get(s.id) || [],
+              })),
+            }
+          })()
       updateCustomForm(formId, updatedForm)
     } else {
-      // Strip campos internos del editor y funciones no serializables antes de guardar.
-      // visibleWhen es una función → se pierde en JSON.stringify; se restaura desde el estático en FormScreen.
-      // _section / _sectionTitle son metadata del editor, no deben persistirse en el override.
-      const stripInternal = ({ _section, _sectionTitle, visibleWhen: _vw, ...q }) => q
       const override = isWizard
         ? { questions: arrayToDict(questions.map(stripInternal)) }
-        : {
-            sections: staticForm.sections.map((s) => ({
-              id: s.id,
-              title: s.title,
-              questions: questions.filter((q) => q._section === s.id).map(stripInternal),
-            })),
-          }
+        : (() => {
+            const bySection = groupQuestionsBySections(questions, staticForm.sections)
+            return {
+              sections: staticForm.sections.map((s) => ({
+                id: s.id,
+                title: s.title,
+                questions: (bySection.get(s.id) || []).map(stripInternal),
+              })),
+            }
+          })()
       saveFormEdits(formId, override)
     }
     setHasChanges(false)
-    setShowSaveToast('success')
-    setTimeout(() => setShowSaveToast(false), 3000)
+    setValidationResult(null)
+    // Toast 1 instantáneo: guardado local confirmado
+    setShowSaveToast('local')
+    setTimeout(() => {
+      // Si en ~400ms aún está syncing, se cierra este toast y el efecto de syncStatus
+      // se encarga del segundo (cloud-ok / cloud-error).
+      setShowSaveToast((curr) => (curr === 'local' ? false : curr))
+    }, 2500)
   }
 
   // Resetear a definición estática (solo formularios no-custom)
@@ -946,7 +1202,7 @@ export default function FormEditorDetailScreen() {
         {/* Volver */}
         <motion.button
           whileTap={{ scale: 0.92 }}
-          onClick={() => navigate('/admin/form-editor')}
+          onClick={handleBack}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: 6, display: 'flex', alignItems: 'center',
@@ -1002,6 +1258,13 @@ export default function FormEditorDetailScreen() {
             </span>
           </motion.button>
         )}
+
+        {/* Indicador de sync cloud */}
+        <SyncIndicator
+          status={syncStatus}
+          error={lastSyncError}
+          onRetry={retryCloudSync}
+        />
 
         {/* Guardar */}
         <motion.button
@@ -1274,7 +1537,215 @@ export default function FormEditorDetailScreen() {
         )}
       </AnimatePresence>
 
-      {/* Toast de guardado */}
+      {/* Modal: errores/warnings de validación pre-guardado */}
+      <AnimatePresence>
+        {validationResult && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 70,
+              background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+                borderRadius: 14, padding: 24, maxWidth: 420, width: '100%',
+                maxHeight: '80vh', overflowY: 'auto',
+              }}
+            >
+              <AlertTriangle size={24} color={validationResult.errors.length ? '#EB5757' : '#F2994A'} style={{ marginBottom: 12 }} />
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 12 }}>
+                {validationResult.errors.length
+                  ? 'REVISAR ANTES DE GUARDAR'
+                  : 'ADVERTENCIAS'}
+              </div>
+
+              {validationResult.errors.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#EB5757', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 6 }}>
+                    ERRORES ({validationResult.errors.length})
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontFamily: 'var(--font-body)', fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    {validationResult.errors.map((e, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {validationResult.warnings.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#F2994A', fontWeight: 700, letterSpacing: '0.06em', marginBottom: 6 }}>
+                    AVISOS ({validationResult.warnings.length})
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontFamily: 'var(--font-body)', fontSize: 12.5, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    {validationResult.warnings.map((w, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                <button
+                  onClick={() => setValidationResult(null)}
+                  style={{
+                    flex: 1, height: 42, background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer',
+                    color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)', fontSize: 13,
+                  }}
+                >
+                  {validationResult.errors.length ? 'Corregir' : 'Cancelar'}
+                </button>
+                {validationResult.errors.length === 0 && (
+                  <button
+                    onClick={handleSaveConfirmed}
+                    style={{
+                      flex: 1, height: 42, background: 'var(--color-blue-btn)',
+                      border: 'none', borderRadius: 8, cursor: 'pointer',
+                      color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em',
+                    }}
+                  >
+                    GUARDAR IGUAL
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: seleccionar sección destino al crear pregunta nueva */}
+      <AnimatePresence>
+        {addingToSection && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 60,
+              background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+                borderRadius: 14, padding: 20, maxWidth: 360, width: '100%',
+              }}
+            >
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+                ¿EN QUÉ SECCIÓN?
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 14 }}>
+                Elige la sección donde se añadirá la nueva pregunta.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                {(staticForm?.sections || []).map((s) => (
+                  <label
+                    key={s.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                      background: addingToSection === s.id ? 'rgba(26,82,184,0.18)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${addingToSection === s.id ? 'rgba(26,82,184,0.5)' : 'var(--color-border)'}`,
+                      borderRadius: 8, cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="sectionPick"
+                      checked={addingToSection === s.id}
+                      onChange={() => setAddingToSection(s.id)}
+                      style={{ accentColor: 'var(--color-orange)' }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-primary)' }}>
+                      {s.title}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setAddingToSection(null)}
+                  style={{
+                    flex: 1, height: 40, background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer',
+                    color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)', fontSize: 13,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => addQuestion(addingToSection)}
+                  style={{
+                    flex: 1, height: 40, background: 'var(--color-blue-btn)',
+                    border: 'none', borderRadius: 8, cursor: 'pointer',
+                    color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em',
+                  }}
+                >
+                  CREAR AQUÍ
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: confirmar descarte de cambios al navegar fuera */}
+      <AnimatePresence>
+        {discardNavConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 70,
+              background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                background: 'var(--color-navy-mid)', border: '1px solid rgba(242,153,74,0.35)',
+                borderRadius: 14, padding: 24, maxWidth: 340, width: '100%',
+              }}
+            >
+              <AlertTriangle size={24} color="#F2994A" style={{ marginBottom: 12 }} />
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>
+                ¿DESCARTAR CAMBIOS?
+              </div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 20 }}>
+                Tienes cambios sin guardar. Si sales ahora, se perderán.
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setDiscardNavConfirm(null)}
+                  style={{
+                    flex: 1, height: 42, background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer',
+                    color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)', fontSize: 13,
+                  }}
+                >
+                  Seguir editando
+                </button>
+                <button
+                  onClick={() => { const fn = discardNavConfirm; setDiscardNavConfirm(null); fn?.() }}
+                  style={{
+                    flex: 1, height: 42, background: 'rgba(235,87,87,0.15)',
+                    border: '1px solid rgba(235,87,87,0.3)', borderRadius: 8, cursor: 'pointer',
+                    color: '#EB5757', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+                  }}
+                >
+                  DESCARTAR
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast de guardado — cuatro estados: local / cloud-ok / cloud-error / error */}
       <AnimatePresence>
         {showSaveToast && (
           <motion.div
@@ -1285,28 +1756,51 @@ export default function FormEditorDetailScreen() {
               position: 'fixed',
               bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
               left: '50%', transform: 'translateX(-50%)',
-              background: showSaveToast === 'error'
-                ? 'rgba(235,87,87,0.15)' : 'rgba(39,174,96,0.15)',
-              border: showSaveToast === 'error'
-                ? '1px solid rgba(235,87,87,0.4)' : '1px solid rgba(39,174,96,0.4)',
+              background: showSaveToast === 'cloud-error' || showSaveToast === 'error'
+                ? 'rgba(235,87,87,0.15)'
+                : showSaveToast === 'local'
+                  ? 'rgba(47,128,237,0.15)'
+                  : 'rgba(39,174,96,0.15)',
+              border: showSaveToast === 'cloud-error' || showSaveToast === 'error'
+                ? '1px solid rgba(235,87,87,0.4)'
+                : showSaveToast === 'local'
+                  ? '1px solid rgba(47,128,237,0.4)'
+                  : '1px solid rgba(39,174,96,0.4)',
               borderRadius: 10, padding: '10px 20px',
               display: 'flex', alignItems: 'center', gap: 8,
               zIndex: 20, backdropFilter: 'blur(8px)',
-              whiteSpace: 'nowrap',
+              maxWidth: 'min(92vw, 420px)',
             }}
           >
-            {showSaveToast === 'error' ? (
+            {showSaveToast === 'local' && (
+              <>
+                <CheckCircle2 size={14} color="#60A5FA" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#60A5FA' }}>
+                  Guardado localmente — sincronizando…
+                </span>
+              </>
+            )}
+            {showSaveToast === 'cloud-ok' && (
+              <>
+                <Cloud size={14} color="#6FCF97" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6FCF97' }}>
+                  Sincronizado con SharePoint ✓
+                </span>
+              </>
+            )}
+            {showSaveToast === 'cloud-error' && (
+              <>
+                <CloudOff size={14} color="#EB5757" />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 12.5, color: '#EB5757' }}>
+                  Error al sincronizar: {lastSyncError || 'desconocido'}. Guardado local está a salvo.
+                </span>
+              </>
+            )}
+            {showSaveToast === 'error' && (
               <>
                 <AlertTriangle size={14} color="#EB5757" />
                 <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#EB5757' }}>
                   Error al guardar — intenta nuevamente
-                </span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 size={14} color="#6FCF97" />
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6FCF97' }}>
-                  Cambios guardados y sincronizados ✓
                 </span>
               </>
             )}

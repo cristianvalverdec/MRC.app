@@ -26,6 +26,7 @@ const useFormEditorStore = create(
       // ── Estado de sincronización ───────────────────────────────────────
       syncStatus: 'idle',    // 'idle' | 'syncing' | 'success' | 'error'
       lastSyncedAt: null,    // ISO string de la última sync exitosa
+      lastSyncError: null,   // mensaje legible del último error (si syncStatus === 'error')
 
       // ── Formularios estáticos editados ─────────────────────────────────
       // El guardado LOCAL es siempre síncrono e infalible.
@@ -84,21 +85,29 @@ const useFormEditorStore = create(
         // Grabar lastSyncedAt ANTES del upload: protege los datos locales
         // aunque la subida a SharePoint falle. pullFromCloud compara contra
         // este timestamp y no sobrescribirá datos locales más nuevos.
-        set({ syncStatus: 'syncing', lastSyncedAt: savedAt })
+        set({ syncStatus: 'syncing', lastSyncedAt: savedAt, lastSyncError: null })
         try {
           await syncFormsToSharePoint({ editedForms, customForms, savedAt })
-          set({ syncStatus: 'success' })
+          set({ syncStatus: 'success', lastSyncError: null })
         } catch (err) {
-          set({ syncStatus: 'error' })
+          const message = err?.message || 'Error desconocido al sincronizar'
+          set({ syncStatus: 'error', lastSyncError: message })
           throw err
         }
+      },
+
+      // Reintenta el sync manualmente (invocable desde UI después de un error)
+      retryCloudSync: () => {
+        return get()._syncToCloud().catch((e) => {
+          console.warn('[MRC Sync] Retry manual falló:', e?.message)
+        })
       },
 
       // Descarga la versión más reciente desde SharePoint.
       // IMPORTANTE: solo sobrescribe si la versión cloud es más nueva que la local.
       // Esto protege cambios locales no sincronizados de ser borrados por datos obsoletos.
       pullFromCloud: async () => {
-        set({ syncStatus: 'syncing' })
+        set({ syncStatus: 'syncing', lastSyncError: null })
         try {
           const data = await loadFormsFromSharePoint()
           if (data) {
@@ -130,8 +139,8 @@ const useFormEditorStore = create(
           } else {
             set({ syncStatus: 'idle' })
           }
-        } catch {
-          set({ syncStatus: 'error' })
+        } catch (err) {
+          set({ syncStatus: 'error', lastSyncError: err?.message || 'Error al leer desde SharePoint' })
         }
       },
     }),

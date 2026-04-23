@@ -249,6 +249,9 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 4. **Nunca poner `color-scheme: light`** en el meta tag o CSS del html — Android interpreta esto y puede forzar barras blancas.
 5. **Al editar `initQuestions`** en FormEditorDetailScreen: siempre verificar que lee TANTO `override.questions` como `override.sections`.
 5b. **`visibleWhen` no sobrevive JSON.stringify** — las funciones `visibleWhen` se pierden al persistir el override en localStorage. `FormScreen.jsx` siempre debe restaurar `visibleWhen` desde el estático al hacer merge (sección y pregunta). `FormEditorDetailScreen.jsx` siempre debe usar `stripInternal` en `handleSave` para excluir `visibleWhen`, `_section` y `_sectionTitle` del override guardado.
+5c. **Al crear una pregunta en formularios seccionados**, `emptyQuestion` DEBE recibir `sectionId`/`sectionTitle` y asignar `_section`. La red de seguridad de `handleSave` (`groupQuestionsBySections`) recoge huérfanas y las reasigna a la primera sección con `console.warn` — es una defensa, nunca una vía permitida. Si aparece el warn en consola, arregla el flujo de creación.
+5d. **Antes de persistir un override, correr `validateForm`.** Si hay errores (IDs duplicados, labels vacíos, opciones faltantes, `nextQuestion` rotos), bloquear guardado y mostrar modal con la lista. Warnings permiten "Guardar igual". Ningún bypass en producción.
+5e. **Feedback de sync cloud en dos etapas.** Toast 1 "Guardado localmente" (azul, instantáneo). Toast 2 automático al cambiar `syncStatus`: verde "Sincronizado con SharePoint" o rojo "Error al sincronizar: {detalle}" (6s). Indicador de nube en header muestra el estado real y ofrece "Reintentar" en error (llama a `retryCloudSync()`). El fire-and-forget silencioso está prohibido — produce falso positivo.
 6. **Al agregar un formulario nuevo** en formDefinitions: agregar también su mapeo en `sharepointData.js` y crear la lista en SharePoint.
 7. **Al modificar el catálogo** (mrcCatalog.js): verificar que `lideresService.js` y `useBootstrap.js` siguen funcionando con los nuevos niveles.
 8. **Super-admin hardcodeado:** `cvalverde@agrosuper.com` no se puede eliminar desde la UI. Es intencional.
@@ -309,4 +312,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-21 — v1.9.0 — Sistema de URLs Configurables (urlLinksService)*
+*Última actualización: 2026-04-22 — v1.9.3 — fix editor (preguntas nuevas no se pierden) + validación pre-save + dropdowns con texto + sync cloud honesto*

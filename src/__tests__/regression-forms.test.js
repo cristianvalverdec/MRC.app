@@ -45,6 +45,68 @@ describe('FormScreen — merge de override restaura visibleWhen (regresión v1.3
   })
 })
 
+describe('FormEditorDetailScreen — v1.9.3 fixes (pregunta nueva no se pierde)', () => {
+  it('emptyQuestion acepta sectionId/sectionTitle para asignar _section al crear (regla 5c)', () => {
+    // Firma extendida: emptyQuestion(id, order, sectionId, sectionTitle)
+    expect(editorScreen).toMatch(/function emptyQuestion\(id, order, sectionId = null, sectionTitle = null\)/)
+    expect(editorScreen).toContain('base._section = sectionId')
+    expect(editorScreen).toContain('base._sectionTitle = sectionTitle')
+  })
+
+  it('newQId considera IDs del formulario estático para evitar colisiones', () => {
+    expect(editorScreen).toMatch(/function newQId\(existing, staticForm\)/)
+    expect(editorScreen).toContain('staticForm?.sections')
+  })
+
+  it('handleSave agrupa preguntas con red de seguridad (groupQuestionsBySections)', () => {
+    expect(editorScreen).toContain('groupQuestionsBySections')
+    // Huérfanas se re-asignan a la primera sección, NO se descartan
+    expect(editorScreen).toContain('orphans.forEach')
+  })
+
+  it('validateForm bloquea guardado con errores (IDs duplicados, labels vacíos, refs rotas)', () => {
+    expect(editorScreen).toContain('function validateForm(')
+    expect(editorScreen).toContain('IDs duplicados')
+    expect(editorScreen).toContain('nextQuestion')
+  })
+
+  it('dropdowns de ramificación muestran el texto de la pregunta, no solo el ID', () => {
+    expect(editorScreen).toContain('formatDestinationLabel')
+    expect(editorScreen).toMatch(/\$\{id\} — \$\{truncateLabel/)
+  })
+})
+
+describe('formEditorStore — sync status honesto (v1.9.3)', () => {
+  const store = readFileSync(
+    resolve(import.meta.dirname, '../store/formEditorStore.js'),
+    'utf-8'
+  )
+
+  it('expone lastSyncError con el detalle del error', () => {
+    expect(store).toContain('lastSyncError')
+  })
+
+  it('expone retryCloudSync para reintento manual desde UI', () => {
+    expect(store).toContain('retryCloudSync')
+  })
+})
+
+describe('sharepointSync — retry con backoff (v1.9.3)', () => {
+  const sync = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointSync.js'),
+    'utf-8'
+  )
+
+  it('reintenta hasta 3 veces con backoff', () => {
+    expect(sync).toContain('backoffs')
+    expect(sync).toMatch(/\[0, 1000, 3000\]/)
+  })
+
+  it('no reintenta errores 4xx (excepto 429)', () => {
+    expect(sync).toContain('status !== 429')
+  })
+})
+
 describe('formDefinitions — integridad estructural', () => {
   const forms = Object.values(formDefinitions)
 

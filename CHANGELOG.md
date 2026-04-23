@@ -5,6 +5,49 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.3] — 2026-04-22
+
+### Fix crítico — Editor de formularios no pierde preguntas nuevas
+
+**Bug:** al agregar una pregunta nueva a un formulario seccionado, guardar, salir y reingresar, la pregunta desaparecía silenciosamente. Causa raíz: `emptyQuestion` no asignaba `_section` y el filtro de `handleSave` descartaba cualquier pregunta sin sección coincidente.
+
+- **`emptyQuestion`** ahora recibe `sectionId`/`sectionTitle` y los adjunta a la pregunta creada.
+- **`addQuestion`** abre un selector inline de sección para formularios con >1 sección, recordando la última usada.
+- **`handleSave`** incluye `groupQuestionsBySections` — red de seguridad que re-asigna huérfanas a la primera sección en vez de descartarlas (con `console.warn`).
+- **`newQId`** considera los IDs del formulario estático para evitar colisiones al generar IDs nuevos.
+
+### Nuevo — Validación pre-guardado
+
+Antes de persistir el override, `validateForm` revisa:
+
+- IDs duplicados
+- Labels vacíos
+- Opciones faltantes o sin texto en radio/checkbox/select
+- `nextQuestion` / `options[].nextQuestion` apuntando a preguntas inexistentes
+- Preguntas huérfanas sin `_section` (warning, no error)
+
+Si hay errores, se bloquea el guardado y se muestra modal con la lista. Si solo hay warnings, se permite "Guardar igual".
+
+### Mejora UX — Editor con grado profesional
+
+- **Dropdowns de ramificación** ahora muestran `Q18 — ¿Área en la que verificará…?` en vez de solo `Q18`, con `optgroup` separando preguntas de destinos especiales (END, enrutamiento por área).
+- **Confirmación al salir con cambios sin guardar:** `beforeunload` nativo + modal al pulsar "Volver".
+- **Feedback honesto del sync cloud:**
+  - Toast 1: "Guardado localmente — sincronizando…" (azul).
+  - Toast 2 automático al terminar: "Sincronizado con SharePoint ✓" (verde) o "Error al sincronizar: {detalle}" (rojo, 6s).
+  - Indicador de nube en el header: verde OK / naranja sincronizando / rojo con botón "Reintentar" que tooltipea el error.
+- **`sharepointSync`** con retry tolerante: 3 intentos + backoff `[0, 1000, 3000]ms`. Errores 4xx (no-reintentables) fallan al primer intento.
+
+### Tests
+
+9 tests centinela nuevos en `regression-forms.test.js` (70 totales, antes 61) protegiendo `emptyQuestion` con secciones, red de seguridad de `handleSave`, `newQId` sin colisiones, `validateForm`, dropdowns con label, `lastSyncError`/`retryCloudSync`, y retry de SharePoint.
+
+### Reglas anti-regresión
+
+Nuevas reglas 5c, 5d, 5e en `CLAUDE.md` documentando asignación obligatoria de `_section`, validación pre-save, y los dos estados del toast de guardado.
+
+---
+
 ## [1.9.2] — 2026-04-22
 
 ### Mejora UI — Gold standard columna centrada extendido a todas las pantallas
