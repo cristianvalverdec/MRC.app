@@ -5,6 +5,48 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.5] — 2026-04-23
+
+### Fix crítico — Sincronización de rol admin y propagación de formularios
+
+**Bug A:** Los cambios hechos por administradores en los formularios no se reflejaban en cuentas con rol `user`. Causa: `loadFormsFromSharePoint` atrapaba todos los errores (401/403/red) y retornaba `null` mudo. Cualquier falla de permisos dejaba al usuario con el formulario estático sin feedback visible.
+
+**Bug B:** Al agregar un correo como administrador en la lista *Administradores MRC* de SharePoint, la cuenta quedaba registrada pero la app **no actualizaba el rol** en su dispositivo. Causa: el email escrito por el super-admin no siempre coincidía con el `profile.mail` que Azure AD reporta (mismatch `.com` vs `.cl`, alias o UPN distinto). `isAdmin()` comparaba con un único email y devolvía `false` silenciosamente.
+
+### Cambios
+
+- **`adminService.js`:**
+  - `isAdmin(emails)` ahora acepta un arreglo de identidades (mail, UPN, username MSAL) y matchea insensible a mayúsculas contra cualquiera.
+  - El error de SharePoint ya no se silencia — se propaga para que el caller decida (preservar rol previo en lugar de degradar).
+  - Nuevo `refreshAdmins()`: vacía la caché en memoria y re-consulta la lista.
+
+- **`sharepointSync.js`:**
+  - `loadFormsFromSharePoint` clasifica `401/403` con mensaje accionable ("Pide al administrador del sitio agregar tu cuenta…"), `404` como "primera vez" (no es error), resto como error de lectura.
+  - Ya no hay `try/catch` genérico que retorne `null` mudo.
+
+- **`formEditorStore.js`:**
+  - Nuevo estado independiente del pull: `pullStatus`, `lastPullAt`, `lastPullError` (regla 5e: ningún fire-and-forget silencioso, aplicada ahora también al pull).
+  - Nuevo `retryPull()` para reintento manual.
+
+- **`useBootstrap.js`:**
+  - Pasa múltiples identidades a `isAdmin` (mail + UPN + username MSAL).
+  - Si `isAdmin` lanza (red/permiso), **preserva el rol previo** en vez de degradar al usuario a `user` silenciosamente.
+
+- **`App.jsx` — `ResumeHandler`:** al volver la PWA a primer plano, además de renovar token ahora llama `refreshAdmins()` → `isAdmin()` → `setRole()` y dispara `pullFromCloud()`. Esto captura el caso en que el super-admin promueve una cuenta mientras la PWA ya está abierta.
+
+- **`ProfileScreen.jsx` — nueva tarjeta "Actualizar rol y formularios":** visible a todos los usuarios. Pulsarla fuerza re-lectura de la lista de admins + re-evaluación del rol + pull de formularios. Muestra el resultado (promovido / al día / degradado) y el error real de pull si lo hay.
+
+### Tests
+
+13 tests centinela nuevos en `regression-admin-sync.test.js` (83 totales, antes 70). Validan `isAdmin` tolerante, `refreshAdmins`, clasificación de errores en `loadFormsFromSharePoint`, estado `pullStatus/lastPullError`, matching multi-email en bootstrap, y re-evaluación en `ResumeHandler`.
+
+### Guía de uso
+
+- **Para el super-admin** al agregar a alguien: pide a la cuenta nueva pulsar **"REFRESCAR"** en Perfil. En <2 segundos su rol se actualiza. Ya no hace falta cerrar sesión.
+- **Para usuarios viendo formularios desactualizados:** la misma tarjeta hace el pull. Si hay error, se muestra el mensaje real (403 → falta permiso de lectura en el sitio SharePoint).
+
+---
+
 ## [1.9.4] — 2026-04-22
 
 ### Fix crítico — Bucles de navegación en retroceso

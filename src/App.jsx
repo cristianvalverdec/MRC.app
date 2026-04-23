@@ -8,7 +8,8 @@ import UpdateBanner from './components/ui/UpdateBanner'
 import InstallPrompt from './components/ui/InstallPrompt'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
-import { getGraphToken } from './config/msalInstance'
+import { getGraphToken, msalInstance } from './config/msalInstance'
+import { isAdmin, refreshAdmins } from './services/adminService'
 import { useBootstrap } from './hooks/useBootstrap'
 import { useNotifications } from './hooks/useNotifications'
 import { useNavigation } from './hooks/useNavigation'
@@ -191,8 +192,12 @@ function NavigationTracker() {
 }
 
 // Detecta cuando el usuario vuelve a la app después de tenerla en background.
-// Al regresar, intenta renovar el token silenciosamente para actualizar el semáforo.
-// Si el token sigue vigente → dot verde. Si expiró → dot rojo + banner.
+// Al regresar:
+//   1) renueva el token silenciosamente para actualizar el semáforo
+//   2) re-evalúa el rol admin contra SharePoint (captura el caso en que un
+//      super-admin acaba de promover a esta cuenta mientras tenía la PWA abierta)
+//   3) re-descarga la configuración de formularios (pull) para recoger
+//      ediciones de otro admin hechas mientras la app estaba en background
 function ResumeHandler() {
   const isAuthenticated = useUserStore((s) => s.isAuthenticated)
 
@@ -203,10 +208,32 @@ function ResumeHandler() {
       if (document.visibilityState !== 'visible') return
       try {
         await getGraphToken()
-        // setTokenOk() ya lo llama getGraphToken() internamente al tener éxito
       } catch {
         // setTokenError() ya lo llama getGraphToken() internamente al fallar
+        return
       }
+
+      // Re-evaluar rol admin — identidades tolerantes (mail, UPN, username)
+      try {
+        const { email, role: previousRole, setRole } = useUserStore.getState()
+        const account = msalInstance.getAllAccounts()[0]
+        const identities = [
+          email,
+          account?.username,
+          account?.idTokenClaims?.preferred_username,
+        ].filter(Boolean)
+        await refreshAdmins()
+        const nextRole = (await isAdmin(identities)) ? 'admin' : 'user'
+        if (nextRole !== previousRole) {
+          console.info(`[ResumeHandler] Rol actualizado: ${previousRole} → ${nextRole}`)
+          setRole(nextRole)
+        }
+      } catch (err) {
+        console.warn('[ResumeHandler] No se pudo re-evaluar rol admin:', err?.message)
+      }
+
+      // Re-descarga la configuración de formularios más reciente
+      useFormEditorStore.getState().pullFromCloud()
     }
 
     document.addEventListener('visibilitychange', handleVisibility)
@@ -216,12 +243,22 @@ function ResumeHandler() {
   return null
 }
 
-export default function App() {
-  // Al iniciar la app: descarga la configuración más reciente de formularios
-  // desde SharePoint. En dev mode esto es un no-op silencioso.
+// Wrapper que dispara pullFromCloud solo cuando el usuario ya está autenticado.
+// Antes se llamaba incondicionalmente al montar la app, pero si MSAL aún no
+// tenía cuenta activa, getGraphToken lanzaba y el error se acumulaba en
+// lastPullError. useBootstrap ya dispara el pull inicial tras auth — este
+// efecto asegura un segundo intento si el primero corrió antes de auth (p. ej.
+// HMR o navegación compleja).
+function PullOnAuth() {
+  const isAuthenticated = useUserStore((s) => s.isAuthenticated)
   useEffect(() => {
+    if (!isAuthenticated) return
     useFormEditorStore.getState().pullFromCloud()
-  }, [])
+  }, [isAuthenticated])
+  return null
+}
+
+export default function App() {
 
   return (
     <BrowserRouter basename="/MRC.app">
@@ -233,6 +270,7 @@ export default function App() {
         {!IS_DEV_MODE && <AuthHandler />}
         {!IS_DEV_MODE && <BootstrapHandler />}
         {!IS_DEV_MODE && <ResumeHandler />}
+        {!IS_DEV_MODE && <PullOnAuth />}
         <NotificationsHandler />
         <NavigationTracker />
         <ErrorBoundary>

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell, ClipboardCheck, FileText } from 'lucide-react'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell, ClipboardCheck, FileText, RefreshCw, CheckCircle2 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
@@ -9,7 +9,8 @@ import useNotificationStore from '../store/notificationStore'
 import useValidacionStore from '../store/validacionStore'
 import { msalInstance } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
-import { getAdmins, addAdmin, removeAdmin, SUPER_ADMIN } from '../services/adminService'
+import { getAdmins, addAdmin, removeAdmin, isAdmin, refreshAdmins, SUPER_ADMIN } from '../services/adminService'
+import useFormEditorStore from '../store/formEditorStore'
 
 const ROLE_META = {
   admin: { label: 'Administrador', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
@@ -267,6 +268,123 @@ function AdminPanel({ currentEmail }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// ── Botón: actualizar rol + descargar config de formularios ────────────────
+// Visible a TODOS los usuarios. Útil en dos escenarios:
+//   1) El super-admin acaba de asignar rol admin a esta cuenta → el usuario
+//      pulsa este botón y su rol se actualiza sin necesidad de re-login.
+//   2) Un admin subió cambios a formularios y un no-admin quiere verlos al
+//      instante (fuerza pullFromCloud).
+// Si pullFromCloud falla, el mensaje de error se muestra aquí.
+function RefreshRoleCard({ currentEmail }) {
+  const setRole = useUserStore((s) => s.setRole)
+  const currentRole = useUserStore((s) => s.role)
+  const pullStatus = useFormEditorStore((s) => s.pullStatus)
+  const lastPullError = useFormEditorStore((s) => s.lastPullError)
+  const pullFromCloud = useFormEditorStore((s) => s.pullFromCloud)
+
+  const [refreshing, setRefreshing] = useState(false)
+  const [result, setResult] = useState(null)  // 'up-to-date' | 'promoted' | 'demoted' | null
+  const [error, setError] = useState('')
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    setResult(null)
+    setError('')
+    try {
+      const account = msalInstance.getAllAccounts?.()[0]
+      const identities = [
+        currentEmail,
+        account?.username,
+        account?.idTokenClaims?.preferred_username,
+      ].filter(Boolean)
+
+      await refreshAdmins()
+      const nextRole = (await isAdmin(identities)) ? 'admin' : 'user'
+      const changed = nextRole !== currentRole
+      if (changed) setRole(nextRole)
+      setResult(changed ? (nextRole === 'admin' ? 'promoted' : 'demoted') : 'up-to-date')
+
+      // Pull paralelo de configuración de formularios
+      await pullFromCloud()
+    } catch (e) {
+      setError(e?.message || 'No se pudo actualizar el rol')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const hasPullError = pullStatus === 'error' && lastPullError
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.10 }}
+      style={{
+        background: hasPullError ? 'rgba(235,87,87,0.08)' : 'var(--color-navy-mid)',
+        border: `1px solid ${hasPullError ? 'rgba(235,87,87,0.35)' : 'var(--color-border)'}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <RefreshCw size={16} color={hasPullError ? '#EB5757' : 'var(--color-text-secondary)'} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            Actualizar rol y formularios
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            Re-verifica tu rol en SharePoint y descarga la última versión de los formularios editados por admins.
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '10px', borderRadius: 8, cursor: refreshing ? 'wait' : 'pointer',
+          background: refreshing ? 'rgba(255,255,255,0.05)' : 'rgba(96,165,250,0.12)',
+          border: '1px solid rgba(96,165,250,0.3)',
+          color: '#60A5FA', fontFamily: 'var(--font-display)', fontSize: 12,
+          fontWeight: 700, letterSpacing: '0.06em',
+        }}
+      >
+        {refreshing ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
+        {refreshing ? 'ACTUALIZANDO...' : 'REFRESCAR'}
+      </button>
+
+      {result === 'promoted' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, color: '#60A5FA' }}>
+          <CheckCircle2 size={14} /> Ahora eres administrador.
+        </div>
+      )}
+      {result === 'demoted' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)' }}>
+          <CheckCircle2 size={14} /> Rol actualizado: usuario.
+        </div>
+      )}
+      {result === 'up-to-date' && !hasPullError && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, color: '#27AE60' }}>
+          <CheckCircle2 size={14} /> Tu rol y formularios están al día.
+        </div>
+      )}
+      {error && (
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#EB5757' }}>
+          {error}
+        </div>
+      )}
+      {hasPullError && (
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#EB5757', lineHeight: 1.4 }}>
+          <strong>No se pudo descargar la configuración:</strong> {lastPullError}
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -642,6 +760,9 @@ export default function ProfileScreen() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Actualizar rol + pull formularios (todos los usuarios) ── */}
+        {!IS_DEV_MODE && <RefreshRoleCard currentEmail={email} />}
 
         {/* ── Resumen de notificaciones ── */}
         <NotificacionesResumen />

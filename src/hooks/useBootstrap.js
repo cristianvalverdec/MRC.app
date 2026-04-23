@@ -45,12 +45,27 @@ export function useBootstrap() {
         const profile = await profileRes.json()
         const userEmail = profile.mail || profile.userPrincipalName || accounts[0].username || ''
 
-        // Verificar si el usuario es administrador de la app
-        let role = 'user'
+        // Verificar si el usuario es administrador de la app.
+        // Se evalúan TODAS las identidades conocidas (mail / UPN / username
+        // MSAL) porque Azure AD puede reportar el mail con dominio alterno
+        // (.cl vs .com) o un alias distinto al que el super-admin registró
+        // en la lista "Administradores MRC".
+        //
+        // Estrategia ante error: si la consulta a SharePoint falla (permisos,
+        // red), NO degradamos el rol persistido. Preservamos el rol previo —
+        // así un admin que abre la app offline o con error transitorio sigue
+        // siendo admin hasta que la siguiente consulta confirme lo contrario.
+        const identities = [
+          profile.mail,
+          profile.userPrincipalName,
+          accounts[0]?.username,
+        ].filter(Boolean)
+        const previousRole = useUserStore.getState().role
+        let role = previousRole || 'user'
         try {
-          if (await isAdmin(userEmail)) role = 'admin'
-        } catch {
-          // Si falla la consulta, sigue como usuario normal
+          role = (await isAdmin(identities)) ? 'admin' : 'user'
+        } catch (err) {
+          console.warn('[useBootstrap] isAdmin falló — preservando rol previo:', err?.message)
         }
 
         setUser({

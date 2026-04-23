@@ -90,23 +90,40 @@ async function getListId(token) {
 // ── API pública ────────────────────────────────────────────────────────────
 
 /**
- * Devuelve true si el email es admin (super-admin o está en la lista).
- * Cachea el resultado en memoria para la sesión.
+ * Devuelve true si alguna de las identidades del usuario aparece en la lista
+ * de administradores. Acepta un string o un arreglo de strings (p. ej. mail,
+ * userPrincipalName, username) — útil porque Azure AD puede reportar el mail
+ * con dominio alterno (.cl vs .com) o alias. Compara insensible a mayúsculas.
+ *
+ * IMPORTANTE: si la consulta a SharePoint lanza (403/401/red), se propaga el
+ * error — el caller decide si lo captura. Antes lo silenciábamos y el usuario
+ * quedaba como 'user' sin feedback.
  */
-export async function isAdmin(email) {
-  if (!email) return false
-  const normalized = email.toLowerCase().trim()
-  if (normalized === SUPER_ADMIN) return true
+export async function isAdmin(emails) {
+  const candidates = (Array.isArray(emails) ? emails : [emails])
+    .filter(Boolean)
+    .map((e) => String(e).toLowerCase().trim())
+    .filter((e) => e.length > 0)
+
+  if (candidates.length === 0) return false
+  if (candidates.includes(SUPER_ADMIN)) return true
 
   // Usar cache si ya está cargado
-  if (cachedAdmins) return cachedAdmins.has(normalized)
+  if (cachedAdmins) return candidates.some((c) => cachedAdmins.has(c))
 
-  try {
-    const admins = await getAdmins()
-    return admins.some(a => a.email === normalized)
-  } catch {
-    return false
-  }
+  const admins = await getAdmins()
+  const set = new Set(admins.map((a) => a.email))
+  return candidates.some((c) => set.has(c))
+}
+
+/**
+ * Fuerza re-consulta de la lista de administradores desde SharePoint.
+ * Vacía las cachés en memoria (cachedAdmins, cachedListId no porque el
+ * GUID no cambia). Devuelve el arreglo fresco de admins.
+ */
+export async function refreshAdmins() {
+  cachedAdmins = null
+  return getAdmins()
 }
 
 /**

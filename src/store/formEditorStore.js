@@ -24,9 +24,17 @@ const useFormEditorStore = create(
       customForms: {},
 
       // ── Estado de sincronización ───────────────────────────────────────
-      syncStatus: 'idle',    // 'idle' | 'syncing' | 'success' | 'error'
-      lastSyncedAt: null,    // ISO string de la última sync exitosa
-      lastSyncError: null,   // mensaje legible del último error (si syncStatus === 'error')
+      syncStatus: 'idle',    // 'idle' | 'syncing' | 'success' | 'error'  (push)
+      lastSyncedAt: null,    // ISO string de la última sync exitosa (push)
+      lastSyncError: null,   // mensaje legible del último error push (si syncStatus === 'error')
+
+      // ── Estado del pull (descarga) — independiente del push ────────────
+      // El pull afecta a todos los usuarios (no solo admin), por eso rastreamos
+      // su estado separado para que la UI pueda mostrar error sin confundir
+      // con el guardado. Regla 5e CLAUDE.md: ningún fire-and-forget silencioso.
+      pullStatus: 'idle',    // 'idle' | 'pulling' | 'success' | 'error'
+      lastPullAt: null,      // ISO string del último pull exitoso
+      lastPullError: null,   // mensaje legible del último error de pull
 
       // ── Formularios estáticos editados ─────────────────────────────────
       // El guardado LOCAL es siempre síncrono e infalible.
@@ -107,9 +115,10 @@ const useFormEditorStore = create(
       // IMPORTANTE: solo sobrescribe si la versión cloud es más nueva que la local.
       // Esto protege cambios locales no sincronizados de ser borrados por datos obsoletos.
       pullFromCloud: async () => {
-        set({ syncStatus: 'syncing', lastSyncError: null })
+        set({ pullStatus: 'pulling', lastPullError: null })
         try {
           const data = await loadFormsFromSharePoint()
+          const nowIso = new Date().toISOString()
           if (data) {
             const localLastSync = get().lastSyncedAt
             const cloudSavedAt  = data.savedAt
@@ -127,22 +136,29 @@ const useFormEditorStore = create(
               set({
                 editedForms:   data.editedForms  || {},
                 customForms:   data.customForms  || {},
-                syncStatus:    'success',
-                lastSyncedAt:  cloudSavedAt || new Date().toISOString(),
+                pullStatus:    'success',
+                lastPullAt:    nowIso,
+                lastPullError: null,
+                lastSyncedAt:  cloudSavedAt || nowIso,
               })
               console.info('[MRC Sync] Store actualizado desde SharePoint ✓')
             } else {
-              // Local es más nuevo — conservar local, marcar como sincronizado
-              set({ syncStatus: 'success' })
+              set({ pullStatus: 'success', lastPullAt: nowIso, lastPullError: null })
               console.info('[MRC Sync] Local más reciente que cloud — conservando local')
             }
           } else {
-            set({ syncStatus: 'idle' })
+            // 404: la config no existe aún en SharePoint. No es error.
+            set({ pullStatus: 'success', lastPullAt: nowIso, lastPullError: null })
           }
         } catch (err) {
-          set({ syncStatus: 'error', lastSyncError: err?.message || 'Error al leer desde SharePoint' })
+          const message = err?.message || 'Error al leer desde SharePoint'
+          console.warn('[MRC Sync] Pull falló:', message)
+          set({ pullStatus: 'error', lastPullError: message })
         }
       },
+
+      // Reintento manual del pull — llamable desde UI cuando lastPullError ≠ null
+      retryPull: () => get().pullFromCloud(),
     }),
     { name: 'mrc-form-editor-store' }
   )

@@ -109,37 +109,43 @@ export async function syncFormsToSharePoint(data) {
 }
 
 // ── Descargar configuración de formularios desde SharePoint ──────────────
+// Diferencia entre "no existe todavía" (404 → primer uso, devuelve null sin
+// error) y "no se pudo leer" (403/401/5xx/red → lanza error clasificado).
+// El caller (formEditorStore.pullFromCloud) decide cómo mostrar el error al
+// usuario — ningún fire-and-forget silencioso.
 export async function loadFormsFromSharePoint() {
   if (IS_DEV_MODE) {
     console.info('[MRC Sync] Modo dev — usando configuración local')
     return null
   }
 
-  try {
-    const token  = await getGraphToken()
-    const siteId = await resolveSiteId(token)
-    const url    = buildFileUrl(siteId)
+  const token  = await getGraphToken()
+  const siteId = await resolveSiteId(token)
+  const url    = buildFileUrl(siteId)
 
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
-    if (response.status === 404) {
-      console.info('[MRC Sync] mrc-forms-config.json no existe aún en SharePoint — primera vez')
-      return null
-    }
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => '')
-      throw new Error(`Error ${response.status} al leer desde SharePoint: ${body.slice(0, 120)}`)
-    }
-
-    const data = await response.json()
-    console.info('[MRC Sync] Configuración cargada desde SharePoint ✓')
-    return data
-  } catch (err) {
-    // Falla silenciosamente en la descarga — se usa localStorage como fallback
-    console.warn('[MRC Sync] Error al cargar:', err.message)
+  if (response.status === 404) {
+    console.info('[MRC Sync] mrc-forms-config.json no existe aún en SharePoint — primera vez')
     return null
   }
+
+  if (response.status === 401 || response.status === 403) {
+    const body = await response.text().catch(() => '')
+    throw new Error(
+      `Sin permiso para leer la configuración de formularios en SharePoint (${response.status}). ` +
+      `Pide al administrador del sitio agregar tu cuenta al grupo de visitantes. ${body.slice(0, 100)}`
+    )
+  }
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`Error ${response.status} al leer desde SharePoint: ${body.slice(0, 120)}`)
+  }
+
+  const data = await response.json()
+  console.info('[MRC Sync] Configuración cargada desde SharePoint ✓')
+  return data
 }
