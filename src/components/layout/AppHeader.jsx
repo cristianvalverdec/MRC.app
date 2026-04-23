@@ -6,6 +6,7 @@ import useAuthHealthStore from '../../store/authHealthStore'
 import NetworkStatus from '../ui/NetworkStatus'
 import NotificationBell from '../ui/NotificationBell'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
+import { useNavigation } from '../../hooks/useNavigation'
 
 function AgrosuperLogo({ height = 28 }) {
   return (
@@ -115,10 +116,11 @@ function MiniAvatar({ name, photoUrl }) {
 export default function AppHeader({ title, showBack = true, onBack, rightAction }) {
   const navigate = useNavigate()
   const { name, photoUrl, isAuthenticated } = useUserStore()
+  const { goBack } = useNavigation()
 
   const handleBack = () => {
     if (onBack) onBack()
-    else navigate(-1)
+    else goBack()
   }
 
   return (

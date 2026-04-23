@@ -11,6 +11,7 @@ import useUserStore from './store/userStore'
 import { getGraphToken } from './config/msalInstance'
 import { useBootstrap } from './hooks/useBootstrap'
 import { useNotifications } from './hooks/useNotifications'
+import { useNavigation } from './hooks/useNavigation'
 
 // ── Lazy-loaded screens (performance: code splitting per route) ───────
 const SplashScreen          = lazy(() => import('./screens/SplashScreen'))
@@ -184,6 +185,11 @@ function NotificationsHandler() {
   return null
 }
 
+function NavigationTracker() {
+  useNavigation()
+  return null
+}
+
 // Detecta cuando el usuario vuelve a la app después de tenerla en background.
 // Al regresar, intenta renovar el token silenciosamente para actualizar el semáforo.
 // Si el token sigue vigente → dot verde. Si expiró → dot rojo + banner.
@@ -228,6 +234,7 @@ export default function App() {
         {!IS_DEV_MODE && <BootstrapHandler />}
         {!IS_DEV_MODE && <ResumeHandler />}
         <NotificationsHandler />
+        <NavigationTracker />
         <ErrorBoundary>
           <AnimatedRoutes />
         </ErrorBoundary>
