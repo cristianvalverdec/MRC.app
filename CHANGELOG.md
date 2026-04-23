@@ -5,6 +5,27 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.4] — 2026-04-22
+
+### Fix crítico — Bucles de navegación en retroceso
+
+**Bug:** El botón de atrás en muchas pantallas creaba bucles porque usaba `navigate(-1)` que solo navega en el historial del navegador, el cual no siempre refleja la estructura intencional de la SPA.
+
+**Solución arquitectónica:**
+- **`navigationStore.js`** (nuevo): Zustand store que mantiene un stack de rutas visitadas (`navigationStack`).
+- **`useNavigation.js`** (nuevo): Hook que rastrea cada navegación en el stack y proporciona `goBack()` para retroceso inteligente.
+- **`NavigationTracker`** (en App.jsx): Componente que inicializa el tracking globalmente.
+- **AppHeader actualizado**: Usa `goBack()` en lugar de `navigate(-1)`.
+
+**Comportamiento:**
+1. Cada navegación se agrega automáticamente al stack
+2. Al retroceder, se navega explícitamente a la ruta anterior del stack
+3. Fallback a `navigate(-1)` si no hay ruta anterior (último recurso)
+
+**Probado sin regresiones:** Selector de unidad → Menús → Retroceso, y Editor de formularios (listado → detalle → retroceso). Todos los flujos funcionan sin bucles.
+
+---
+
 ## [1.9.3] — 2026-04-22
 
 ### Fix crítico — Editor de formularios no pierde preguntas nuevas
