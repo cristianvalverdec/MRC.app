@@ -7,7 +7,7 @@ import {
 import useUserStore from '../store/userStore'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useKPIsAllBranches } from '../hooks/useKPIs'
-import { getShiftTargets } from '../config/branchTargets'
+import useGoalsStore, { getTramo, DEFAULT_ACTIVITY_TARGETS } from '../store/goalsStore'
 
 // ── Fuentes ────────────────────────────────────────────────────────────────
 const FD = "'Barlow Condensed', sans-serif"
@@ -30,8 +30,7 @@ const TURNOS = [
   { key: 'ADM', label: 'Administración', short: 'A', color: '#2FD17A' },
 ]
 
-// ── Targets diarios fijos para cam y dif ──────────────────────────────────
-const TARGET_CAM  = 4
+// ── Targets semanales fijos para dif ─────────────────────────────────────
 const TARGETS_DIF = { M: 1, T: 1, N: 1, ADM: 1 }
 
 // ── Instalaciones que se denominan "CD" (resto son "Suc.") ────────────────
@@ -40,16 +39,20 @@ function instLabel(name) {
   return CD_INSTALACIONES.has(name) ? 'CD' : 'Suc.'
 }
 
-// ── Metas de pautas por sucursal (branchTargets) ──────────────────────────
+// ── Metas semanales por sucursal desde goalsStore (FA real del admin) ─────
 function getPautaTargets(branchName) {
-  const st = getShiftTargets(branchName)
-  if (!st) return { M: 3, T: 3, N: 3, ADM: 2 }   // low tier default
-  return {
-    M:   st.shifts['Mañana'],
-    T:   st.shifts['Tarde'],
-    N:   st.shifts['Noche'],
-    ADM: st.shifts['Administración'],
-  }
+  const { getFAForBranch, activityTargets } = useGoalsStore.getState()
+  const { fa } = getFAForBranch(branchName)
+  const tramo = getTramo(fa)
+  const t = activityTargets[tramo] || DEFAULT_ACTIVITY_TARGETS[tramo]
+  return { M: t.pautasTurnos, T: t.pautasTurnos, N: t.pautasTurnos, ADM: t.pautasAdmin }
+}
+function getCaminataTarget(branchName) {
+  const { getFAForBranch, activityTargets } = useGoalsStore.getState()
+  const { fa } = getFAForBranch(branchName)
+  const tramo = getTramo(fa)
+  const t = activityTargets[tramo] || DEFAULT_ACTIVITY_TARGETS[tramo]
+  return t.caminatas
 }
 
 // ── Sucursales (definición estática — valores vienen del hook) ────────────
@@ -109,13 +112,13 @@ function getWeekNumber() {
 function calcOverallCompliance(kv, branchName) {
   if (!kv) return 0
   const pt = getPautaTargets(branchName)
-  const pDone   = (kv.pauta?.M||0) + (kv.pauta?.T||0) + (kv.pauta?.N||0) + (kv.pauta?.ADM||0)
+  const pDone   = (kv.pautas?.M||0) + (kv.pautas?.T||0) + (kv.pautas?.N||0) + (kv.pautas?.ADM||0)
   const pTarget = pt.M + pt.T + pt.N + pt.ADM
   const cDone   = kv.cam || 0
   const dDone   = (kv.dif?.M||0) + (kv.dif?.T||0) + (kv.dif?.N||0) + (kv.dif?.ADM||0)
   const dTarget = TARGETS_DIF.M + TARGETS_DIF.T + TARGETS_DIF.N + TARGETS_DIF.ADM
   const totalDone   = pDone + cDone + dDone
-  const totalTarget = pTarget + TARGET_CAM + dTarget
+  const totalTarget = pTarget + getCaminataTarget(branchName) + dTarget
   return calcPctCapped(totalDone, totalTarget, 120) ?? 0
 }
 
@@ -125,10 +128,10 @@ function getGlobals(branchData) {
     const kv = branchData[s.name]
     if (!kv) return
     const pt = getPautaTargets(s.name)
-    pDone   += (kv.pauta?.M||0) + (kv.pauta?.T||0) + (kv.pauta?.N||0) + (kv.pauta?.ADM||0)
+    pDone   += (kv.pautas?.M||0) + (kv.pautas?.T||0) + (kv.pautas?.N||0) + (kv.pautas?.ADM||0)
     pTarget += pt.M + pt.T + pt.N + pt.ADM
     camDone  += kv.cam || 0
-    camTarget += TARGET_CAM
+    camTarget += getCaminataTarget(s.name)
     dDone   += (kv.dif?.M||0) + (kv.dif?.T||0) + (kv.dif?.N||0) + (kv.dif?.ADM||0)
     dTarget += TARGETS_DIF.M + TARGETS_DIF.T + TARGETS_DIF.N + TARGETS_DIF.ADM
   })
@@ -286,15 +289,16 @@ async function generateWhatsAppImage(dlTheme, branchData) {
   // ── Filas de datos ────────────────────────────────────────────────────────
   SUCURSALES.forEach((suc, i) => {
     const y  = tblY + HDR_ROW_H + i * ROW_H
-    const kv = branchData[suc.name] || { pauta: {M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
-    const pt = getPautaTargets(suc.name)
+    const kv = branchData[suc.name] || { pautas: {M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
+    const pt  = getPautaTargets(suc.name)
+    const tCam = getCaminataTarget(suc.name)
 
     if (i % 2 === 0) {
       ctx.fillStyle = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(27,42,74,0.04)'
       ctx.fillRect(PAD, y, TW, ROW_H)
     }
 
-    const pTotal  = (kv.pauta?.M||0)+(kv.pauta?.T||0)+(kv.pauta?.N||0)+(kv.pauta?.ADM||0)
+    const pTotal  = (kv.pautas?.M||0)+(kv.pautas?.T||0)+(kv.pautas?.N||0)+(kv.pautas?.ADM||0)
     const pTarget = pt.M + pt.T + pt.N + pt.ADM
     ctx.fillStyle = statusC(pTotal, pTarget)
     ctx.fillRect(xBar, y + 9, COL_BAR, ROW_H - 18)
@@ -305,11 +309,11 @@ async function generateWhatsAppImage(dlTheme, branchData) {
     ctx.fillText(suc.name, xName, y + ROW_H / 2 + 7);
 
     ['M','T','N','ADM'].forEach((key, j) => {
-      const val = kv.pauta?.[key] || 0
+      const val = kv.pautas?.[key] || 0
       drawCell(ctx, xPauta + j*(CELL+PGAP), y+6, CELL, ROW_H-12, val, key, statusC(val, pt[key]), isDark)
     })
 
-    const camC = statusC(kv.cam||0, TARGET_CAM)
+    const camC = statusC(kv.cam||0, tCam)
     ctx.fillStyle = (kv.cam||0) > 0 ? camC+'33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
     canvasRR(ctx, xCam+4, y+7, COL_CAM-8, ROW_H-14, 6); ctx.fill()
     ctx.strokeStyle = (kv.cam||0) > 0 ? camC : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)')
@@ -318,7 +322,7 @@ async function generateWhatsAppImage(dlTheme, branchData) {
     ctx.fillStyle = (kv.cam||0) > 0 ? camC : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
     ctx.font = "800 17px 'Barlow Condensed', sans-serif"
     ctx.textAlign = 'center'
-    ctx.fillText((kv.cam||0) + '/' + TARGET_CAM, xCam + COL_CAM/2, y + ROW_H/2 + 6)
+    ctx.fillText((kv.cam||0) + '/' + tCam, xCam + COL_CAM/2, y + ROW_H/2 + 6)
     ctx.textAlign = 'left';
 
     ['M','T','N','ADM'].forEach((key, j) => {
@@ -395,10 +399,11 @@ function MiniTurnoDot({ val, target, turno, size = 15 }) {
 // ── SucursalRow ────────────────────────────────────────────────────────────
 function SucursalRow({ suc, kv, onClick, index }) {
   const pt      = getPautaTargets(suc.name)
-  const pTotal  = (kv.pauta?.M||0)+(kv.pauta?.T||0)+(kv.pauta?.N||0)+(kv.pauta?.ADM||0)
+  const tCam    = getCaminataTarget(suc.name)
+  const pTotal  = (kv.pautas?.M||0)+(kv.pautas?.T||0)+(kv.pautas?.N||0)+(kv.pautas?.ADM||0)
   const pTarget = pt.M + pt.T + pt.N + pt.ADM
   const barColor = statusColor(calcPct(pTotal, pTarget))
-  const camColor = statusColor(calcPct(kv.cam||0, TARGET_CAM))
+  const camColor = statusColor(calcPct(kv.cam||0, tCam))
 
   return (
     <motion.div
@@ -425,7 +430,7 @@ function SucursalRow({ suc, kv, onClick, index }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
         <div style={{ fontFamily: FD, fontSize: 7, fontWeight: 700, color: C.orange, letterSpacing: '0.06em' }}>PAUTA</div>
         <div style={{ display: 'flex', gap: 2 }}>
-          {TURNOS.map(trn => <MiniTurnoDot key={trn.key} val={kv.pauta?.[trn.key]||0} target={pt[trn.key]} turno={trn} size={15} />)}
+          {TURNOS.map(trn => <MiniTurnoDot key={trn.key} val={kv.pautas?.[trn.key]||0} target={pt[trn.key]} turno={trn} size={15} />)}
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
@@ -437,7 +442,7 @@ function SucursalRow({ suc, kv, onClick, index }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 800, color: camColor, lineHeight: 1 }}>
-            {kv.cam||0}<span style={{ fontSize: 8, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{TARGET_CAM}</span>
+            {kv.cam||0}<span style={{ fontSize: 8, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{tCam}</span>
           </span>
         </div>
       </div>
@@ -674,7 +679,7 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
           ))
         ) : (
           SUCURSALES.map((suc, i) => {
-            const kv = branchData[suc.name] || { pauta:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
+            const kv = branchData[suc.name] || { pautas:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
             return <SucursalRow key={suc.id} suc={suc} kv={kv} index={i} onClick={() => onSelectCD(suc.id)} />
           })
         )}
@@ -693,17 +698,14 @@ function VistaCD({ cdId, onBack, branchData }) {
   const [cdSel, setCdSel]           = useState(cdId || SUCURSALES[0].id)
   const [showPicker, setShowPicker] = useState(false)
   const suc = SUCURSALES.find(s => s.id === cdSel) || SUCURSALES[0]
-  const kv  = branchData[suc.name] || { pauta:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
+  const kv  = branchData[suc.name] || { pautas:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
   const pt  = getPautaTargets(suc.name)
 
-  const pautaTurnos = TURNOS.map(trn => ({ ...trn, done: kv.pauta?.[trn.key]||0, target: pt[trn.key] }))
-  const difTurnos   = TURNOS.map(trn => ({ ...trn, done: kv.dif?.[trn.key]||0,   target: TARGETS_DIF[trn.key] }))
+  const pautaTurnos = TURNOS.map(trn => ({ ...trn, done: kv.pautas?.[trn.key]||0, target: pt[trn.key] }))
+  const difTurnos   = TURNOS.map(trn => ({ ...trn, done: kv.dif?.[trn.key]||0,    target: TARGETS_DIF[trn.key] }))
 
   // Cumplimiento global: pautas + cam + dif vs sus metas (tope 120%)
-  const overallPct = calcOverallCompliance(
-    { pauta: kv.pauta, cam: kv.cam, dif: kv.dif },
-    suc.name
-  )
+  const overallPct = calcOverallCompliance(kv, suc.name)
   const overallColor = statusColor(overallPct)
 
   const label = instLabel(suc.name)
@@ -751,10 +753,10 @@ function VistaCD({ cdId, onBack, branchData }) {
           maxHeight: 240, overflowY: 'auto',
         }}>
           {SUCURSALES.map((s, i) => {
-            const skv  = branchData[s.name] || { pauta:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
+            const skv  = branchData[s.name] || { pautas:{M:0,T:0,N:0,ADM:0}, cam:0, dif:{M:0,T:0,N:0,ADM:0} }
             const spt  = getPautaTargets(s.name)
             const sPct = calcPct(
-              (skv.pauta?.M||0)+(skv.pauta?.T||0)+(skv.pauta?.N||0)+(skv.pauta?.ADM||0),
+              (skv.pautas?.M||0)+(skv.pautas?.T||0)+(skv.pautas?.N||0)+(skv.pautas?.ADM||0),
               spt.M + spt.T + spt.N + spt.ADM
             )
             return (
@@ -811,13 +813,13 @@ function VistaCD({ cdId, onBack, branchData }) {
               <Eye size={15} color={C.info} />
             </div>
             <div style={{ fontFamily:FD, fontSize:13, fontWeight:800, color:'var(--color-text-primary)', flex:1 }}>Caminatas de Seguridad</div>
-            <div style={{ fontFamily:FD, fontSize:18, fontWeight:800, color:statusColor(calcPctCapped(kv.cam||0, TARGET_CAM, 120)) }}>
-              {kv.cam||0}<span style={{ fontSize:12, color:'var(--color-text-muted)', fontWeight:600 }}>/{TARGET_CAM}</span>
+            <div style={{ fontFamily:FD, fontSize:18, fontWeight:800, color:statusColor(calcPctCapped(kv.cam||0, getCaminataTarget(suc.name), 120)) }}>
+              {kv.cam||0}<span style={{ fontSize:12, color:'var(--color-text-muted)', fontWeight:600 }}>/{getCaminataTarget(suc.name)}</span>
             </div>
           </div>
-          <ProgressBar pct={Math.min(calcPctCapped(kv.cam||0, TARGET_CAM, 120), 100)} color={statusColor(calcPctCapped(kv.cam||0, TARGET_CAM, 120))} height={6} />
+          <ProgressBar pct={Math.min(calcPctCapped(kv.cam||0, getCaminataTarget(suc.name), 120), 100)} color={statusColor(calcPctCapped(kv.cam||0, getCaminataTarget(suc.name), 120))} height={6} />
           <div style={{ marginTop:6, fontFamily:FB, fontSize:11, color:'var(--color-text-muted)' }}>
-            {(kv.cam||0) >= TARGET_CAM ? 'Meta diaria alcanzada ✓' : `Faltan ${TARGET_CAM-(kv.cam||0)} caminata${TARGET_CAM-(kv.cam||0)!==1?'s':''} hoy`}
+            {(kv.cam||0) >= getCaminataTarget(suc.name) ? 'Meta semanal alcanzada ✓' : `Faltan ${getCaminataTarget(suc.name)-(kv.cam||0)} caminata${getCaminataTarget(suc.name)-(kv.cam||0)!==1?'s':''} esta semana`}
           </div>
         </motion.div>
 

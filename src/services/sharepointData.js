@@ -83,6 +83,15 @@ function todayISO() {
   return d.toISOString()
 }
 
+// Inicio de la semana actual (lunes 00:00) para KPIs semanales
+function weekStartISO() {
+  const d = new Date()
+  const day = d.getDay() || 7  // domingo=0 → 7, lunes=1
+  d.setDate(d.getDate() - (day - 1))
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
 // Extrae email de un valor de persona Azure AD
 // (puede ser string, { email } o { mail } o { userPrincipalName })
 // Normaliza nombre de sucursal quitando prefijo "Sucursal " para comparar
@@ -790,10 +799,10 @@ export async function fetchTodayKPIsAllBranches() {
     return result
   }
 
-  const token   = await getGraphToken()
-  const siteUrl = getSiteUrl()
-  const todayMs = new Date(todayISO()).getTime()
-  const headers = { Authorization: `Bearer ${token}` }
+  const token        = await getGraphToken()
+  const siteUrl      = getSiteUrl()
+  const weekStartMs  = new Date(weekStartISO()).getTime()
+  const headers      = { Authorization: `Bearer ${token}` }
 
   const branchLookup = {}
   V2_BRANCHES.forEach(name => { branchLookup[normBranch(name)] = name })
@@ -814,7 +823,7 @@ export async function fetchTodayKPIsAllBranches() {
       if (!res.ok) return
       const { value = [] } = await res.json()
       value.forEach(item => {
-        if (new Date(item.createdDateTime).getTime() < todayMs) return
+        if (new Date(item.createdDateTime).getTime() < weekStartMs) return
         cb(item.fields || {})
       })
     } catch (e) { console.warn('[MRC V2]', e.message) }
