@@ -1,20 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Download } from 'lucide-react'
+import { RefreshCw, Download, Loader } from 'lucide-react'
 
 /**
  * UpdateBanner — detecta via Service Worker cuando hay una nueva versión.
  *
- * Con registerType: 'autoUpdate' + skipWaiting + clientsClaim, el SW nuevo
- * se activa de inmediato. Este banner:
- *  1. Detecta si hay un SW en estado 'waiting' (caso borde)
- *  2. Escucha 'updatefound' para nuevas versiones mientras la app está abierta
- *  3. Ofrece botón para forzar la recarga
- *  4. Escucha 'controllerchange' → recarga la página automáticamente
- *  5. Poll cada 60 s para detectar nuevas versiones
+ * Flujo correcto (registerType: 'prompt', skipWaiting: false):
+ *  1. Detecta SW en estado 'waiting' (página recargada con SW pendiente) o 'updatefound'
+ *  2. Muestra banner con botón "ACTUALIZAR"
+ *  3. Usuario toca → postMessage SKIP_WAITING → nuevo SW toma control
+ *  4. controllerchange dispara → UNA sola recarga limpia
+ *
+ * onTouchStart previene el primer-tap sordo en iOS (elementos fixed no reciben
+ * el primer click en Safari; touchstart sí llega siempre).
  */
 export default function UpdateBanner() {
   const [needRefresh, setNeedRefresh] = useState(false)
+  const [updating, setUpdating] = useState(false)
   const waitingWorkerRef = useRef(null)
   const intervalRef = useRef(null)
 
@@ -57,11 +59,15 @@ export default function UpdateBanner() {
   }, [])
 
   const handleUpdate = () => {
+    if (updating) return
+    setUpdating(true)
     if (waitingWorkerRef.current) {
+      // Solo postMessage — controllerchange se encarga de recargar (una sola recarga limpia)
       waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' })
+    } else {
+      // Fallback: sin SW esperando, recarga directa
+      window.location.reload()
     }
-    // Fuerza recarga para obtener la versión nueva
-    window.location.reload()
   }
 
   return (
@@ -112,28 +118,34 @@ export default function UpdateBanner() {
               fontFamily: 'var(--font-body)', fontSize: 11,
               color: 'rgba(255,255,255,0.65)', marginTop: 2,
             }}>
-              Toca Actualizar para obtener los últimos cambios
+              {updating ? 'Aplicando actualización…' : 'Toca Actualizar para obtener los últimos cambios'}
             </div>
           </div>
 
-          {/* Botón */}
+          {/* Botón — onTouchStart captura el primer tap en iOS/Safari */}
           <motion.button
-            whileTap={{ scale: 0.93 }}
+            whileTap={{ scale: updating ? 1 : 0.93 }}
+            onTouchStart={handleUpdate}
             onClick={handleUpdate}
+            disabled={updating}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 12px',
-              background: 'rgba(26,82,184,0.9)',
+              background: updating ? 'rgba(26,82,184,0.5)' : 'rgba(26,82,184,0.9)',
               border: '1px solid rgba(96,165,250,0.5)',
-              borderRadius: 8, cursor: 'pointer',
+              borderRadius: 8, cursor: updating ? 'default' : 'pointer',
               fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
-              letterSpacing: '0.05em', color: '#FFFFFF',
+              letterSpacing: '0.05em', color: updating ? 'rgba(255,255,255,0.6)' : '#FFFFFF',
               flexShrink: 0,
-              boxShadow: '0 0 12px rgba(96,165,250,0.3)',
+              boxShadow: updating ? 'none' : '0 0 12px rgba(96,165,250,0.3)',
+              transition: 'all 0.2s',
             }}
           >
-            <RefreshCw size={13} />
-            ACTUALIZAR
+            {updating
+              ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
+              : <RefreshCw size={13} />
+            }
+            {updating ? 'CARGANDO…' : 'ACTUALIZAR'}
           </motion.button>
         </motion.div>
       )}
