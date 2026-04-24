@@ -60,6 +60,12 @@
   --radius-btn:     8px;
   --radius-pill:    999px;
   --content-max-w:  680px;
+
+  /* Colores de turno — DailyStatusScreenV2 */
+  --turno-manana:  #F5A623;
+  --turno-tarde:   #9B5CF5;
+  --turno-noche:   #4B8EF5;
+  --turno-adm:     #2FD17A;
 }
 
 /* ─── Modo claro ────────────────────────────────────────────────────── */

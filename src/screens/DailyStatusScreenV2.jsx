@@ -1,0 +1,860 @@
+import { useState, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  BarChart2, Building2, ChevronLeft, ChevronDown, ChevronUp,
+  ChevronRight, ClipboardList, Eye, Megaphone, Upload, Check,
+} from 'lucide-react'
+import useUserStore from '../store/userStore'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
+
+// ── Fuentes ────────────────────────────────────────────────────────────────
+const FD = "'Barlow Condensed', sans-serif"
+const FB = "'Barlow', sans-serif"
+
+// ── Colores semánticos (hex para poder componer alpha) ────────────────────
+const C = {
+  orange:  '#F57C20',
+  success: '#27AE60',
+  warning: '#F2994A',
+  danger:  '#EB5757',
+  info:    '#2F80ED',
+}
+
+// ── Turnos ─────────────────────────────────────────────────────────────────
+const TURNOS = [
+  { key: 'M',   label: 'Mañana',         short: 'M', color: '#F5A623' },
+  { key: 'T',   label: 'Tarde',          short: 'T', color: '#9B5CF5' },
+  { key: 'N',   label: 'Noche',          short: 'N', color: '#4B8EF5' },
+  { key: 'ADM', label: 'Administración', short: 'A', color: '#2FD17A' },
+]
+
+// ── Targets (defaults — TODO: conectar branchTargets.js por sucursal) ──────
+const TARGETS_PAUTA = { M: 5, T: 5, N: 5, ADM: 2 }
+const TARGET_CAM    = 4
+const TARGETS_DIF   = { M: 1, T: 1, N: 1, ADM: 1 }
+
+// ── Mock data — TODO: reemplazar con useKPIs extendido (ver README §Datos) ─
+const SUCURSALES = [
+  { id: 'arica',      name: 'Arica',        region: 'Norte',  pauta: { M: 0, T: 0, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'iquique',    name: 'Iquique',       region: 'Norte',  pauta: { M: 0, T: 2, N: 3, ADM: 0 }, cam: 2,  dif: { M: 0, T: 1, N: 1, ADM: 1 } },
+  { id: 'calama',     name: 'Calama',        region: 'Norte',  pauta: { M: 0, T: 0, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'antofag',    name: 'Antofagasta',   region: 'Norte',  pauta: { M: 0, T: 4, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'copiapo',    name: 'Copiapó',       region: 'Norte',  pauta: { M: 4, T: 4, N: 4, ADM: 0 }, cam: 3,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'coquimbo',   name: 'Coquimbo',      region: 'Norte',  pauta: { M: 5, T: 0, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'hijuelas',   name: 'Hijuelas',      region: 'Centro', pauta: { M: 0, T: 3, N: 3, ADM: 2 }, cam: 5,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'vina',       name: 'Viña del Mar',  region: 'Centro', pauta: { M: 0, T: 4, N: 4, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'sanantonio', name: 'San Antonio',   region: 'Centro', pauta: { M: 0, T: 0, N: 5, ADM: 2 }, cam: 4,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'miraflores', name: 'Miraflores',    region: 'RM',     pauta: { M: 0, T: 12,N: 8, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'huechuraba', name: 'Huechuraba',    region: 'RM',     pauta: { M: 0, T: 2, N: 0, ADM: 0 }, cam: 1,  dif: { M: 1, T: 1, N: 1, ADM: 1 } },
+  { id: 'loespejo',   name: 'Lo Espejo',     region: 'RM',     pauta: { M: 0, T: 3, N: 0, ADM: 1 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'rancagua',   name: 'Rancagua',      region: 'Centro', pauta: { M: 0, T: 0, N: 4, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'sanfelipe',  name: 'San Felipe',    region: 'Centro', pauta: { M: 2, T: 0, N: 2, ADM: 2 }, cam: 2,  dif: { M: 1, T: 1, N: 1, ADM: 1 } },
+  { id: 'curico',     name: 'Curicó',        region: 'Centro', pauta: { M: 2, T: 2, N: 2, ADM: 2 }, cam: 2,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'talca',      name: 'Talca',         region: 'Centro', pauta: { M: 4, T: 3, N: 0, ADM: 0 }, cam: 0,  dif: { M: 1, T: 1, N: 1, ADM: 1 } },
+  { id: 'chillan',    name: 'Chillán',       region: 'Sur',    pauta: { M: 0, T: 0, N: 7, ADM: 0 }, cam: 4,  dif: { M: 1, T: 1, N: 1, ADM: 0 } },
+  { id: 'losangeles', name: 'Los Ángeles',   region: 'Sur',    pauta: { M: 2, T: 2, N: 2, ADM: 0 }, cam: 3,  dif: { M: 1, T: 1, N: 1, ADM: 1 } },
+  { id: 'concepcion', name: 'Concepción',    region: 'Sur',    pauta: { M: 5, T: 2, N: 2, ADM: 2 }, cam: 2,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'temuco',     name: 'Temuco',        region: 'Sur',    pauta: { M: 3, T: 6, N: 3, ADM: 0 }, cam: 3,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'valdivia',   name: 'Valdivia',      region: 'Sur',    pauta: { M: 2, T: 0, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'osorno',     name: 'Osorno',        region: 'Sur',    pauta: { M: 4, T: 4, N: 4, ADM: 2 }, cam: 3,  dif: { M: 1, T: 0, N: 0, ADM: 0 } },
+  { id: 'pmontt',     name: 'Puerto Montt',  region: 'Sur',    pauta: { M: 5, T: 5, N: 5, ADM: 0 }, cam: 0,  dif: { M: 1, T: 0, N: 1, ADM: 1 } },
+  { id: 'castro',     name: 'Castro',        region: 'Sur',    pauta: { M: 2, T: 2, N: 3, ADM: 2 }, cam: 1,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+  { id: 'coyhaique',  name: 'Coyhaique',     region: 'Sur',    pauta: { M: 2, T: 0, N: 2, ADM: 0 }, cam: 1,  dif: { M: 1, T: 1, N: 1, ADM: 0 } },
+  { id: 'pantarenas', name: 'Punta Arenas',  region: 'Sur',    pauta: { M: 1, T: 0, N: 0, ADM: 0 }, cam: 0,  dif: { M: 0, T: 0, N: 0, ADM: 0 } },
+]
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function calcPct(val, target) {
+  if (!target) return null
+  return Math.min(100, Math.round((val / target) * 100))
+}
+function statusColor(pct) {
+  if (pct === null) return C.danger
+  if (pct >= 80) return C.success
+  if (pct >= 30) return C.warning
+  return C.danger
+}
+function getWeekNumber() {
+  const d    = new Date()
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
+}
+function getGlobals() {
+  const pautaTotal  = SUCURSALES.reduce((a, s) => a + s.pauta.M + s.pauta.T + s.pauta.N + s.pauta.ADM, 0)
+  const pautaTarget = SUCURSALES.length * (TARGETS_PAUTA.M + TARGETS_PAUTA.T + TARGETS_PAUTA.N + TARGETS_PAUTA.ADM)
+  const camTotal    = SUCURSALES.reduce((a, s) => a + s.cam, 0)
+  const camTarget   = SUCURSALES.length * TARGET_CAM
+  const difTotal    = SUCURSALES.reduce((a, s) => a + s.dif.M + s.dif.T + s.dif.N + s.dif.ADM, 0)
+  const difTarget   = SUCURSALES.length * (TARGETS_DIF.M + TARGETS_DIF.T + TARGETS_DIF.N + TARGETS_DIF.ADM)
+  return { pautaTotal, pautaTarget, camTotal, camTarget, difTotal, difTarget }
+}
+
+// ── Canvas helpers ─────────────────────────────────────────────────────────
+function loadImg(src) {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload  = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
+function canvasRR(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+function drawCell(ctx, x, y, w, h, val, key, color, isDark) {
+  ctx.fillStyle = val > 0 ? color + '33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
+  canvasRR(ctx, x, y, w, h, 6); ctx.fill()
+  ctx.strokeStyle = val > 0 ? color : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)')
+  ctx.lineWidth = 1.5
+  canvasRR(ctx, x, y, w, h, 6); ctx.stroke()
+  ctx.fillStyle = val > 0 ? color : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
+  ctx.font = "800 17px 'Barlow Condensed', sans-serif"
+  ctx.textAlign = 'center'
+  ctx.fillText('' + val, x + w / 2, y + h / 2 - 1)
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.32)'
+  ctx.font = "500 12px 'Barlow', sans-serif"
+  ctx.fillText(key, x + w / 2, y + h - 5)
+  ctx.textAlign = 'left'
+}
+
+// ── Generador de imagen PNG (WhatsApp / Canvas) ───────────────────────────
+async function generateWhatsAppImage(dlTheme) {
+  const isDark = dlTheme === 'dark'
+  const BASE   = import.meta.env.BASE_URL
+  const statusC = (val, tgt) => {
+    if (!tgt) return 'rgba(128,128,128,0.35)'
+    const p = Math.round((val / tgt) * 100)
+    if (p >= 80) return '#2FD17A'
+    if (p >= 30) return '#F5B000'
+    return '#FF5A5A'
+  }
+
+  const [logoAg, logoMrc] = await Promise.all([
+    loadImg(BASE + 'agrosuper-logo.png'),
+    loadImg(BASE + 'mrc-logo.png'),
+  ])
+
+  const W = 1080, PAD = 40
+  const ROW_H    = 54
+  const HEADER_H = 210
+  const FOOTER_H = 86
+  const TW       = W - PAD * 2
+  const SGAP     = 16
+  const COL_BAR  = 5
+  const COL_NAME = 150
+  const COL_CAM  = 90
+  const CELL     = Math.floor((TW - COL_BAR - COL_NAME - COL_CAM - 4 * SGAP) / 8)
+  const PGAP     = 5
+  const BLOCK    = CELL * 4 + PGAP * 3
+  const xBar     = PAD
+  const xName    = xBar + COL_BAR + SGAP
+  const xPauta   = xName + COL_NAME + SGAP
+  const xCam     = xPauta + BLOCK + SGAP
+  const xDif     = xCam + COL_CAM + SGAP
+  const TABLE_H  = ROW_H * (SUCURSALES.length + 1) + 16
+  const H        = HEADER_H + TABLE_H + FOOTER_H
+
+  const canvas = document.createElement('canvas')
+  canvas.width = W; canvas.height = H
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = isDark ? '#0D1627' : '#EFF3FA'
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = '#1B2A4A'
+  ctx.fillRect(0, 0, W, HEADER_H)
+  ctx.fillStyle = '#F57C20'
+  ctx.fillRect(0, HEADER_H - 6, W, 6)
+
+  if (logoAg) {
+    const lh = 42
+    const lw = Math.round(logoAg.width * (lh / logoAg.height))
+    ctx.drawImage(logoAg, PAD, 20, lw, lh)
+  }
+
+  ctx.fillStyle = '#ffffff'
+  ctx.font = "800 50px 'Barlow Condensed', 'Helvetica Neue', sans-serif"
+  ctx.fillText('ESTATUS DIARIO · SUCURSALES', PAD, 118)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.65)'
+  ctx.font = "500 22px 'Barlow', 'Helvetica Neue', sans-serif"
+  const now     = new Date()
+  const dateStr = now.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
+  ctx.fillText(dateStr + '  ·  SEMANA ' + getWeekNumber(), PAD, 148)
+
+  const g    = getGlobals()
+  const kpis = [
+    { l: 'PAUTAS VERIFICACIÓN', v: g.pautaTotal, tgt: g.pautaTarget, color: '#F57C20' },
+    { l: 'CAMINATAS',           v: g.camTotal,   tgt: g.camTarget,   color: '#4FB6FF' },
+    { l: 'DIFUSIONES SSO',      v: g.difTotal,   tgt: g.difTarget,   color: '#2FD17A' },
+  ]
+  kpis.forEach((k, i) => {
+    const x = PAD + i * 320
+    const p = k.tgt > 0 ? Math.round((k.v / k.tgt) * 100) : 0
+    ctx.fillStyle = k.color
+    ctx.font = "800 40px 'Barlow Condensed', sans-serif"
+    ctx.fillText(k.v + ' / ' + k.tgt, x, 192)
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'
+    ctx.font = "500 17px 'Barlow', sans-serif"
+    ctx.fillText(k.l + ' · ' + p + '%', x, 208)
+  })
+
+  const tblX = PAD
+  const tblY = HEADER_H + 12
+
+  ctx.fillStyle = '#243357'
+  canvasRR(ctx, tblX, tblY, TW, ROW_H, 8); ctx.fill()
+
+  ctx.font = "700 19px 'Barlow Condensed', sans-serif";
+  [
+    { text: 'SUCURSAL',                  cx: xName,             align: 'left',   color: 'rgba(255,255,255,0.7)' },
+    { text: 'PAUTAS  M · T · N · A',    cx: xPauta + BLOCK / 2, align: 'center', color: '#F57C20' },
+    { text: 'CAMINATAS',                 cx: xCam + COL_CAM / 2, align: 'center', color: '#4FB6FF' },
+    { text: 'DIFUSIONES M · T · N · A', cx: xDif + BLOCK / 2,  align: 'center', color: '#2FD17A' },
+  ].forEach(h => {
+    ctx.fillStyle = h.color
+    ctx.textAlign = h.align
+    ctx.fillText(h.text, h.cx, tblY + 33)
+  })
+  ctx.textAlign = 'left'
+
+  SUCURSALES.forEach((suc, i) => {
+    const y = tblY + ROW_H + i * ROW_H
+    if (i % 2 === 0) {
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(27,42,74,0.04)'
+      ctx.fillRect(tblX, y, TW, ROW_H)
+    }
+    const pTotal  = suc.pauta.M + suc.pauta.T + suc.pauta.N + suc.pauta.ADM
+    const pTarget = TARGETS_PAUTA.M + TARGETS_PAUTA.T + TARGETS_PAUTA.N + TARGETS_PAUTA.ADM
+    ctx.fillStyle = statusC(pTotal, pTarget)
+    ctx.fillRect(xBar, y + 8, COL_BAR, ROW_H - 16)
+    ctx.fillStyle = isDark ? '#ffffff' : '#0F1830'
+    ctx.font = "600 20px 'Barlow', sans-serif"
+    ctx.textAlign = 'left'
+    ctx.fillText(suc.name, xName, y + 32);
+    ['M', 'T', 'N', 'ADM'].forEach((key, j) => {
+      drawCell(ctx, xPauta + j * (CELL + PGAP), y + 6, CELL, ROW_H - 12, suc.pauta[key], key, statusC(suc.pauta[key], TARGETS_PAUTA[key]), isDark)
+    })
+    const camC = statusC(suc.cam, TARGET_CAM)
+    ctx.fillStyle = suc.cam > 0 ? camC + '33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
+    canvasRR(ctx, xCam + 4, y + 7, COL_CAM - 8, ROW_H - 14, 6); ctx.fill()
+    ctx.strokeStyle = suc.cam > 0 ? camC : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)')
+    ctx.lineWidth = 1.5
+    canvasRR(ctx, xCam + 4, y + 7, COL_CAM - 8, ROW_H - 14, 6); ctx.stroke()
+    ctx.fillStyle = suc.cam > 0 ? camC : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
+    ctx.font = "800 18px 'Barlow Condensed', sans-serif"
+    ctx.textAlign = 'center'
+    ctx.fillText(suc.cam + '/' + TARGET_CAM, xCam + COL_CAM / 2, y + 32)
+    ctx.textAlign = 'left';
+    ['M', 'T', 'N', 'ADM'].forEach((key, j) => {
+      drawCell(ctx, xDif + j * (CELL + PGAP), y + 6, CELL, ROW_H - 12, suc.dif[key], key, statusC(suc.dif[key], TARGETS_DIF[key]), isDark)
+    })
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(tblX, y + ROW_H); ctx.lineTo(tblX + TW, y + ROW_H); ctx.stroke()
+  })
+
+  const footerY = tblY + ROW_H * (SUCURSALES.length + 1) + 10
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'
+  ctx.font = "500 15px 'Barlow', sans-serif"
+  ctx.textAlign = 'left'
+  ctx.fillText('MRC App · Agrosuper Comercial SST · ' + now.toLocaleString('es-CL'), PAD, footerY + 18)
+  ;[['#2FD17A', '≥ 80% OK'], ['#F5B000', '30–79% Parcial'], ['#FF5A5A', '< 30% Pendiente']].forEach(([c, l], i) => {
+    ctx.fillStyle = c
+    canvasRR(ctx, PAD + i * 210, footerY + 30, 12, 12, 3); ctx.fill()
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
+    ctx.font = "500 15px 'Barlow', sans-serif"
+    ctx.fillText(l, PAD + i * 210 + 18, footerY + 41)
+  })
+
+  if (logoMrc) {
+    const lh = 72
+    const lw = Math.round(logoMrc.width * (lh / logoMrc.height))
+    const lx = W - PAD - lw
+    const ly = footerY + 6
+    if (isDark) {
+      ctx.save(); ctx.globalCompositeOperation = 'screen'
+      ctx.drawImage(logoMrc, lx, ly, lw, lh)
+      ctx.restore()
+    } else {
+      ctx.drawImage(logoMrc, lx, ly, lw, lh)
+    }
+  }
+  return canvas
+}
+
+// ── ProgressBar ────────────────────────────────────────────────────────────
+function ProgressBar({ pct, color, height = 4 }) {
+  return (
+    <div style={{ height, borderRadius: height, background: 'var(--color-border)', overflow: 'hidden', marginTop: 4 }}>
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${pct ?? 0}%` }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        style={{ height: '100%', borderRadius: height, background: color }}
+      />
+    </div>
+  )
+}
+
+// ── MiniTurnoDot ───────────────────────────────────────────────────────────
+function MiniTurnoDot({ val, target, turno, size = 15 }) {
+  const p     = calcPct(val, target)
+  const color = statusColor(p)
+  const done  = val >= target && target > 0
+  return (
+    <div
+      title={`${turno.label}: ${val}/${target}`}
+      style={{
+        width: size, height: size, borderRadius: 4, flexShrink: 0,
+        background: done ? color : val > 0 ? `${color}55` : 'var(--color-border)',
+        border: `1.5px solid ${done ? color : val > 0 ? color : 'var(--color-border)'}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <span style={{
+        fontFamily: FD, fontSize: 8, fontWeight: 800, lineHeight: 1,
+        color: done ? '#fff' : val > 0 ? color : 'var(--color-text-muted)',
+      }}>
+        {turno.short}
+      </span>
+    </div>
+  )
+}
+
+// ── SucursalRow ────────────────────────────────────────────────────────────
+function SucursalRow({ suc, onClick, index }) {
+  const pautaTotal  = suc.pauta.M + suc.pauta.T + suc.pauta.N + suc.pauta.ADM
+  const pautaTarget = TARGETS_PAUTA.M + TARGETS_PAUTA.T + TARGETS_PAUTA.N + TARGETS_PAUTA.ADM
+  const barColor    = statusColor(calcPct(pautaTotal, pautaTarget))
+  const camPct      = calcPct(suc.cam, TARGET_CAM)
+  const camColor    = statusColor(camPct)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.22 }}
+      onClick={onClick}
+      onMouseEnter={e => { e.currentTarget.style.background = `${C.orange}10` }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '4px 70px 1fr 52px 1fr 16px',
+        alignItems: 'center',
+        gap: '0 6px',
+        padding: '8px 14px',
+        borderBottom: '1px solid var(--color-border)',
+        cursor: 'pointer',
+        transition: 'background 0.1s',
+      }}
+    >
+      <div style={{ width: 4, height: 34, borderRadius: 2, background: barColor }} />
+
+      <div>
+        <div style={{ fontFamily: FB, fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {suc.name}
+        </div>
+        <div style={{ fontFamily: FD, fontSize: 8, color: 'var(--color-text-muted)', marginTop: 1 }}>
+          {suc.region}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        <div style={{ fontFamily: FD, fontSize: 7, fontWeight: 700, color: C.orange, letterSpacing: '0.06em' }}>PAUTA</div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {TURNOS.map(trn => <MiniTurnoDot key={trn.key} val={suc.pauta[trn.key]} target={TARGETS_PAUTA[trn.key]} turno={trn} size={15} />)}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        <div style={{ fontFamily: FD, fontSize: 7, fontWeight: 700, color: C.info, letterSpacing: '0.06em' }}>CAM</div>
+        <div style={{
+          width: 40, height: 22, borderRadius: 6,
+          background: suc.cam > 0 ? `${camColor}22` : 'var(--color-border)',
+          border: `1.5px solid ${suc.cam > 0 ? camColor : 'var(--color-border)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 800, color: camColor, lineHeight: 1 }}>
+            {suc.cam}<span style={{ fontSize: 8, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{TARGET_CAM}</span>
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        <div style={{ fontFamily: FD, fontSize: 7, fontWeight: 700, color: C.success, letterSpacing: '0.06em' }}>DIF</div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {TURNOS.map(trn => <MiniTurnoDot key={trn.key} val={suc.dif[trn.key]} target={TARGETS_DIF[trn.key]} turno={trn} size={15} />)}
+        </div>
+      </div>
+
+      <ChevronRight size={12} color="var(--color-text-muted)" />
+    </motion.div>
+  )
+}
+
+// ── KPITurnoCard ───────────────────────────────────────────────────────────
+function KPITurnoCard({ title, accent, turnos, icon: Icon }) {
+  const total  = turnos.reduce((a, x) => a + x.done, 0)
+  const target = turnos.reduce((a, x) => a + x.target, 0)
+  const p      = calcPct(total, target)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      style={{ padding: 14, marginBottom: 10, borderRadius: 'var(--radius-card)', background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon size={15} color={accent} />
+        </div>
+        <div style={{ fontFamily: FD, fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)', flex: 1 }}>{title}</div>
+        <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 800, color: statusColor(p) }}>
+          {total}<span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{target}</span>
+        </div>
+      </div>
+
+      {turnos.map((trn, i) => {
+        const tp = calcPct(trn.done, trn.target)
+        const tc = trn.target === 0 ? 'var(--color-border)' : statusColor(tp)
+        return (
+          <div key={trn.key} style={{ marginBottom: i < turnos.length - 1 ? 10 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{ width: 22, height: 22, borderRadius: 5, background: `${trn.color}22`, border: `1.5px solid ${trn.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontFamily: FD, fontSize: 9, fontWeight: 800, color: trn.color }}>{trn.short}</span>
+              </div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: 'var(--color-text-secondary)', flex: 1 }}>{trn.label}</div>
+              {trn.target === 0 ? (
+                <div style={{ fontFamily: FD, fontSize: 10, color: 'var(--color-text-muted)' }}>N/A</div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>{trn.done}</div>
+                  <div style={{ fontFamily: FD, fontSize: 10, color: 'var(--color-text-muted)' }}>/{trn.target}</div>
+                  <div style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, color: tc, minWidth: 26, textAlign: 'right' }}>{tp}%</div>
+                </div>
+              )}
+            </div>
+            {trn.target > 0 && (
+              <div style={{ marginLeft: 30 }}>
+                <ProgressBar pct={tp} color={tc} height={4} />
+                <div style={{ marginTop: 2, fontFamily: FD, fontSize: 9, fontWeight: 700, color: tp >= 80 ? C.success : tp >= 30 ? C.warning : C.danger }}>
+                  {tp >= 80 ? '✓ Completado' : tp >= 30 ? '⚡ En progreso' : '⚠ Pendiente'}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </motion.div>
+  )
+}
+
+// ── Vista "Todas las sucursales" ───────────────────────────────────────────
+function VistaTodas({ onSelectCD, isOnline }) {
+  const role       = useUserStore(s => s.role)
+  const [region, setRegion]       = useState('Todas')
+  const [dlTheme, setDlTheme]     = useState('dark')
+  const [downloading, setDownloading] = useState(false)
+  const globals    = getGlobals()
+  const week       = getWeekNumber()
+  const regiones   = ['Todas', 'Norte', 'RM', 'Centro', 'Sur']
+  const filtered   = region === 'Todas' ? SUCURSALES : SUCURSALES.filter(s => s.region === region)
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true)
+    try {
+      const canvas = await generateWhatsAppImage(dlTheme)
+      const link = document.createElement('a')
+      link.download = `MRC-Estatus-Semana${week}-${dlTheme}-${new Date().toISOString().slice(0, 10)}.png`
+      link.href = canvas.toDataURL('image/png')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (e) {
+      console.error('[MRC] Error generando imagen:', e)
+    }
+    setDownloading(false)
+  }, [dlTheme, week])
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
+
+      {/* Header */}
+      <div style={{ padding: '8px 14px 4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em', lineHeight: 1 }}>
+                Estatus diario
+              </div>
+              <div style={{ padding: '2px 8px', borderRadius: 6, background: `${C.orange}22`, fontFamily: FD, fontSize: 10, fontWeight: 700, color: C.orange }}>
+                SEM {week}
+              </div>
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>
+              {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingTop: 4 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: isOnline ? C.success : C.danger, boxShadow: `0 0 8px ${isOnline ? C.success : C.danger}` }} />
+            <span style={{ fontFamily: FD, fontSize: 9, color: 'var(--color-text-muted)' }}>SYNC</span>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI pills */}
+      <div style={{ padding: '6px 14px 8px', display: 'flex', gap: 6, flexShrink: 0 }}>
+        {[
+          { l: 'Pautas',    v: globals.pautaTotal, tgt: globals.pautaTarget, color: C.orange,  Icon: ClipboardList },
+          { l: 'Caminatas', v: globals.camTotal,   tgt: globals.camTarget,   color: C.info,    Icon: Eye },
+          { l: 'Difusiones',v: globals.difTotal,   tgt: globals.difTarget,   color: C.success, Icon: Megaphone },
+        ].map(k => {
+          const p = calcPct(k.v, k.tgt)
+          const c = statusColor(p)
+          return (
+            <div key={k.l} style={{ flex: 1, padding: '8px 8px 6px', borderRadius: 10, background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <k.Icon size={12} color={k.color} />
+                <div style={{ fontFamily: FD, fontSize: 8, color: k.color, fontWeight: 700, letterSpacing: '0.06em' }}>{k.l.toUpperCase()}</div>
+              </div>
+              <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 800, color: c, lineHeight: 1 }}>
+                {k.v}<span style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{k.tgt}</span>
+              </div>
+              <ProgressBar pct={p} color={c} height={3} />
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Leyenda turnos */}
+      <div style={{ padding: '0 14px 6px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+        <div style={{ fontFamily: FD, fontSize: 8, color: 'var(--color-text-muted)' }}>M=Mañana T=Tarde N=Noche A=Adm.</div>
+        {[{ c: C.success, l: 'OK' }, { c: C.warning, l: 'Parcial' }, { c: C.danger, l: 'Pendiente' }].map(x => (
+          <div key={x.l} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: x.c }} />
+            <span style={{ fontFamily: FD, fontSize: 8, color: 'var(--color-text-muted)' }}>{x.l}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros región */}
+      <div style={{ padding: '0 14px 6px', display: 'flex', gap: 4, overflowX: 'auto', flexShrink: 0 }}>
+        {regiones.map(r => {
+          const active = region === r
+          return (
+            <button key={r} onClick={() => setRegion(r)} style={{
+              height: 28, padding: '0 12px', borderRadius: 999,
+              border: `1px solid ${active ? C.orange : 'var(--color-border)'}`,
+              background: active ? C.orange : 'transparent',
+              color: active ? '#fff' : 'var(--color-text-secondary)',
+              fontFamily: FB, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              {r}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Header tabla */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '4px 70px 1fr 52px 1fr 16px',
+        alignItems: 'center', gap: '0 6px', padding: '4px 14px 5px',
+        background: 'var(--color-navy-light)',
+        borderBottom: '1px solid var(--color-border)',
+        borderTop: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
+        <div /><div style={{ fontFamily: FD, fontSize: 8, color: 'var(--color-text-muted)', fontWeight: 700 }}>SUCURSAL</div>
+        <div style={{ fontFamily: FD, fontSize: 8, color: C.orange,   fontWeight: 700, textAlign: 'center' }}>PAUTA</div>
+        <div style={{ fontFamily: FD, fontSize: 8, color: C.info,     fontWeight: 700, textAlign: 'center' }}>CAM</div>
+        <div style={{ fontFamily: FD, fontSize: 8, color: C.success,  fontWeight: 700, textAlign: 'center' }}>DIF</div>
+        <div />
+      </div>
+
+      {/* Lista */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {filtered.map((suc, i) => (
+          <SucursalRow key={suc.id} suc={suc} index={i} onClick={() => onSelectCD(suc.id)} />
+        ))}
+      </div>
+
+      {/* Descarga (solo admin) */}
+      {role === 'admin' && (
+        <div style={{ padding: '8px 14px 10px', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 6, padding: 3, background: 'var(--color-surface)', borderRadius: 8, border: '1px solid var(--color-border)' }}>
+            {[['dark', '🌙 Oscuro'], ['light', '☀️ Claro']].map(([v, l]) => (
+              <button key={v} onClick={() => setDlTheme(v)} style={{
+                flex: 1, padding: '6px', borderRadius: 6, border: 'none',
+                background: dlTheme === v ? C.orange : 'transparent',
+                color: dlTheme === v ? '#fff' : 'var(--color-text-secondary)',
+                fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s',
+              }}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleDownload} disabled={downloading} style={{
+            width: '100%', height: 40, borderRadius: 10, border: `1px solid ${C.orange}55`,
+            background: `${C.orange}15`, color: C.orange,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            fontFamily: FD, fontSize: 12, fontWeight: 800, letterSpacing: '0.08em',
+            cursor: downloading ? 'default' : 'pointer', opacity: downloading ? 0.6 : 1,
+          }}>
+            <Upload size={14} color={C.orange} />
+            {downloading ? 'GENERANDO…' : `DESCARGAR IMAGEN SEMANA ${week}`}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Vista "Por CD" ─────────────────────────────────────────────────────────
+function VistaCD({ cdId, onBack }) {
+  const [cdSel, setCdSel]         = useState(cdId || SUCURSALES[0].id)
+  const [showPicker, setShowPicker] = useState(false)
+  const suc = SUCURSALES.find(s => s.id === cdSel) || SUCURSALES[0]
+
+  const pautaTurnos = TURNOS.map(trn => ({ ...trn, done: suc.pauta[trn.key], target: TARGETS_PAUTA[trn.key] }))
+  const difTurnos   = TURNOS.map(trn => ({ ...trn, done: suc.dif[trn.key],   target: TARGETS_DIF[trn.key] }))
+  const overallPct  = calcPct(
+    pautaTurnos.reduce((a, x) => a + x.done, 0),
+    pautaTurnos.reduce((a, x) => a + x.target, 0),
+  )
+
+  const activity = [
+    { user: 'J. Pérez',    action: 'Pauta RO · Turno Mañana',  time: '09:14', color: TURNOS[0].color },
+    { user: 'M. González', action: 'Caminata de Seguridad',     time: '08:52', color: C.info },
+    { user: 'A. Torres',   action: 'Difusión SSO · Tarde',      time: '08:30', color: TURNOS[1].color },
+  ]
+
+  return (
+    <div
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}
+      onClick={() => showPicker && setShowPicker(false)}
+    >
+      {/* Header */}
+      <div style={{ padding: '6px 14px 8px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <button onClick={e => { e.stopPropagation(); onBack() }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+          <ChevronLeft size={20} color={C.orange} />
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: FD, fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: 'var(--color-text-muted)' }}>
+            CENTRO DE DISTRIBUCIÓN
+          </div>
+          <button onClick={e => { e.stopPropagation(); setShowPicker(v => !v) }} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, color: 'var(--color-text-primary)' }}>CD {suc.name}</div>
+            {showPicker
+              ? <ChevronUp size={16} color={C.orange} />
+              : <ChevronDown size={16} color={C.orange} />
+            }
+          </button>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 800, color: statusColor(overallPct), lineHeight: 1 }}>
+            {overallPct}%
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 9, color: 'var(--color-text-muted)' }}>PAUTAS</div>
+        </div>
+      </div>
+
+      {/* Picker dropdown */}
+      {showPicker && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute', top: 112, left: 14, right: 14, zIndex: 200,
+            background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+            borderRadius: 14, boxShadow: '0 16px 40px rgba(0,0,0,0.3)',
+            maxHeight: 240, overflowY: 'auto',
+          }}
+        >
+          {SUCURSALES.map((s, i) => {
+            const pTotal  = s.pauta.M + s.pauta.T + s.pauta.N + s.pauta.ADM
+            const pTarget = TARGETS_PAUTA.M + TARGETS_PAUTA.T + TARGETS_PAUTA.N + TARGETS_PAUTA.ADM
+            return (
+              <button
+                key={s.id}
+                onClick={() => { setCdSel(s.id); setShowPicker(false) }}
+                style={{
+                  width: '100%', textAlign: 'left', padding: '10px 14px',
+                  borderBottom: i < SUCURSALES.length - 1 ? '1px solid var(--color-border)' : 'none',
+                  background: s.id === cdSel ? `${C.orange}15` : 'transparent',
+                  border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                }}
+              >
+                <div style={{ width: 4, height: 22, borderRadius: 2, background: statusColor(calcPct(pTotal, pTarget)), flexShrink: 0 }} />
+                <div style={{ fontFamily: FB, fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>CD {s.name}</div>
+                <div style={{ fontFamily: FD, fontSize: 10, color: 'var(--color-text-muted)' }}>{s.region}</div>
+                {s.id === cdSel && <Check size={12} color={C.orange} strokeWidth={3} />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Contenido scrollable */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 14px 16px' }}>
+
+        {/* Mini turno summary */}
+        <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
+          {pautaTurnos.map(trn => {
+            const p = calcPct(trn.done, trn.target)
+            const c = statusColor(p)
+            return (
+              <motion.div
+                key={trn.key}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  flex: 1, padding: '7px 0', borderRadius: 9, textAlign: 'center',
+                  background: 'var(--color-navy-mid)',
+                  border: `1.5px solid ${p >= 80 ? c : 'var(--color-border)'}`,
+                }}
+              >
+                <div style={{ width: 22, height: 22, borderRadius: 5, background: `${trn.color}22`, border: `1.5px solid ${trn.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 3px' }}>
+                  <span style={{ fontFamily: FD, fontSize: 10, fontWeight: 800, color: trn.color }}>{trn.short}</span>
+                </div>
+                <div style={{ fontFamily: FD, fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>{trn.done}</div>
+                <div style={{ fontFamily: FD, fontSize: 8, color: 'var(--color-text-muted)' }}>/{trn.target}</div>
+                <div style={{ fontFamily: FD, fontSize: 9, fontWeight: 700, color: c, marginTop: 2 }}>
+                  {p >= 80 ? '✓' : p >= 30 ? '~' : '!'}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+
+        <KPITurnoCard title="Pautas de Verificación" accent={C.orange}   icon={ClipboardList} turnos={pautaTurnos} />
+
+        {/* Caminatas */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}
+          style={{ padding: 14, marginBottom: 10, borderRadius: 'var(--radius-card)', background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: `${C.info}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Eye size={15} color={C.info} />
+            </div>
+            <div style={{ fontFamily: FD, fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)', flex: 1 }}>Caminatas de Seguridad</div>
+            <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 800, color: statusColor(calcPct(suc.cam, TARGET_CAM)) }}>
+              {suc.cam}<span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>/{TARGET_CAM}</span>
+            </div>
+          </div>
+          <ProgressBar pct={calcPct(suc.cam, TARGET_CAM)} color={statusColor(calcPct(suc.cam, TARGET_CAM))} height={6} />
+          <div style={{ marginTop: 6, fontFamily: FB, fontSize: 11, color: 'var(--color-text-muted)' }}>
+            {suc.cam >= TARGET_CAM
+              ? 'Meta diaria alcanzada ✓'
+              : `Faltan ${TARGET_CAM - suc.cam} caminata${TARGET_CAM - suc.cam !== 1 ? 's' : ''} hoy`
+            }
+          </div>
+        </motion.div>
+
+        <KPITurnoCard title="Difusiones SSO" accent={C.success} icon={Megaphone}     turnos={difTurnos} />
+
+        {/* Actividad */}
+        <div style={{ fontFamily: FD, fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--color-text-muted)', marginTop: 4, marginBottom: 8 }}>
+          ACTIVIDAD DE HOY
+        </div>
+        {activity.map((a, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: i < activity.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${a.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Check size={12} color={a.color} strokeWidth={3} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: FB, fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)' }}>{a.action}</div>
+              <div style={{ fontFamily: FB, fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>{a.user}</div>
+            </div>
+            <div style={{ fontFamily: FD, fontSize: 10, color: 'var(--color-text-muted)' }}>{a.time}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Pantalla principal ─────────────────────────────────────────────────────
+export default function DailyStatusScreenV2() {
+  const { isOnline }  = useNetworkStatus()
+  const [view, setView] = useState('todas')
+  const [cdId, setCdId] = useState(null)
+
+  return (
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--color-navy)' }}>
+
+      {/* Tab bar */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50,
+        display: 'flex', borderTop: '1px solid var(--color-border)',
+        background: 'var(--color-navy)', paddingBottom: 'env(safe-area-inset-bottom, 4px)',
+      }}>
+        {[
+          { id: 'todas', label: 'Todas',  Icon: BarChart2 },
+          { id: 'cd',    label: 'Por CD', Icon: Building2 },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => {
+              if (tab.id === 'todas') setView('todas')
+              else { setCdId(v => v || SUCURSALES[0].id); setView('cd') }
+            }}
+            style={{ flex: 1, padding: '10px 0 6px', border: 'none', cursor: 'pointer', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
+          >
+            <tab.Icon size={20} color={view === tab.id ? C.orange : 'var(--color-text-muted)'} strokeWidth={view === tab.id ? 2.5 : 1.8} />
+            <div style={{ fontFamily: FD, fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', color: view === tab.id ? C.orange : 'var(--color-text-muted)' }}>
+              {tab.label.toUpperCase()}
+            </div>
+            {view === tab.id && <div style={{ width: 18, height: 2, borderRadius: 1, background: C.orange }} />}
+          </button>
+        ))}
+      </div>
+
+      {/* Contenido principal */}
+      <div style={{ flex: 1, overflow: 'hidden', paddingBottom: 60 }}>
+        <AnimatePresence mode="wait">
+          {view === 'todas' ? (
+            <motion.div
+              key="todas"
+              initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.2 }}
+              style={{ height: '100%' }}
+            >
+              <VistaTodas
+                isOnline={isOnline}
+                onSelectCD={id => { setCdId(id); setView('cd') }}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="cd"
+              initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.2 }}
+              style={{ height: '100%', position: 'relative' }}
+            >
+              <VistaCD
+                cdId={cdId}
+                onBack={() => setView('todas')}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}

@@ -5,6 +5,44 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.6] — 2026-04-23
+
+### Nueva pantalla — Estatus Diario v2 (`DailyStatusScreenV2`)
+
+Rediseño completo del dashboard de KPIs diarios para sucursales. Reemplaza `DailyStatusScreen` con dos vistas integradas y generador de imagen PNG para WhatsApp.
+
+**Vista "Todas las sucursales"**
+- Tabla compacta de las 26 sucursales con KPIs Pautas / Caminatas / Difusiones visibles simultáneamente.
+- Desglose por turno (M/T/N/A) mediante `MiniTurnoDot` (semáforo sólido/translúcido/vacío).
+- KPI pills globales con `ProgressBar` animado (Framer Motion, easeOut 0.6s).
+- Filtros de región scrollable: Todas / Norte / RM / Centro / Sur.
+- Dot SYNC online/offline vía `useNetworkStatus`.
+
+**Vista "Por CD"**
+- Picker dropdown de las 26 sucursales con barra de color semáforo y check de seleccionado.
+- Mini chips de turno (M/T/N/A) con estado ✓/~/!
+- `KPITurnoCard` con desglose por turno + ProgressBar + etiqueta de estado por turno.
+- Card de Caminatas con progreso diario.
+- Feed de actividad del día.
+
+**Descarga PNG (solo admin)**
+- Generador Canvas 1080px con tabla completa de sucursales × 3 KPIs × 4 turnos.
+- Toggle tema oscuro/claro para la imagen exportada.
+- Botón visible únicamente para `role === 'admin'` (`useUserStore`).
+
+**Infraestructura**
+- Tokens CSS de turno agregados a `index.css` (`--turno-manana/tarde/noche/adm`).
+- Animaciones de entrada en filas (`opacity+x`) y cards KPI (`opacity+y`) con Framer Motion.
+- Transición entre vistas con `AnimatePresence` fade+slide.
+- `safe-area-inset-bottom` en tab bar para soporte de notch.
+- 83/83 tests centinela pasan sin cambios.
+
+**TODOs pendientes (ver README handoff)**
+- Conectar `branchTargets.js` para metas por FA por sucursal.
+- Extender `useKPIs` para obtener conteos reales por turno desde SharePoint.
+
+---
+
 ## [1.9.5] — 2026-04-23
 
 ### Fix crítico — Sincronización de rol admin y propagación de formularios
