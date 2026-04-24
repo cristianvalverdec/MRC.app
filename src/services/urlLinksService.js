@@ -53,6 +53,7 @@ const ENV_VALUES = {
   VITE_SP_SEMANA_ADM:   import.meta.env.VITE_SP_SEMANA_ADM,
   VITE_SP_SEMANA_DIST:  import.meta.env.VITE_SP_SEMANA_DIST,
   VITE_SP_BIBLIOTECA_URL: import.meta.env.VITE_SP_BIBLIOTECA_URL,
+  VITE_PA_ACCESS_REQUEST_URL: import.meta.env.VITE_PA_ACCESS_REQUEST_URL,
 }
 
 function readStore() {
