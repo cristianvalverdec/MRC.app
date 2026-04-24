@@ -7,7 +7,7 @@ import {
 import useUserStore from '../store/userStore'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useKPIsAllBranches } from '../hooks/useKPIs'
-import useGoalsStore, { getTramo, DEFAULT_ACTIVITY_TARGETS } from '../store/goalsStore'
+import useGoalsStore, { getTramo, DEFAULT_ACTIVITY_TARGETS, TRAMO_META } from '../store/goalsStore'
 
 // ── Fuentes ────────────────────────────────────────────────────────────────
 const FD = "'Barlow Condensed', sans-serif"
@@ -53,6 +53,14 @@ function getCaminataTarget(branchName) {
   const tramo = getTramo(fa)
   const t = activityTargets[tramo] || DEFAULT_ACTIVITY_TARGETS[tramo]
   return t.caminatas
+}
+
+// Color de riesgo (FA) de una sucursal — bajo=verde, medio=amarillo, alto=rojo
+function getBranchRiskColor(branchName) {
+  const { getFAForBranch } = useGoalsStore.getState()
+  const { fa } = getFAForBranch(branchName)
+  if (!fa || fa <= 0) return '#9AA5B8'           // sin dato → gris neutro
+  return TRAMO_META[getTramo(fa)].color
 }
 
 // ── Sucursales (definición estática — valores vienen del hook) ────────────
@@ -157,18 +165,22 @@ function canvasRR(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 function drawCell(ctx, x, y, w, h, val, key, color, isDark) {
-  ctx.fillStyle = val > 0 ? color + '33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
+  const has = val > 0
+  ctx.fillStyle = has ? color + '33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
   canvasRR(ctx, x, y, w, h, 5); ctx.fill()
-  ctx.strokeStyle = val > 0 ? color : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)')
+  ctx.strokeStyle = has ? color : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)')
   ctx.lineWidth = 1.5
   canvasRR(ctx, x, y, w, h, 5); ctx.stroke()
-  ctx.fillStyle = val > 0 ? color : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
-  ctx.font = "800 16px 'Barlow Condensed', sans-serif"
+
+  const label = key === 'ADM' ? 'A' : key
   ctx.textAlign = 'center'
-  ctx.fillText('' + val, x + w / 2, y + h / 2 + 1)
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = has ? color : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
+  ctx.font = "800 17px 'Barlow Condensed', sans-serif"
+  ctx.fillText('' + val, x + w / 2, y + h / 2 + 4)
   ctx.fillStyle = isDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.32)'
-  ctx.font = "500 11px 'Barlow', sans-serif"
-  ctx.fillText(key, x + w / 2, y + h - 4)
+  ctx.font = "500 10px 'Barlow', sans-serif"
+  ctx.fillText(label, x + w / 2, y + h - 5)
   ctx.textAlign = 'left'
 }
 
@@ -193,26 +205,32 @@ async function generateWhatsAppImage(dlTheme, branchData) {
   const W         = 1080
   const PAD       = 44
   const HEADER_H  = 260
-  const HDR_ROW_H = 46     // altura fila encabezado tabla
-  const ROW_H     = 52     // altura filas de datos
-  const FOOTER_H  = 114
+  const HDR_ROW_H = 44     // altura fila encabezado tabla
+  const ROW_H     = 50     // altura filas de datos
+  const FOOTER_H  = 140
   const TW        = W - PAD * 2
 
-  const SGAP     = 16
-  const COL_BAR  = 5
-  const COL_NAME = 152
-  const COL_CAM  = 92
-  const CELL     = Math.floor((TW - COL_BAR - COL_NAME - COL_CAM - 4 * SGAP) / 8)
+  const SGAP     = 14
+  const COL_BAR  = 6
+  const COL_NAME = 156
+  const COL_CAM  = 88
   const PGAP     = 4
+  // 8 celdas (4 pautas + 4 difusiones) + 6 PGAPs internos deben caber en el
+  // espacio restante tras nombre, bar, cam y 4 SGAPs entre bloques.
+  const CELL     = Math.floor((TW - COL_BAR - COL_NAME - COL_CAM - 4 * SGAP - 6 * PGAP) / 8)
   const BLOCK    = CELL * 4 + PGAP * 3
 
-  const xBar   = PAD
+  // Recentramos la tabla: puede quedar residuo por redondeo, lo distribuimos
+  const used     = COL_BAR + COL_NAME + COL_CAM + 2 * BLOCK + 4 * SGAP
+  const xOffset  = PAD + Math.floor((TW - used) / 2)
+
+  const xBar   = xOffset
   const xName  = xBar  + COL_BAR  + SGAP
   const xPauta = xName + COL_NAME + SGAP
   const xCam   = xPauta + BLOCK   + SGAP
   const xDif   = xCam  + COL_CAM  + SGAP
 
-  const tblY = HEADER_H + 12
+  const tblY = HEADER_H + 14
   const H    = tblY + HDR_ROW_H + SUCURSALES.length * ROW_H + FOOTER_H
 
   const canvas = document.createElement('canvas')
@@ -229,39 +247,45 @@ async function generateWhatsAppImage(dlTheme, branchData) {
 
   // Logo Agrosuper — esquina superior DERECHA
   if (logoAg) {
-    const lh = 44
+    const lh = 46
     const lw = Math.round(logoAg.width * (lh / logoAg.height))
-    ctx.drawImage(logoAg, W - PAD - lw, 20, lw, lh)
+    ctx.drawImage(logoAg, W - PAD - lw, 26, lw, lh)
   }
 
   // Título
   ctx.fillStyle = '#ffffff'
   ctx.font = "800 46px 'Barlow Condensed', 'Helvetica Neue', sans-serif"
-  ctx.fillText('ESTATUS DIARIO · SUCURSALES', PAD, 96)
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillText('ESTATUS DIARIO · SUCURSALES', PAD, 92)
 
   // Fecha
-  ctx.fillStyle = 'rgba(255,255,255,0.65)'
-  ctx.font = "500 20px 'Barlow', 'Helvetica Neue', sans-serif"
+  ctx.fillStyle = 'rgba(255,255,255,0.62)'
+  ctx.font = "500 18px 'Barlow', 'Helvetica Neue', sans-serif"
   const now     = new Date()
   const dateStr = now.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
-  ctx.fillText(dateStr + '  ·  SEMANA ' + getWeekNumber(), PAD, 122)
+  ctx.fillText(dateStr + '  ·  SEMANA ' + getWeekNumber(), PAD, 118)
 
-  // KPI globales (3 columnas) — texto bien por encima de la franja naranja
+  // KPI globales (3 columnas) — distribuidos uniformemente dentro del header
   const g = getGlobals(branchData)
   const kpis = [
     { l: 'PAUTAS VERIFICACIÓN', v: g.pDone,   tgt: g.pTarget,   color: '#F57C20' },
     { l: 'CAMINATAS',           v: g.camDone,  tgt: g.camTarget, color: '#4FB6FF' },
     { l: 'DIFUSIONES SSO',      v: g.dDone,    tgt: g.dTarget,   color: '#2FD17A' },
   ]
+  const KPI_Y_NUM   = 182
+  const KPI_Y_LABEL = 210
+  const kpiColW     = Math.floor((W - PAD * 2) / kpis.length)
   kpis.forEach((k, i) => {
-    const x = PAD + i * 330
+    const x = PAD + i * kpiColW
     const p = k.tgt > 0 ? Math.min(120, Math.round((k.v / k.tgt) * 100)) : 0
     ctx.fillStyle = k.color
-    ctx.font = "800 38px 'Barlow Condensed', sans-serif"
-    ctx.fillText(k.v + ' / ' + k.tgt, x, 176)
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.font = "500 16px 'Barlow', sans-serif"
-    ctx.fillText(k.l + '  ·  ' + p + '%', x, 196)
+    ctx.font = "800 40px 'Barlow Condensed', sans-serif"
+    ctx.textAlign = 'left'
+    ctx.fillText(k.v + ' / ' + k.tgt, x, KPI_Y_NUM)
+    ctx.fillStyle = 'rgba(255,255,255,0.62)'
+    ctx.font = "600 13px 'Barlow', sans-serif"
+    ctx.letterSpacing = '0.08em'
+    ctx.fillText(k.l + '  ·  ' + p + '%', x, KPI_Y_LABEL)
   })
 
   // Franja naranja — separador header / tabla
@@ -269,16 +293,18 @@ async function generateWhatsAppImage(dlTheme, branchData) {
   ctx.fillRect(0, HEADER_H - 6, W, 6)
 
   // ── Encabezado tabla ──────────────────────────────────────────────────────
-  ctx.fillStyle = '#243357'
-  canvasRR(ctx, PAD, tblY, TW, HDR_ROW_H, 8); ctx.fill()
+  const tblX = xBar
+  const tblW = (xDif + BLOCK) - xBar
+  ctx.fillStyle = isDark ? '#243357' : '#1B2A4A'
+  canvasRR(ctx, tblX, tblY, tblW, HDR_ROW_H, 8); ctx.fill()
 
-  const hdrY = tblY + HDR_ROW_H / 2 + 8  // baseline centrada verticalmente
-  ctx.font = "700 18px 'Barlow Condensed', sans-serif";
+  const hdrY = tblY + HDR_ROW_H / 2 + 6  // baseline centrada verticalmente
+  ctx.font = "700 15px 'Barlow Condensed', sans-serif";
   [
-    { text: 'SUCURSAL',                  cx: xName,              align: 'left',   color: 'rgba(255,255,255,0.7)' },
-    { text: 'PAUTAS  M · T · N · A',    cx: xPauta + BLOCK / 2, align: 'center', color: '#F57C20' },
-    { text: 'CAMINATAS',                 cx: xCam + COL_CAM / 2, align: 'center', color: '#4FB6FF' },
-    { text: 'DIFUSIONES M · T · N · A', cx: xDif + BLOCK / 2,   align: 'center', color: '#2FD17A' },
+    { text: 'SUCURSAL',                   cx: xName,              align: 'left',   color: 'rgba(255,255,255,0.75)' },
+    { text: 'PAUTAS   M · T · N · A',     cx: xPauta + BLOCK / 2, align: 'center', color: '#F9A25A' },
+    { text: 'CAMINATAS',                  cx: xCam + COL_CAM / 2, align: 'center', color: '#6FC4FF' },
+    { text: 'DIFUSIONES   M · T · N · A', cx: xDif + BLOCK / 2,   align: 'center', color: '#5FDDA0' },
   ].forEach(h => {
     ctx.fillStyle = h.color
     ctx.textAlign = h.align
@@ -295,18 +321,20 @@ async function generateWhatsAppImage(dlTheme, branchData) {
 
     if (i % 2 === 0) {
       ctx.fillStyle = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(27,42,74,0.04)'
-      ctx.fillRect(PAD, y, TW, ROW_H)
+      ctx.fillRect(tblX, y, tblW, ROW_H)
     }
 
-    const pTotal  = (kv.pautas?.M||0)+(kv.pautas?.T||0)+(kv.pautas?.N||0)+(kv.pautas?.ADM||0)
-    const pTarget = pt.M + pt.T + pt.N + pt.ADM
-    ctx.fillStyle = statusC(pTotal, pTarget)
-    ctx.fillRect(xBar, y + 9, COL_BAR, ROW_H - 18)
+    // Barra izquierda → color del Factor de Accidentabilidad de la sucursal
+    const riskColor = getBranchRiskColor(suc.name)
+    ctx.fillStyle = riskColor
+    canvasRR(ctx, xBar, y + 8, COL_BAR, ROW_H - 16, 3); ctx.fill()
 
     ctx.fillStyle = isDark ? '#ffffff' : '#0F1830'
-    ctx.font = "600 19px 'Barlow', sans-serif"
+    ctx.font = "600 18px 'Barlow', sans-serif"
     ctx.textAlign = 'left'
-    ctx.fillText(suc.name, xName, y + ROW_H / 2 + 7);
+    ctx.textBaseline = 'middle'
+    ctx.fillText(suc.name, xName, y + ROW_H / 2)
+    ctx.textBaseline = 'alphabetic';
 
     ['M','T','N','ADM'].forEach((key, j) => {
       const val = kv.pautas?.[key] || 0
@@ -314,15 +342,18 @@ async function generateWhatsAppImage(dlTheme, branchData) {
     })
 
     const camC = statusC(kv.cam||0, tCam)
-    ctx.fillStyle = (kv.cam||0) > 0 ? camC+'33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
-    canvasRR(ctx, xCam+4, y+7, COL_CAM-8, ROW_H-14, 6); ctx.fill()
-    ctx.strokeStyle = (kv.cam||0) > 0 ? camC : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)')
+    const camHasVal = (kv.cam||0) > 0
+    ctx.fillStyle = camHasVal ? camC+'33' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
+    canvasRR(ctx, xCam+4, y+6, COL_CAM-8, ROW_H-12, 6); ctx.fill()
+    ctx.strokeStyle = camHasVal ? camC : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)')
     ctx.lineWidth = 1.5
-    canvasRR(ctx, xCam+4, y+7, COL_CAM-8, ROW_H-14, 6); ctx.stroke()
-    ctx.fillStyle = (kv.cam||0) > 0 ? camC : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
+    canvasRR(ctx, xCam+4, y+6, COL_CAM-8, ROW_H-12, 6); ctx.stroke()
+    ctx.fillStyle = camHasVal ? camC : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)')
     ctx.font = "800 17px 'Barlow Condensed', sans-serif"
     ctx.textAlign = 'center'
-    ctx.fillText((kv.cam||0) + '/' + tCam, xCam + COL_CAM/2, y + ROW_H/2 + 6)
+    ctx.textBaseline = 'middle'
+    ctx.fillText((kv.cam||0) + '/' + tCam, xCam + COL_CAM/2, y + ROW_H/2)
+    ctx.textBaseline = 'alphabetic'
     ctx.textAlign = 'left';
 
     ['M','T','N','ADM'].forEach((key, j) => {
@@ -332,30 +363,48 @@ async function generateWhatsAppImage(dlTheme, branchData) {
 
     ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
     ctx.lineWidth = 1
-    ctx.beginPath(); ctx.moveTo(PAD, y+ROW_H); ctx.lineTo(PAD+TW, y+ROW_H); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(tblX, y+ROW_H); ctx.lineTo(tblX+tblW, y+ROW_H); ctx.stroke()
   })
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  const footerY = tblY + HDR_ROW_H + SUCURSALES.length * ROW_H + 12
-  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'
-  ctx.font = "500 15px 'Barlow', sans-serif"
+  const footerY = tblY + HDR_ROW_H + SUCURSALES.length * ROW_H + 16
+
+  // Separador sutil entre tabla y footer
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(PAD, footerY); ctx.lineTo(W - PAD, footerY); ctx.stroke()
+
+  // Leyenda de estado + créditos
   ctx.textAlign = 'left'
-  ctx.fillText('MRC App · Agrosuper Comercial SST · ' + now.toLocaleString('es-CL'), PAD, footerY + 16)
+  ctx.textBaseline = 'alphabetic'
+  const legendY = footerY + 32
   ;[['#2FD17A','≥ 80% OK'],['#F5B000','30–79% Parcial'],['#FF5A5A','< 30% Pendiente']].forEach(([c,l],i) => {
+    const lx = PAD + i*200
     ctx.fillStyle = c
-    canvasRR(ctx, PAD + i*210, footerY+28, 12, 12, 3); ctx.fill()
-    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
-    ctx.font = "500 15px 'Barlow', sans-serif"
-    ctx.fillText(l, PAD + i*210 + 18, footerY+40)
+    canvasRR(ctx, lx, legendY - 10, 12, 12, 3); ctx.fill()
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)'
+    ctx.font = "500 14px 'Barlow', sans-serif"
+    ctx.fillText(l, lx + 18, legendY)
   })
 
-  // Logo MRC — esquina inferior derecha, grande con screen blend
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.38)'
+  ctx.font = "500 13px 'Barlow', sans-serif"
+  ctx.fillText('MRC App · Agrosuper Comercial SST · ' + now.toLocaleString('es-CL'), PAD, legendY + 26)
+
+  // Logo MRC — esquina inferior derecha. Sin screen blend: se preservan colores.
+  // En tema claro el logo tiene blanco de fondo, lo mostramos con ligera sombra suave.
   if (logoMrc) {
-    const lh = 120
+    const lh = 84
     const lw = Math.round(logoMrc.width * (lh / logoMrc.height))
     const lx = W - PAD - lw
-    const ly = footerY
-    ctx.save(); ctx.globalCompositeOperation = 'screen'
+    const ly = footerY + 16
+    ctx.save()
+    if (isDark) {
+      // En oscuro: aplicamos un sutil "lighten" para integrar bordes blancos del PNG
+      ctx.globalAlpha = 0.95
+    } else {
+      ctx.globalAlpha = 1.0
+    }
     ctx.drawImage(logoMrc, lx, ly, lw, lh)
     ctx.restore()
   }
