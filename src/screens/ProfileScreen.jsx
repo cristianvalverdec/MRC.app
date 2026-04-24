@@ -11,6 +11,7 @@ import { msalInstance } from '../config/msalInstance'
 import { IS_DEV_MODE } from '../services/sharepointData'
 import { getAdmins, addAdmin, removeAdmin, isAdmin, refreshAdmins, SUPER_ADMIN } from '../services/adminService'
 import useFormEditorStore from '../store/formEditorStore'
+import AccessRequestCTA from '../components/ui/AccessRequestCTA'
 
 const ROLE_META = {
   admin: { label: 'Administrador', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
@@ -381,9 +382,16 @@ function RefreshRoleCard({ currentEmail }) {
         </div>
       )}
       {hasPullError && (
-        <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#EB5757', lineHeight: 1.4 }}>
-          <strong>No se pudo descargar la configuración:</strong> {lastPullError}
-        </div>
+        <>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#EB5757', lineHeight: 1.4 }}>
+            <strong>No se pudo descargar la configuración:</strong> {lastPullError}
+          </div>
+          {(lastPullError?.includes('403') || lastPullError?.includes('permiso') || lastPullError?.includes('401')) && (
+            <div style={{ marginTop: 10 }}>
+              <AccessRequestCTA compact />
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   )
@@ -571,6 +579,13 @@ function AdminLinks() {
       icon:     Bell,
       color:    '#7B3FE4',
       ruta:     '/admin/notificaciones',
+      badge:    0,
+    },
+    {
+      label:    'Permisos SharePoint',
+      icon:     UserPlus,
+      color:    '#2FD17A',
+      ruta:     '/admin/permisos-sharepoint',
       badge:    0,
     },
   ]

@@ -21,6 +21,8 @@ export const ROUTES = {
   ADMIN_NOTIFICACIONES: '/admin/notificaciones',
   // Admin — panel de validación de documentos y registros
   ADMIN_VALIDACIONES: '/admin/validaciones',
+  // Admin — gestión de permisos SharePoint (seed desde líderes)
+  ADMIN_PERMISOS_SP: '/admin/permisos-sharepoint',
   // Usuario — historial de documentos enviados con estado de validación
   MIS_DOCUMENTOS: '/unit/:unitType/mis-documentos',
 }

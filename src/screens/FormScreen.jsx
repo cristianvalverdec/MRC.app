@@ -64,6 +64,11 @@ function QuestionRenderer({ question, value, onChange, hasError }) {
 
 // ── Success Screen (shared) ───────────────────────────────────────────────
 function SuccessScreen({ formTitle, onNewRecord, onGoMenu }) {
+  const syncStatus      = useFormStore((s) => s.syncStatus)
+  const lastSubmitError = useFormStore((s) => s.lastSubmitError)
+  const clearSubmitError = useFormStore((s) => s.clearSubmitError)
+  const permissionDenied = syncStatus === 'permission_denied' || lastSubmitError?.code === 'PERMISSION_DENIED'
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -102,17 +107,43 @@ function SuccessScreen({ formTitle, onNewRecord, onGoMenu }) {
           color: 'var(--color-text-secondary)', marginTop: 8,
           maxWidth: 280, lineHeight: 1.5,
         }}>
-          {formTitle} guardado correctamente.
+          {permissionDenied
+            ? 'Guardado localmente. No pudo subirse a SharePoint — sin permiso.'
+            : `${formTitle} guardado correctamente.`}
         </div>
       </motion.div>
+
+      {/* Aviso de permiso denegado */}
+      {permissionDenied && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          style={{
+            width: '100%', maxWidth: 360, marginTop: 20,
+            background: 'rgba(245,124,32,0.1)',
+            border: '1px solid rgba(245,124,32,0.35)',
+            borderRadius: 12, padding: '12px 14px',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#F57C20', marginBottom: 4, fontFamily: "'Barlow Condensed', sans-serif" }}>
+            🔒 Sin permiso en SharePoint
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>
+            El registro quedó en cola local. Para que se sincronice, un admin debe darte acceso al sitio.
+            Ve a <strong style={{ color: '#F57C20' }}>Mi Perfil → Solicitar acceso</strong> para pedirlo desde la app.
+          </div>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
-        style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 360, marginTop: 48 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 360, marginTop: permissionDenied ? 16 : 48 }}
       >
-        <motion.button whileTap={{ scale: 0.97 }} onClick={onNewRecord}
+        <motion.button whileTap={{ scale: 0.97 }} onClick={() => { clearSubmitError(); onNewRecord() }}
           style={{
             width: '100%', height: 52, background: 'var(--color-blue-btn)',
             color: '#fff', border: 'none', borderRadius: 'var(--radius-btn)',
@@ -122,7 +153,7 @@ function SuccessScreen({ formTitle, onNewRecord, onGoMenu }) {
         >
           Nuevo registro
         </motion.button>
-        <motion.button whileTap={{ scale: 0.97 }} onClick={onGoMenu}
+        <motion.button whileTap={{ scale: 0.97 }} onClick={() => { clearSubmitError(); onGoMenu() }}
           style={{
             width: '100%', height: 52, background: 'transparent',
             color: 'var(--color-text-secondary)',

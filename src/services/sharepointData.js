@@ -433,6 +433,12 @@ export async function submitFormToSharePoint(submission) {
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
     console.error('[MRC] SharePoint error', res.status, errText)
+    if (res.status === 403 || res.status === 401) {
+      const err = new Error(`Sin permiso para enviar el formulario al sitio SharePoint (${res.status}). Solicita acceso al admin MRC.`)
+      err.code = 'PERMISSION_DENIED'
+      err.status = res.status
+      throw err
+    }
     throw new Error(`SharePoint POST falló: ${res.status} — ${errText}`)
   }
 
@@ -481,10 +487,10 @@ export async function fetchTodayKPIs(unitType, filters = {}) {
   ]
 
   const listsToQuery = unitType === 'fuerza-de-ventas' ? LISTS_FDV : LISTS_SUC
-  const results = {}
-
-  const todayMs  = new Date(today).getTime()
-  const headers  = { Authorization: `Bearer ${token}` }
+  const results    = {}
+  const todayMs    = new Date(today).getTime()
+  const headers    = { Authorization: `Bearer ${token}` }
+  let   deniedCount = 0
 
   await Promise.allSettled(
     listsToQuery.map(async ({ key, listId, branchField }) => {
@@ -495,10 +501,24 @@ export async function fetchTodayKPIs(unitType, filters = {}) {
         let res = await fetch(url, { headers })
         // Fallback sin $orderby si la lista lo rechaza (ej. Pautas)
         if (!res.ok) {
+          if (res.status === 403 || res.status === 401) {
+            deniedCount++
+            console.warn(`[MRC Data] KPI ${key}: acceso denegado (${res.status})`)
+            results[key] = 0
+            return
+          }
           const fallback = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${branchField})&$top=1000`
           res = await fetch(fallback, { headers })
         }
-        if (!res.ok) throw new Error(`SP GET ${res.status}`)
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 401) {
+            deniedCount++
+            console.warn(`[MRC Data] KPI ${key}: acceso denegado (${res.status})`)
+            results[key] = 0
+            return
+          }
+          throw new Error(`SP GET ${res.status}`)
+        }
         const json = await res.json()
         const raw  = json.value || []
 
@@ -516,6 +536,11 @@ export async function fetchTodayKPIs(unitType, filters = {}) {
       }
     })
   )
+
+  // Si todas las listas fallaron por permisos → señalizar accessDenied
+  if (deniedCount > 0 && deniedCount >= listsToQuery.length) {
+    return { accessDenied: true, ...results }
+  }
 
   return results
 }
@@ -553,15 +578,19 @@ export async function fetchRecentActivity(unitType, filters = {}) {
   ]
 
   const listsToQuery = unitType === 'fuerza-de-ventas' ? LISTS_FDV : LISTS_SUC
-  const allItems = []
-  const todayMs  = new Date(today).getTime()
+  const allItems  = []
+  const todayMs   = new Date(today).getTime()
+  let   deniedCount = 0
 
   await Promise.allSettled(
     listsToQuery.map(async ({ key, listId, branchField, userField }) => {
       try {
         const url  = `${siteUrl}/lists/${listId}/items?$expand=fields($select=${userField},${branchField})&$orderby=lastModifiedDateTime desc&$top=50`
         const res  = await fetch(url, { headers })
-        if (!res.ok) return
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 401) deniedCount++
+          return
+        }
         const json = await res.json()
         ;(json.value || [])
           .filter(item => {
@@ -587,6 +616,11 @@ export async function fetchRecentActivity(unitType, filters = {}) {
       } catch { /* ignorar errores por lista */ }
     })
   )
+
+  // Si todas las listas fallaron por permisos → señalizar accessDenied
+  if (deniedCount > 0 && deniedCount >= listsToQuery.length) {
+    return { accessDenied: true, items: [] }
+  }
 
   // Ordenar por más reciente y devolver top 10
   return allItems
@@ -815,12 +849,21 @@ export async function fetchTodayKPIsAllBranches() {
   const TURNO_KEY = { 'Mañana':'M', 'Tarde':'T', 'Noche':'N', 'Administración':'ADM' }
   const DIF_SHIFTS = ['M','T','N','ADM']
 
+  let deniedCount = 0
+  const TOTAL_LISTS = 3
+
   const fetchList = async (listId, fields, cb) => {
     try {
       const sel = fields.join(',')
       let res = await fetch(`${siteUrl}/lists/${listId}/items?$expand=fields($select=${sel})&$orderby=lastModifiedDateTime desc&$top=500`, { headers })
-      if (!res.ok) res = await fetch(`${siteUrl}/lists/${listId}/items?$expand=fields($select=${sel})&$top=1000`, { headers })
-      if (!res.ok) return
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) { deniedCount++; return }
+        res = await fetch(`${siteUrl}/lists/${listId}/items?$expand=fields($select=${sel})&$top=1000`, { headers })
+      }
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) { deniedCount++; return }
+        return
+      }
       const { value = [] } = await res.json()
       value.forEach(item => {
         if (new Date(item.createdDateTime).getTime() < weekStartMs) return
@@ -847,6 +890,8 @@ export async function fetchTodayKPIsAllBranches() {
       }
     }),
   ])
+
+  if (deniedCount >= TOTAL_LISTS) return { accessDenied: true }
 
   return result
 }

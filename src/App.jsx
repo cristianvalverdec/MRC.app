@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, Component } from 'react'
+import { lazy, Suspense, useEffect, useState, useRef, Component } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { useMsal, useIsAuthenticated } from '@azure/msal-react'
@@ -42,6 +42,7 @@ const NotificationsScreen          = lazy(() => import('./screens/NotificationsS
 const NotificacionesAdminScreen    = lazy(() => import('./screens/NotificacionesAdminScreen'))
 const ValidacionAdminScreen        = lazy(() => import('./screens/ValidacionAdminScreen'))
 const MisDocumentosScreen          = lazy(() => import('./screens/MisDocumentosScreen'))
+const PermisosSharePointScreen     = lazy(() => import('./screens/PermisosSharePointScreen'))
 
 // ── Error Boundary — evita blank screen total ante cualquier error de render ──
 class ErrorBoundary extends Component {
@@ -134,6 +135,7 @@ function AnimatedRoutes() {
         <Route path="/admin/sharepoint-connections" element={<SharePointConnectionsScreen />} />
         <Route path="/admin/notificaciones"         element={<NotificacionesAdminScreen />} />
         <Route path="/admin/validaciones"           element={<ValidacionAdminScreen />} />
+        <Route path="/admin/permisos-sharepoint"    element={<PermisosSharePointScreen />} />
         {/* Buzón de notificaciones del usuario */}
         <Route path="/notifications"               element={<NotificationsScreen />} />
         {/* Historial de documentos enviados por el usuario */}
@@ -249,13 +251,66 @@ function ResumeHandler() {
 // lastPullError. useBootstrap ya dispara el pull inicial tras auth — este
 // efecto asegura un segundo intento si el primero corrió antes de auth (p. ej.
 // HMR o navegación compleja).
+// Además muestra un toast cuando el pull falla con 403 (sin acceso al sitio SP).
 function PullOnAuth() {
   const isAuthenticated = useUserStore((s) => s.isAuthenticated)
+  const pullStatus      = useFormEditorStore((s) => s.pullStatus)
+  const lastPullError   = useFormEditorStore((s) => s.lastPullError)
+  const [toastVisible, setToastVisible] = useState(false)
+  // Ref para comparar pullStatus anterior sin setState en effect
+  const prevStatusRef = useRef(null)
+
   useEffect(() => {
     if (!isAuthenticated) return
     useFormEditorStore.getState().pullFromCloud()
   }, [isAuthenticated])
-  return null
+
+  // Mostrar toast cuando pullStatus transiciona a 'error'.
+  // Usamos ref para el valor anterior y setTimeout para evitar setState síncrono.
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = pullStatus
+
+    if (pullStatus === 'error' && prev !== 'error' && lastPullError) {
+      const t1 = setTimeout(() => setToastVisible(true),  0)
+      const t2 = setTimeout(() => setToastVisible(false), 8000)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }
+  }, [pullStatus, lastPullError])
+
+  if (!toastVisible || !lastPullError) return null
+
+  const isPermissionError = lastPullError.toLowerCase().includes('permiso') || lastPullError.includes('403') || lastPullError.includes('401')
+
+  return (
+    <div style={{
+      position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 9999, width: 'calc(100% - 32px)', maxWidth: 420,
+      background: isPermissionError ? 'rgba(245,124,32,0.12)' : 'rgba(239,68,68,0.12)',
+      border: `1px solid ${isPermissionError ? 'rgba(245,124,32,0.4)' : 'rgba(239,68,68,0.4)'}`,
+      borderRadius: 12, padding: '12px 14px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+    }}>
+      <span style={{ fontSize: 16, flexShrink: 0 }}>{isPermissionError ? '🔒' : '⚠️'}</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: isPermissionError ? '#F57C20' : '#F87171', marginBottom: 3, fontFamily: "'Barlow Condensed', sans-serif" }}>
+          {isPermissionError ? 'Sin acceso a SharePoint' : 'Error al sincronizar formularios'}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+          {isPermissionError
+            ? 'Tu cuenta no tiene permiso en el sitio MRC. Ve a Mi Perfil → Solicitar acceso.'
+            : lastPullError.slice(0, 100)}
+        </div>
+      </div>
+      <button
+        onClick={() => setToastVisible(false)}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, flexShrink: 0 }}
+      >
+        ✕
+      </button>
+    </div>
+  )
 }
 
 export default function App() {

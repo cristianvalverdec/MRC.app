@@ -8,6 +8,7 @@ import useUserStore from '../store/userStore'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useKPIsAllBranches } from '../hooks/useKPIs'
 import useGoalsStore, { getTramo, DEFAULT_ACTIVITY_TARGETS, TRAMO_META } from '../store/goalsStore'
+import AccessRequestCTA from '../components/ui/AccessRequestCTA'
 
 // ── Fuentes ────────────────────────────────────────────────────────────────
 const FD = "'Barlow Condensed', sans-serif"
@@ -897,13 +898,24 @@ function VistaCD({ cdId, onBack, branchData }) {
 
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function DailyStatusScreenV2() {
-  const { isOnline }          = useNetworkStatus()
-  const { data, loading }     = useKPIsAllBranches()
-  const [view, setView]       = useState('todas')
-  const [cdId, setCdId]       = useState(null)
+  const { isOnline }                     = useNetworkStatus()
+  const { data, loading, accessDenied }  = useKPIsAllBranches()
+  const [view, setView]                  = useState('todas')
+  const [cdId, setCdId]                  = useState(null)
 
   // Normalizar keys del hook → nombre canónico de SUCURSALES
   const branchData = data
+
+  // ── Sin acceso al sitio SharePoint ────────────────────────────────────────
+  if (!loading && accessDenied) {
+    return (
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--color-navy)', padding: '0 24px' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <AccessRequestCTA />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--color-navy)' }}>

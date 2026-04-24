@@ -326,6 +326,8 @@ export default function InstalacionDetailScreen() {
   const [confirmBaja,   setConfirmBaja]   = useState(null)   // objeto líder a dar de baja
   const [verHistorial,  setVerHistorial]  = useState(false)
   const [bajando,       setBajando]       = useState(false)
+  // Recordatorio de permisos SharePoint tras crear/dar de baja un líder
+  const [spReminder,    setSpReminder]    = useState(null)   // null | { email, action: 'created'|'removed' }
 
   const instInfo = INSTALACIONES_MRC.find(i => i.nombre === instalacion)
 
@@ -365,10 +367,13 @@ export default function InstalacionDetailScreen() {
 
   const handleGuardar = async (datos) => {
     if (IS_DEV_MODE) return
-    if (modalLider && modalLider !== 'nuevo') {
+    const esNuevo = !modalLider || modalLider === 'nuevo'
+    if (!esNuevo) {
       await actualizar(modalLider.id, datos, modalLider, adminEmail)
     } else {
       await crear(datos, adminEmail)
+      // Recordatorio: el nuevo líder necesita acceso Contribute en SharePoint
+      if (datos.email) setSpReminder({ email: datos.email, action: 'created' })
     }
     // Forzar re-fetch desde SharePoint para reflejar el estado real
     // (la respuesta del POST no incluye $expand=fields, así que el caché local queda incompleto)
@@ -378,8 +383,11 @@ export default function InstalacionDetailScreen() {
   const handleConfirmarBaja = async () => {
     if (!confirmBaja || IS_DEV_MODE) { setConfirmBaja(null); return }
     setBajando(true)
+    const emailBaja = confirmBaja.email
     try {
       await darBaja(confirmBaja.id, confirmBaja, adminEmail)
+      // Recordatorio: considera quitar al ex-líder del grupo MRC Members
+      if (emailBaja) setSpReminder({ email: emailBaja, action: 'removed' })
       // Forzar re-fetch tras dar de baja
       await cargarInstalacion(instalacion, true)
     } finally {
@@ -397,6 +405,48 @@ export default function InstalacionDetailScreen() {
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         display: 'flex', flexDirection: 'column', gap: 14,
       }}>
+
+        {/* ── Recordatorio de permisos SharePoint ── */}
+        {spReminder && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: spReminder.action === 'created' ? 'rgba(47,209,122,0.08)' : 'rgba(245,124,32,0.08)',
+              border: `1px solid ${spReminder.action === 'created' ? 'rgba(47,209,122,0.3)' : 'rgba(245,124,32,0.3)'}`,
+              borderRadius: 10, padding: '10px 12px',
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}
+          >
+            <span style={{ fontSize: 15, flexShrink: 0 }}>{spReminder.action === 'created' ? '🔑' : '⚠️'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: spReminder.action === 'created' ? '#2FD17A' : '#F57C20', marginBottom: 3, fontFamily: 'var(--font-display)' }}>
+                {spReminder.action === 'created'
+                  ? 'Recuerda dar acceso en SharePoint'
+                  : 'Considera quitar acceso en SharePoint'}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4, marginBottom: 6 }}>
+                {spReminder.action === 'created'
+                  ? `Agrega ${spReminder.email} al grupo "MRC Members" del sitio SSOASCOMERCIAL para que pueda usar la app.`
+                  : `${spReminder.email} fue dado de baja. Considera quitarlo del grupo "MRC Members" en SharePoint.`}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(spReminder.email).catch(() => {})
+                  setSpReminder(null)
+                }}
+                style={{
+                  fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: spReminder.action === 'created' ? '#2FD17A' : '#F57C20',
+                  padding: 0,
+                }}
+              >
+                Copiar email y cerrar ✓
+              </button>
+            </div>
+            <button onClick={() => setSpReminder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 0, fontSize: 14 }}>✕</button>
+          </motion.div>
+        )}
 
         {/* ── Cabecera instalación ── */}
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{

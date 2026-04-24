@@ -36,6 +36,14 @@ export const URL_LINK_CATALOG = [
     category: 'Difusiones SSO',
     envFallback: 'VITE_SP_BIBLIOTECA_URL',
   },
+  {
+    id: 'power-automate-access-request',
+    label: 'Webhook Solicitud de Acceso',
+    description: 'URL HTTP del flow en Power Automate que recibe solicitudes de acceso al sitio SharePoint. Solo visible para admins.',
+    category: 'Sistema',
+    envFallback: 'VITE_PA_ACCESS_REQUEST_URL',
+    adminOnly: true,
+  },
 ]
 
 // Mapa de variables de entorno disponibles en tiempo de ejecución.

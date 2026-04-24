@@ -139,6 +139,7 @@ export function useKPIs(unitType, filters = {}) {
   const [activity,    setActivity]    = useState([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState(null)
+  const [accessDenied, setAccessDenied] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
 
   // Serializar filtros para usar como dependency en useCallback
@@ -147,6 +148,7 @@ export function useKPIs(unitType, filters = {}) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setAccessDenied(false)
     try {
       await syncQueue()
       if (IS_DEV_MODE) {
@@ -159,8 +161,17 @@ export function useKPIs(unitType, filters = {}) {
           fetchTodayKPIs(unitType, filters),
           fetchRecentActivity(unitType, filters),
         ])
-        setKpis(buildRealKPIs(countsMap, unitType))
-        setActivity(recentActivity?.length ? recentActivity : buildMockActivity(unitType, filters))
+
+        // Detectar acceso denegado (403 en todas las listas)
+        if (countsMap?.accessDenied || recentActivity?.accessDenied) {
+          setAccessDenied(true)
+          setKpis(buildRealKPIs({}, unitType))
+          setActivity([])
+        } else {
+          setKpis(buildRealKPIs(countsMap, unitType))
+          const items = Array.isArray(recentActivity) ? recentActivity : (recentActivity?.items || [])
+          setActivity(items.length ? items : [])
+        }
       }
       setLastUpdated(new Date())
     } catch {
@@ -183,7 +194,7 @@ export function useKPIs(unitType, filters = {}) {
     ).length
   }, [pendingQueue])
 
-  return { kpis, activity, loading, error, lastUpdated, refresh: fetchData, localPendingCount }
+  return { kpis, activity, loading, error, accessDenied, lastUpdated, refresh: fetchData, localPendingCount }
 }
 
 // ── Hook de KPIs por sucursal/turno para DailyStatusScreenV2 ─────────────
@@ -191,15 +202,22 @@ export function useKPIs(unitType, filters = {}) {
 // data: { [branchName]: { pautas:{M,T,N,ADM}, cam:number, dif:{M,T,N,ADM} } }
 
 export function useKPIsAllBranches() {
-  const [data,        setData]        = useState({})
-  const [loading,     setLoading]     = useState(true)
-  const [lastUpdated, setLastUpdated] = useState(null)
+  const [data,         setData]         = useState({})
+  const [loading,      setLoading]      = useState(true)
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [lastUpdated,  setLastUpdated]  = useState(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setAccessDenied(false)
     try {
       const result = await fetchTodayKPIsAllBranches()
-      setData(result || {})
+      if (result?.accessDenied) {
+        setAccessDenied(true)
+        setData({})
+      } else {
+        setData(result || {})
+      }
       setLastUpdated(new Date())
     } catch (e) {
       console.warn('[MRC] useKPIsAllBranches:', e)
@@ -214,5 +232,5 @@ export function useKPIsAllBranches() {
     return () => clearInterval(iv)
   }, [fetchData])
 
-  return { data, loading, lastUpdated, refresh: fetchData }
+  return { data, loading, accessDenied, lastUpdated, refresh: fetchData }
 }

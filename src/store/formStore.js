@@ -12,7 +12,11 @@ const useFormStore = create(
       pendingQueue: [],
 
       // Estado de la cola de sincronización
-      syncStatus: 'idle', // 'idle' | 'syncing' | 'done' | 'error'
+      syncStatus: 'idle', // 'idle' | 'syncing' | 'done' | 'error' | 'permission_denied'
+
+      // Último error de envío para mostrar en UI
+      lastSubmitError: null,   // null | { code, message }
+      clearSubmitError: () => set({ lastSubmitError: null }),
 
       saveDraft: (formType, data) =>
         set((state) => ({
@@ -51,6 +55,8 @@ const useFormStore = create(
         set({ syncStatus: 'syncing' })
         let errors = 0
 
+        let permissionDenied = false
+
         for (const item of unsynced) {
           try {
             await submitFormToSharePoint(item)
@@ -63,10 +69,16 @@ const useFormStore = create(
           } catch (err) {
             console.error('[MRC] syncQueue error en item', item.formType, err?.message || err)
             errors++
+            if (err?.code === 'PERMISSION_DENIED') {
+              permissionDenied = true
+              set({ lastSubmitError: { code: 'PERMISSION_DENIED', message: err.message } })
+              // No seguir intentando si es error de permisos — todos fallarán igual
+              break
+            }
           }
         }
 
-        set({ syncStatus: errors > 0 ? 'error' : 'done' })
+        set({ syncStatus: permissionDenied ? 'permission_denied' : errors > 0 ? 'error' : 'done' })
         // Limpiar items sincronizados después de 24h (no acumular indefinidamente)
         const cutoff = Date.now() - 24 * 60 * 60 * 1000
         set((state) => ({
