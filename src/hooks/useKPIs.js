@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import useFormStore from '../store/formStore'
-import { fetchTodayKPIs, fetchRecentActivity, IS_DEV_MODE } from '../services/sharepointData'
+import { fetchTodayKPIs, fetchRecentActivity, fetchTodayKPIsAllBranches, IS_DEV_MODE } from '../services/sharepointData'
 
 // ── Listas de opciones para los filtros ──────────────────────────────────
 
@@ -184,4 +184,35 @@ export function useKPIs(unitType, filters = {}) {
   }, [pendingQueue])
 
   return { kpis, activity, loading, error, lastUpdated, refresh: fetchData, localPendingCount }
+}
+
+// ── Hook de KPIs por sucursal/turno para DailyStatusScreenV2 ─────────────
+// Retorna { data, loading, lastUpdated, refresh }
+// data: { [branchName]: { pautas:{M,T,N,ADM}, cam:number, dif:{M,T,N,ADM} } }
+
+export function useKPIsAllBranches() {
+  const [data,        setData]        = useState({})
+  const [loading,     setLoading]     = useState(true)
+  const [lastUpdated, setLastUpdated] = useState(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await fetchTodayKPIsAllBranches()
+      setData(result || {})
+      setLastUpdated(new Date())
+    } catch (e) {
+      console.warn('[MRC] useKPIsAllBranches:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+    const iv = setInterval(fetchData, AUTO_REFRESH_MS)
+    return () => clearInterval(iv)
+  }, [fetchData])
+
+  return { data, loading, lastUpdated, refresh: fetchData }
 }

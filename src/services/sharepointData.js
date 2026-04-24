@@ -757,3 +757,87 @@ export async function fetchAnalytics(unitType, period = 'month', filters = {}) {
 
   return { summary, byFormType, totalCurrent, compliance }
 }
+
+// ── KPIs de hoy para TODAS las sucursales (DailyStatusScreenV2) ───────────
+// Retorna { [branchName]: { pautas:{M,T,N,ADM}, cam:number, dif:{M,T,N,ADM} } }
+// En dev mode genera datos mock deterministas por día.
+
+const V2_BRANCHES = [
+  'Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo',
+  'Hijuelas','Viña del Mar','San Antonio','Miraflores','Huechuraba',
+  'Lo Espejo','Rancagua','San Felipe','Curicó','Talca','Chillán',
+  'Los Ángeles','Concepción','Temuco','Valdivia','Osorno',
+  'Puerto Montt','Castro','Coyhaique','Punta Arenas',
+]
+
+function v2MockSeed(seed, max) {
+  const x = Math.sin(seed) * 10000
+  return Math.max(0, Math.floor((x - Math.floor(x)) * (max + 1)))
+}
+
+export async function fetchTodayKPIsAllBranches() {
+  if (IS_DEV_MODE) {
+    const day = Math.floor(Date.now() / 86400000)
+    const result = {}
+    V2_BRANCHES.forEach((name, bi) => {
+      const b = bi * 19 + day * 3
+      result[name] = {
+        pautas: { M: v2MockSeed(b+1,6), T: v2MockSeed(b+2,6), N: v2MockSeed(b+3,6), ADM: v2MockSeed(b+4,3) },
+        cam:    v2MockSeed(b+5, 5),
+        dif:    { M: v2MockSeed(b+6,1), T: v2MockSeed(b+7,1), N: v2MockSeed(b+8,1), ADM: v2MockSeed(b+9,1) },
+      }
+    })
+    return result
+  }
+
+  const token   = await getGraphToken()
+  const siteUrl = getSiteUrl()
+  const todayMs = new Date(todayISO()).getTime()
+  const headers = { Authorization: `Bearer ${token}` }
+
+  const branchLookup = {}
+  V2_BRANCHES.forEach(name => { branchLookup[normBranch(name)] = name })
+
+  const result = {}
+  V2_BRANCHES.forEach(name => {
+    result[name] = { pautas: { M:0, T:0, N:0, ADM:0 }, cam: 0, dif: { M:0, T:0, N:0, ADM:0 } }
+  })
+
+  const TURNO_KEY = { 'Mañana':'M', 'Tarde':'T', 'Noche':'N', 'Administración':'ADM' }
+  const DIF_SHIFTS = ['M','T','N','ADM']
+
+  const fetchList = async (listId, fields, cb) => {
+    try {
+      const sel = fields.join(',')
+      let res = await fetch(`${siteUrl}/lists/${listId}/items?$expand=fields($select=${sel})&$orderby=lastModifiedDateTime desc&$top=500`, { headers })
+      if (!res.ok) res = await fetch(`${siteUrl}/lists/${listId}/items?$expand=fields($select=${sel})&$top=1000`, { headers })
+      if (!res.ok) return
+      const { value = [] } = await res.json()
+      value.forEach(item => {
+        if (new Date(item.createdDateTime).getTime() < todayMs) return
+        cb(item.fields || {})
+      })
+    } catch (e) { console.warn('[MRC V2]', e.message) }
+  }
+
+  await Promise.allSettled([
+    fetchList(LIST_IDS.reglasOroSucursales, ['Instalaci_x00f3_n','Turno'], f => {
+      const b = branchLookup[normBranch(f.Instalaci_x00f3_n || '')]
+      const k = TURNO_KEY[f.Turno || '']
+      if (b && k) result[b].pautas[k]++
+    }),
+    fetchList(LIST_IDS.caminataSeguridad, ['Instalaci_x00f3_n'], f => {
+      const b = branchLookup[normBranch(f.Instalaci_x00f3_n || '')]
+      if (b) result[b].cam++
+    }),
+    fetchList(LIST_IDS.difusionesSso, ['Sucursal'], f => {
+      const b = branchLookup[normBranch(f.Sucursal || '')]
+      if (b) {
+        const next = DIF_SHIFTS.find(k => result[b].dif[k] < 1)
+        if (next) result[b].dif[next]++
+      }
+    }),
+  ])
+
+  return result
+}
