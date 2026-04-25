@@ -15,8 +15,12 @@ import useUserStore from '../../store/userStore'
 import { requestSiteAccess, isRequestOnCooldown, getLastRequestTime } from '../../services/accessRequestService'
 
 export default function AccessRequestCTA({ compact = false, onSent }) {
-  const profile  = useUserStore((s) => s.profile)
-  const role     = useUserStore((s) => s.role)
+  // userStore guarda los campos planos (name, email, role) — NO existe `profile`.
+  // Si se vuelve a leer `s.profile`, las solicitudes llegan al admin sin
+  // identificar al solicitante (regresión documentada en sec. 10 del CLAUDE.md).
+  const name  = useUserStore((s) => s.name)
+  const email = useUserStore((s) => s.email)
+  const role  = useUserStore((s) => s.role)
 
   const [open,    setOpen]    = useState(false)
   const [reason,  setReason]  = useState('')
@@ -26,6 +30,7 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
 
   const cooldown   = isRequestOnCooldown()
   const lastSentAt = getLastRequestTime()
+  const hasIdentity = Boolean(email)
 
   function formatCooldownMsg() {
     if (!lastSentAt) return ''
@@ -38,10 +43,15 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
   async function handleSend() {
     setSending(true)
     setError(null)
+    if (!email) {
+      setError('No se detectó tu correo corporativo. Cierra e inicia sesión nuevamente con tu cuenta @agrosuper.com antes de solicitar acceso.')
+      setSending(false)
+      return
+    }
     try {
       await requestSiteAccess({
-        name:   profile?.displayName || profile?.name || '',
-        email:  profile?.mail        || profile?.email || '',
+        name,
+        email,
         role:   role || 'user',
         reason,
       })
@@ -58,7 +68,20 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
   }
 
   // ── Botón principal ────────────────────────────────────────────────────
-  const btn = cooldown ? (
+  const btn = !hasIdentity ? (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: compact ? '6px 10px' : '8px 14px',
+      borderRadius: 8,
+      background: 'rgba(239,68,68,0.08)',
+      border: '1px solid rgba(239,68,68,0.3)',
+      color: '#F87171',
+      fontSize: 12, lineHeight: 1.4,
+    }}>
+      <ShieldAlert size={14} />
+      <span>Sin sesión válida — vuelve a iniciar sesión</span>
+    </div>
+  ) : cooldown ? (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: compact ? '6px 10px' : '8px 14px',
@@ -180,8 +203,8 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
                   padding: '10px 12px', marginBottom: 14,
                   fontSize: 12, color: 'var(--color-text-muted)',
                 }}>
-                  <div><strong style={{ color: 'var(--color-text)' }}>Nombre:</strong> {profile?.displayName || profile?.name || '—'}</div>
-                  <div><strong style={{ color: 'var(--color-text)' }}>Correo:</strong> {profile?.mail || profile?.email || '—'}</div>
+                  <div><strong style={{ color: 'var(--color-text)' }}>Nombre:</strong> {name || '—'}</div>
+                  <div><strong style={{ color: 'var(--color-text)' }}>Correo:</strong> {email || '—'}</div>
                   <div><strong style={{ color: 'var(--color-text)' }}>Rol actual:</strong> {role || 'user'}</div>
                 </div>
 

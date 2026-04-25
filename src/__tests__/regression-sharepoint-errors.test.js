@@ -35,6 +35,16 @@ const useKPIsSrc = readFileSync(
   'utf-8'
 )
 
+const accessRequestCTASrc = readFileSync(
+  resolve(import.meta.dirname, '../components/ui/AccessRequestCTA.jsx'),
+  'utf-8'
+)
+
+const permisosScreenSrc = readFileSync(
+  resolve(import.meta.dirname, '../screens/PermisosSharePointScreen.jsx'),
+  'utf-8'
+)
+
 // ── 1. sharepointData: clasificación de 403 ─────────────────────────────────
 
 describe('sharepointData — Clasificación de errores 403', () => {
@@ -145,5 +155,56 @@ describe('formStore — Manejo de PERMISSION_DENIED en syncQueue', () => {
   it('syncStatus puede ser permission_denied', () => {
     expect(formStoreSrc).toContain("'permission_denied'")
     expect(formStoreSrc).toContain('syncStatus: permissionDenied')
+  })
+})
+
+// ── 6. AccessRequestCTA: identifica al solicitante ──────────────────────────
+//
+// Regresión v1.9.3 → v1.9.4: el componente leía `useUserStore((s) => s.profile)`
+// pero userStore guarda `name` y `email` en campos planos. Resultado: las
+// solicitudes llegaban con requesterEmail='sin-email@agrosuper.com' y los
+// admins no podían identificar al usuario que pedía acceso.
+
+describe('AccessRequestCTA — Identidad del solicitante', () => {
+  it('NO lee s.profile del userStore (regresión v1.9.4)', () => {
+    expect(accessRequestCTASrc).not.toMatch(/useUserStore\(\s*\(s\)\s*=>\s*s\.profile\s*\)/)
+    expect(accessRequestCTASrc).not.toContain('profile?.mail')
+    expect(accessRequestCTASrc).not.toContain('profile?.email')
+    expect(accessRequestCTASrc).not.toContain('profile?.displayName')
+  })
+
+  it('lee name y email planos del userStore', () => {
+    expect(accessRequestCTASrc).toMatch(/useUserStore\(\s*\(s\)\s*=>\s*s\.name\s*\)/)
+    expect(accessRequestCTASrc).toMatch(/useUserStore\(\s*\(s\)\s*=>\s*s\.email\s*\)/)
+  })
+
+  it('bloquea el envío si el email está vacío', () => {
+    expect(accessRequestCTASrc).toContain('if (!email)')
+    expect(accessRequestCTASrc).toMatch(/No se detect[oó]/)
+  })
+})
+
+// ── 7. PermisosSharePointScreen: sync del set de agregados ──────────────────
+//
+// Regresión v1.9.4: el set de "marcados como agregados" vivía solo en
+// localStorage por dispositivo. El admin marcaba 118 emails desde su PC y al
+// abrir la app en el celular los veía a TODOS pendientes. Ahora se sincroniza
+// vía mrc-sp-members-added.json en SharePoint.
+
+describe('PermisosSharePointScreen — Sync de set agregados', () => {
+  it('importa loadAddedEmails y saveAddedEmails del servicio sync', () => {
+    expect(permisosScreenSrc).toContain('loadAddedEmails')
+    expect(permisosScreenSrc).toContain('saveAddedEmails')
+    expect(permisosScreenSrc).toContain('spMembersAddedSync')
+  })
+
+  it('expone syncStatus para feedback al admin', () => {
+    expect(permisosScreenSrc).toContain('syncStatus')
+    expect(permisosScreenSrc).toContain("'pushing'")
+    expect(permisosScreenSrc).toContain("'error'")
+  })
+
+  it('toggleAdded llama al push remoto (no fire-and-forget silencioso)', () => {
+    expect(permisosScreenSrc).toContain('pushToCloud')
   })
 })

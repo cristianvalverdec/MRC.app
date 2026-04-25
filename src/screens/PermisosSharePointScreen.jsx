@@ -14,10 +14,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Copy, Download, CheckCircle2, Users, Loader, ShieldAlert, ArrowLeft } from 'lucide-react'
+import { Copy, Download, CheckCircle2, Users, Loader, ShieldAlert, Cloud, CloudOff, RefreshCw } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import { getLideres } from '../services/lideresService'
+import { loadAddedEmails, saveAddedEmails } from '../services/spMembersAddedSync'
 
 const SP_SITE = 'https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL'
 const SP_MEMBERS_URL = `${SP_SITE}/_layouts/15/user.aspx`
@@ -32,32 +33,72 @@ export default function PermisosSharePointScreen() {
   const [copied,    setCopied]    = useState(false)
   const [filter,    setFilter]    = useState('')
 
-  // Guardar estado de "marcado como agregado" en localStorage por email
+  // Set de "marcados como agregados". Se persiste en SharePoint
+  // (mrc-sp-members-added.json) para que se sincronice entre dispositivos.
+  // localStorage se mantiene como caché optimista para responder al toque.
   const ADDED_KEY = 'mrc-sp-members-added'
   const [addedSet, setAddedSet] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(ADDED_KEY) || '[]')) }
     catch { return new Set() }
   })
+  // syncStatus: 'idle' | 'pulling' | 'pushing' | 'ok' | 'error'
+  const [syncStatus, setSyncStatus] = useState('idle')
+  const [syncError,  setSyncError]  = useState(null)
+  const [lastSyncAt, setLastSyncAt] = useState(null)
 
-  function persistAdded(set) {
+  function persistLocal(set) {
     try { localStorage.setItem(ADDED_KEY, JSON.stringify([...set])) } catch { /* ignore */ }
   }
 
+  // Push del set actual a SharePoint. fire-and-forget no — actualiza syncStatus.
+  async function pushToCloud(setToPush) {
+    setSyncStatus('pushing')
+    setSyncError(null)
+    try {
+      await saveAddedEmails([...setToPush])
+      setSyncStatus('ok')
+      setLastSyncAt(new Date())
+    } catch (err) {
+      setSyncStatus('error')
+      setSyncError(err?.message || 'Error al sincronizar con SharePoint')
+    }
+  }
+
   function toggleAdded(email) {
+    let nextSet
     setAddedSet(prev => {
-      const next = new Set(prev)
-      if (next.has(email)) next.delete(email)
-      else next.add(email)
-      persistAdded(next)
-      return next
+      nextSet = new Set(prev)
+      if (nextSet.has(email)) nextSet.delete(email)
+      else nextSet.add(email)
+      persistLocal(nextSet)
+      return nextSet
     })
+    // Push inmediato — si falla, el indicador de error muestra "Reintentar".
+    pushToCloud(nextSet)
+  }
+
+  function retryPush() {
+    pushToCloud(addedSet)
   }
 
   useEffect(() => {
     if (role !== 'admin') return
-    getLideres()
-      .then(lista => {
-        // Deduplicar por email, ignorar vacíos
+
+    let cancelled = false
+
+    // Carga paralela: líderes + set agregados desde SharePoint.
+    Promise.all([
+      getLideres(),
+      loadAddedEmails().catch(err => {
+        // No bloqueamos la pantalla si falla la sync; mostramos el error
+        // como banner pero seguimos con el set local.
+        setSyncStatus('error')
+        setSyncError(err?.message || 'No se pudo leer el set compartido')
+        return null
+      }),
+    ])
+      .then(([lista, cloudData]) => {
+        if (cancelled) return
         const seen = new Set()
         const dedup = lista.filter(l => {
           if (!l.email || seen.has(l.email)) return false
@@ -65,9 +106,27 @@ export default function PermisosSharePointScreen() {
           return true
         })
         setLideres(dedup.sort((a, b) => a.email.localeCompare(b.email)))
+
+        if (cloudData?.added) {
+          // SharePoint manda — sobreescribimos el set local con lo de la nube.
+          // (En esta primera iteración no hay merge, gana el remoto.)
+          const cloudSet = new Set(cloudData.added.map(e => e.toLowerCase()))
+          setAddedSet(cloudSet)
+          persistLocal(cloudSet)
+          setSyncStatus('ok')
+          setLastSyncAt(cloudData.updatedAt ? new Date(cloudData.updatedAt) : new Date())
+        } else if (cloudData === null && syncStatus !== 'error') {
+          // Primer uso: aún no existe el archivo en la nube. Subimos lo local
+          // para inicializarlo.
+          if (addedSet.size > 0) pushToCloud(addedSet)
+          else setSyncStatus('ok')
+        }
       })
-      .catch(e => setError(e?.message || 'Error al cargar líderes'))
-      .finally(() => setLoading(false))
+      .catch(e => !cancelled && setError(e?.message || 'Error al cargar líderes'))
+      .finally(() => !cancelled && setLoading(false))
+
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role])
 
   if (role !== 'admin') {
@@ -141,6 +200,49 @@ export default function PermisosSharePointScreen() {
           SSOASCOMERCIAL para usar la app MRC correctamente.
           Usa el botón "Copiar emails" y pégalos en el diálogo <em>Add users</em> del grupo <strong style={{ color: 'var(--color-text)' }}>MRC Members</strong> en SharePoint.
         </motion.div>
+
+        {/* Indicador de sync con SharePoint */}
+        {(syncStatus !== 'idle') && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', marginBottom: 12,
+            borderRadius: 8, fontSize: 12,
+            background: syncStatus === 'error'
+              ? 'rgba(239,68,68,0.08)'
+              : syncStatus === 'ok'
+                ? 'rgba(39,174,96,0.07)'
+                : 'rgba(47,128,237,0.07)',
+            border: `1px solid ${
+              syncStatus === 'error'  ? 'rgba(239,68,68,0.3)'
+              : syncStatus === 'ok'   ? 'rgba(39,174,96,0.3)'
+              : 'rgba(47,128,237,0.25)'
+            }`,
+            color: syncStatus === 'error' ? '#F87171'
+                 : syncStatus === 'ok'    ? '#27AE60'
+                 : '#60A5FA',
+          }}>
+            {syncStatus === 'error' ? <CloudOff size={14} /> : <Cloud size={14} />}
+            <span style={{ flex: 1 }}>
+              {syncStatus === 'pulling' && 'Cargando set compartido…'}
+              {syncStatus === 'pushing' && 'Sincronizando con SharePoint…'}
+              {syncStatus === 'ok'      && `Sincronizado${lastSyncAt ? ` · ${lastSyncAt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+              {syncStatus === 'error'   && (syncError || 'Error de sincronización')}
+            </span>
+            {syncStatus === 'error' && (
+              <button
+                onClick={retryPush}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '4px 8px', borderRadius: 6,
+                  background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)',
+                  color: '#F87171', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                <RefreshCw size={11} /> Reintentar
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <motion.div

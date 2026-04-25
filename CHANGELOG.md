@@ -5,6 +5,31 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.7] — 2026-04-25
+
+### Fix — Solicitudes de acceso anonimizadas + sync del set "agregados"
+
+**Problema 1: solicitudes llegaban como `sin-email@agrosuper.com`**
+- `AccessRequestCTA.jsx` leía `useUserStore((s) => s.profile)` pero `userStore` guarda los campos planos (`name`, `email`, `role`) — `s.profile` siempre era `undefined`.
+- Resultado: el webhook de Power Automate recibía `requesterEmail: 'sin-email@agrosuper.com'` y `requesterName: 'Usuario sin nombre'`. Los admins no podían identificar al solicitante (caso fgaticaa@agrosuper.com).
+- **Fix:** lee `s.name` / `s.email` / `s.role` planos. Si el email está vacío, bloquea el envío con mensaje pidiendo re-iniciar sesión. CTA muestra estado "Sin sesión válida" cuando no hay identidad.
+
+**Problema 2: 118 emails marcados como "agregados" no se sincronizaban entre dispositivos**
+- El set vivía en `localStorage['mrc-sp-members-added']` por dispositivo.
+- Admin marcaba 118 desde su PC → en el celular los veía a todos pendientes.
+- **Fix:** nuevo servicio `spMembersAddedSync.js` que persiste el set en `mrc-sp-members-added.json` en el drive del sitio (mismo patrón que `mrc-forms-config.json`). Push tras cada toggle, pull al cargar la pantalla. Indicador visual con estados `pulling/pushing/ok/error` y botón "Reintentar" en caso de fallo.
+
+**Tests centinela nuevos (regression-sharepoint-errors.test.js)**
+- Bloque "AccessRequestCTA — Identidad del solicitante": 3 tests que fallan si se vuelve a leer `s.profile`, si se quitan `s.name`/`s.email` planos, o si se elimina la guarda de email vacío.
+- Bloque "PermisosSharePointScreen — Sync de set agregados": 3 tests que verifican import de `spMembersAddedSync`, exposición de `syncStatus` y push remoto en `toggleAdded`.
+- 106/106 tests pasan.
+
+**Pendiente para v1.9.8** (siguiente iteración solicitada)
+- Mostrar lista de solicitudes pendientes (`SolicitudesAccesoMRC`) dentro de la pantalla con botón "Marcar procesada".
+- Auto-recuperación de token tras 403 (`acquireTokenSilent({ forceRefresh: true })`) para resolver el caso de usuarios recién agregados al grupo MRC Members cuyo token aún tiene claims viejos.
+
+---
+
 ## [1.9.6] — 2026-04-23
 
 ### Nueva pantalla — Estatus Diario v2 (`DailyStatusScreenV2`)
