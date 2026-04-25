@@ -7,6 +7,8 @@ const OPTIONS = [
 ]
 
 export default function QuestionYesNo({ question, value, onChange }) {
+  const visibleOptions = question.disableNA ? OPTIONS.filter(o => o.value !== 'na') : OPTIONS
+
   return (
     <div>
       {!question._noLabel && (
@@ -27,7 +29,7 @@ export default function QuestionYesNo({ question, value, onChange }) {
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        {OPTIONS.map((opt) => {
+        {visibleOptions.map((opt) => {
           const selected = value === opt.value
           return (
             <motion.button

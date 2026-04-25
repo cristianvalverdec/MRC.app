@@ -423,6 +423,14 @@ export const formDefinitions = {
               return rqs.some(q => a[q] === 'CON_OBSERVACIONES')
             },
           },
+          { id: 'Q48', type: 'yesno', required: true,
+            label: '¿La acción insegura observada amerita una carta de amonestación escrita al colaborador?',
+            disableNA: true,
+            visibleWhen: (a) => {
+              const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
+              return rqs.some(q => a[q] === 'CON_OBSERVACIONES')
+            },
+          },
         ],
       },
 

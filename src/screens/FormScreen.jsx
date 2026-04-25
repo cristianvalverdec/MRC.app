@@ -11,6 +11,7 @@ import QuestionRadio    from '../components/form/QuestionRadio'
 import QuestionCheckbox from '../components/form/QuestionCheckbox'
 import QuestionPhoto        from '../components/form/QuestionPhoto'
 import QuestionPeoplePicker from '../components/form/QuestionPeoplePicker'
+import QuestionRut          from '../components/form/QuestionRut'
 import { formDefinitions } from '../forms/formDefinitions'
 import useFormStore from '../store/formStore'
 import useFormEditorStore from '../store/formEditorStore'
@@ -29,6 +30,7 @@ function QuestionRenderer({ question, value, onChange, hasError }) {
     checkbox:       QuestionCheckbox,
     photo:          QuestionPhoto,
     'people-picker': QuestionPeoplePicker,
+    rut:             QuestionRut,
   }[question.type]
 
   if (!Component) return null

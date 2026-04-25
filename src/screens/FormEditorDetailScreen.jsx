@@ -20,6 +20,7 @@ const TYPE_LABELS = {
   text:     { label: 'Texto',    color: '#9B9B9B', bg: 'rgba(155,155,155,0.15)' },
   rating:   { label: 'Rating',   color: '#F2994A', bg: 'rgba(242,153,74,0.18)' },
   photo:    { label: 'Foto',     color: '#EB5757', bg: 'rgba(235,87,87,0.15)'  },
+  rut:      { label: 'RUT',      color: '#6B7FD7', bg: 'rgba(107,127,215,0.18)' },
 }
 
 const PROFILE_COLORS = {
@@ -681,6 +682,29 @@ function QuestionEditorPanel({ question, allQuestions, sections, onSave, onClose
               }} />
             </button>
           </div>
+
+          {/* Incluir N/A (solo tipo yesno) */}
+          {draft.type === 'yesno' && (
+            <div style={{ ...sectionStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-primary)' }}>
+                Incluir opción N/A
+              </span>
+              <button
+                onClick={() => update('disableNA', !draft.disableNA)}
+                style={{
+                  width: 44, height: 24, borderRadius: 12, cursor: 'pointer', border: 'none',
+                  background: !draft.disableNA ? 'var(--color-blue-btn)' : 'rgba(255,255,255,0.1)',
+                  position: 'relative', transition: 'background 0.2s',
+                }}
+              >
+                <div style={{
+                  width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                  position: 'absolute', top: 3, transition: 'left 0.2s',
+                  left: !draft.disableNA ? 23 : 3,
+                }} />
+              </button>
+            </div>
+          )}
 
           {/* Etiqueta principal */}
           <div style={sectionStyle}>
