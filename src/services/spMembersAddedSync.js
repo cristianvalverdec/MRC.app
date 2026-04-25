@@ -8,16 +8,20 @@
 // Aquí guardamos el set en un archivo JSON compartido en la biblioteca
 // Documents del sitio SSOASCOMERCIAL (mismo patrón que mrc-forms-config.json).
 //
-// Formato:
+// Formato (v1.9.9):
 //   {
 //     added:  ["email1@...", "email2@..."],   // marcados como ya agregados al grupo
-//     manual: [{ email, name?, addedBy, addedAt }],  // emails extra que no
-//             vienen de la lista de Líderes pero el admin quiere incluirlos
-//             en el set "MRC Members" (ej. invitados externos, áreas extra)
+//     manual: [{ email, name?, addedBy, addedAt }],  // emails extra
+//     audit:  [{ ts, by, action, email, meta? }],    // últimas 200 acciones (FIFO)
+//     version: 4,                                    // optimistic concurrency
 //     updatedAt: "2026-04-25T..."
 //   }
+//
+// `audit.action` puede ser: 'toggle_added', 'toggle_pending', 'manual_add',
+// 'manual_remove', 'verify_run', 'request_processed', 'orphan_accept'.
 
 import { getGraphToken } from '../config/msalInstance'
+import { resolveSiteId, buildDriveFileUrl } from './sharepointSiteResolver'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -25,26 +29,8 @@ const IS_DEV_MODE =
 
 const FILENAME = 'mrc-sp-members-added.json'
 
-let _cachedSiteId = null
-
-async function resolveSiteId(token) {
-  if (_cachedSiteId) return _cachedSiteId
-  const siteUrl = import.meta.env.VITE_SHAREPOINT_SITE_URL
-  if (!siteUrl) throw new Error('VITE_SHAREPOINT_SITE_URL no configurado')
-  const url = new URL(siteUrl)
-  const endpoint = `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${url.pathname}`
-  const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`No se pudo resolver el sitio SharePoint (${res.status}): ${body.slice(0, 120)}`)
-  }
-  const data = await res.json()
-  _cachedSiteId = data.id
-  return _cachedSiteId
-}
-
 function buildFileUrl(siteId) {
-  return `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${FILENAME}:/content`
+  return buildDriveFileUrl(siteId, FILENAME)
 }
 
 // Lee el set actual desde SharePoint. 404 → primera vez, devuelve null sin error.
@@ -66,30 +52,62 @@ export async function loadAddedEmails() {
   }
 
   const data = await res.json()
-  if (!data || !Array.isArray(data.added)) return null
-  // Compatibilidad hacia atrás: archivos pre-1.9.8 no tienen `manual`.
+  if (!data || typeof data !== 'object') return null
+  // Defensa estricta: si `added` o `manual` vienen como null/undefined/objeto
+  // los normalizamos a array vacío. Esto evita el bug "e is not iterable"
+  // (spread sobre null) en consumidores aguas abajo.
+  if (!Array.isArray(data.added))  data.added  = []
   if (!Array.isArray(data.manual)) data.manual = []
+  if (!Array.isArray(data.audit))  data.audit  = []
+  if (typeof data.version !== 'number') data.version = 0
+  // Filtrar entradas inválidas
+  data.added  = data.added.filter(e => typeof e === 'string' && e.includes('@'))
+  data.manual = data.manual.filter(m => m && typeof m.email === 'string')
+  data.audit  = data.audit.filter(a => a && a.ts && a.action)
   return data
 }
 
+// Constante exportada — el max de entradas en el audit log (FIFO).
+export const AUDIT_MAX_ENTRIES = 200
+
 // Guarda el set completo en SharePoint. Reintentos para 5xx/red, 4xx falla rápido.
-// `addedArray`  — emails marcados como ya agregados al grupo.
-// `manualArray` — emails extra que el admin agregó manualmente (objetos
-//                 { email, name?, addedBy, addedAt }). Default: [].
-export async function saveAddedEmails(addedArray, manualArray = []) {
+// Acepta firma legacy `saveAddedEmails(addedArray, manualArray)` Y firma nueva
+// `saveAddedEmails({ added, manual, audit, version })`. Detecta cuál se usa.
+export async function saveAddedEmails(addedArrayOrPayload, manualArray = []) {
   if (IS_DEV_MODE) return { success: true, dev: true }
+
+  // ── Detección de firma legacy vs nueva ──
+  let payload
+  if (addedArrayOrPayload && typeof addedArrayOrPayload === 'object' && !Array.isArray(addedArrayOrPayload) && !(addedArrayOrPayload instanceof Set)) {
+    // Firma nueva: objeto completo
+    payload = addedArrayOrPayload
+  } else {
+    // Firma legacy
+    payload = { added: addedArrayOrPayload, manual: manualArray, audit: [], version: 0 }
+  }
+
+  // Validación defensiva — la API debe ser idempotente ante callers que
+  // pasen accidentalmente un Set, undefined, o un valor no-iterable.
+  const rawAdded  = payload.added
+  const rawManual = payload.manual
+  const rawAudit  = payload.audit
+  const safeAdded  = Array.isArray(rawAdded)  ? rawAdded  : (rawAdded  ? [...rawAdded]  : [])
+  const safeManual = Array.isArray(rawManual) ? rawManual : (rawManual ? [...rawManual] : [])
+  const safeAudit  = Array.isArray(rawAudit)  ? rawAudit  : []
 
   const token  = await getGraphToken()
   const siteId = await resolveSiteId(token)
   const url    = buildFileUrl(siteId)
   const body   = JSON.stringify({
-    added:  [...new Set((addedArray || []).filter(Boolean).map(e => e.toLowerCase()))],
-    manual: (manualArray || []).filter(m => m?.email).map(m => ({
+    added:  [...new Set(safeAdded.filter(e => typeof e === 'string' && e.includes('@')).map(e => e.toLowerCase()))],
+    manual: safeManual.filter(m => m?.email && typeof m.email === 'string').map(m => ({
       email:   m.email.toLowerCase(),
       name:    m.name    || '',
       addedBy: m.addedBy || '',
       addedAt: m.addedAt || new Date().toISOString(),
     })),
+    audit:   safeAudit.filter(a => a && a.ts && a.action).slice(-AUDIT_MAX_ENTRIES),
+    version: typeof payload.version === 'number' ? payload.version + 1 : 1,
     updatedAt: new Date().toISOString(),
   })
 

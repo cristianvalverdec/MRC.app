@@ -67,3 +67,48 @@ export async function searchUsers(query) {
     return []
   }
 }
+
+// ── Verificar existencia de un email específico en Azure AD ──────────────
+//
+// Útil antes de aceptar un email manual en el listado de Permisos SP:
+// previene typos como `fgaticaaa@agrosuper.com` que jamás van a recibir
+// permisos. Reusa el scope User.ReadBasic.All ya consentido — NO requiere
+// nuevo consent.
+//
+// Devuelve:
+//   { exists: boolean, displayName?: string, mail?: string, error?: string }
+export async function userExistsInAzureAD(email) {
+  if (IS_DEV_MODE) return { exists: true, displayName: 'Usuario Demo (dev)' }
+
+  if (!email || typeof email !== 'string') return { exists: false, error: 'Email inválido' }
+
+  const token = await getPeopleToken()
+  if (!token) return { exists: false, error: 'Sin token Graph' }
+
+  // GET /users/{userPrincipalName} — endpoint exact-match.
+  // Devuelve 404 si no existe (no error real, es la señal esperada).
+  const url = `${GRAPH_BASE}/users/${encodeURIComponent(email)}` +
+              `?$select=id,displayName,mail,userPrincipalName,accountEnabled`
+
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+
+    if (res.status === 404) return { exists: false }
+    if (res.status === 401 || res.status === 403) {
+      return { exists: false, error: `Sin permiso para verificar AD (${res.status})` }
+    }
+    if (!res.ok) return { exists: false, error: `Error ${res.status}` }
+
+    const data = await res.json()
+    if (data?.accountEnabled === false) {
+      return { exists: false, error: 'Cuenta deshabilitada en AD' }
+    }
+    return {
+      exists: true,
+      displayName: data?.displayName || '',
+      mail:        data?.mail || data?.userPrincipalName || email,
+    }
+  } catch (err) {
+    return { exists: false, error: err?.message || 'Error de red' }
+  }
+}

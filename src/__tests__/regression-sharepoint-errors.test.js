@@ -272,3 +272,190 @@ describe('accessRequestsListService — Lista SolicitudesAccesoMRC', () => {
     expect(listServiceSrc).toContain('includeProcessed')
   })
 })
+
+// ── 10. spMembersAddedSync — defensa contra "e is not iterable" ─────────────
+//
+// Bug v1.9.8: si JSON parse devuelve null en localStorage o el cloud JSON
+// tiene `added: null` (legacy), el spread aguas abajo rompe con
+// "e is not iterable" (en bundle minificado el spread sobre null se reporta
+// con el nombre de variable minificado, ej. "e").
+
+describe('spMembersAddedSync — Defensa contra null/undefined', () => {
+  const syncSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/spMembersAddedSync.js'),
+    'utf-8'
+  )
+
+  it('loadAddedEmails normaliza added/manual a array si vienen null o no-array', () => {
+    expect(syncSrc).toContain('if (!Array.isArray(data.added)')
+    expect(syncSrc).toContain('if (!Array.isArray(data.manual)')
+    expect(syncSrc).toContain('data.added.filter')
+    expect(syncSrc).toContain('data.manual.filter')
+  })
+
+  it('saveAddedEmails maneja Set/objeto/undefined sin romper', () => {
+    // Defensa: Array.isArray check + spread fallback
+    expect(syncSrc).toMatch(/Array\.isArray\(\w+\)/)
+    expect(syncSrc).toMatch(/\[\.\.\.\w+\]/)
+  })
+
+  it('exporta AUDIT_MAX_ENTRIES y firma con payload-objeto', () => {
+    expect(syncSrc).toContain('export const AUDIT_MAX_ENTRIES')
+    expect(syncSrc).toContain('payload.added')
+    expect(syncSrc).toContain('payload.audit')
+    expect(syncSrc).toContain('payload.version')
+  })
+
+  it('importa el resolver centralizado (no duplica resolveSiteId)', () => {
+    expect(syncSrc).toContain("from './sharepointSiteResolver'")
+    expect(syncSrc).not.toContain('async function resolveSiteId')
+  })
+})
+
+// ── 11. PermisosSharePointScreen — safeArrayParse + LED + audit ─────────────
+
+describe('PermisosSharePointScreen — Defensa + verificación SP', () => {
+  it('usa safeArrayParse en useState init para evitar null', () => {
+    expect(permisosScreenSrc).toContain('function safeArrayParse')
+    expect(permisosScreenSrc).toContain('Array.isArray(parsed) ? parsed : []')
+    expect(permisosScreenSrc).toContain('safeArrayParse(ADDED_KEY)')
+    expect(permisosScreenSrc).toContain('safeArrayParse(MANUAL_KEY)')
+  })
+
+  it('integra verificación SP REST y semáforo LED', () => {
+    expect(permisosScreenSrc).toContain('getMrcMembersEmails')
+    expect(permisosScreenSrc).toContain('handleVerifyMembership')
+    expect(permisosScreenSrc).toContain('verifiedSet')
+    expect(permisosScreenSrc).toContain('ledColor')
+  })
+
+  it('valida email manual contra Azure AD antes de aceptarlo', () => {
+    expect(permisosScreenSrc).toContain('userExistsInAzureAD')
+    expect(permisosScreenSrc).toContain('adCheck.exists')
+  })
+
+  it('persiste audit log con cada acción admin', () => {
+    expect(permisosScreenSrc).toContain('auditLog')
+    expect(permisosScreenSrc).toContain("action: 'manual_add'")
+    expect(permisosScreenSrc).toContain("action: 'verify_run'")
+    expect(permisosScreenSrc).toContain("action: 'orphan_accept'")
+  })
+
+  it('detecta huérfanos (en grupo SP pero no en listado app)', () => {
+    expect(permisosScreenSrc).toContain('orphanEmails')
+    expect(permisosScreenSrc).toContain('handleAcceptOrphan')
+  })
+})
+
+// ── 12. sharepointGroupService — token SP REST aislado ──────────────────────
+//
+// CRÍTICO: el scope SharePoint REST NO debe estar en loginRequest (rompería
+// el consentimiento ya otorgado por TI a los scopes Graph existentes). Debe
+// solicitarse aparte vía acquireTokenSilent con el scope específico.
+
+describe('sharepointGroupService — SP REST aislado', () => {
+  const groupSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointGroupService.js'),
+    'utf-8'
+  )
+  const msalConfigSrc = readFileSync(
+    resolve(import.meta.dirname, '../config/msalConfig.js'),
+    'utf-8'
+  )
+
+  it('usa scope SP REST aislado (NO está en loginRequest)', () => {
+    expect(msalConfigSrc).toContain('sharePointRestScopes')
+    expect(msalConfigSrc).toContain('https://agrosuper.sharepoint.com/AllSites.Read')
+    // Debe estar fuera del array de scopes de loginRequest
+    const loginRequestMatch = msalConfigSrc.match(/loginRequest\s*=\s*\{[^}]+\}/)
+    expect(loginRequestMatch).toBeTruthy()
+    expect(loginRequestMatch[0]).not.toContain('sharepoint.com/AllSites')
+  })
+
+  it('exporta getMrcMembersEmails y getSharePointRestToken', () => {
+    expect(groupSrc).toContain('export async function getMrcMembersEmails')
+    expect(groupSrc).toContain('export async function getSharePointRestToken')
+  })
+
+  it('apunta al grupo "MRC Members"', () => {
+    expect(groupSrc).toContain("GROUP_NAME = 'MRC Members'")
+  })
+
+  it('maneja consent_required con acquireTokenRedirect (no popup)', () => {
+    expect(groupSrc).toContain('consent_required')
+    expect(groupSrc).toContain('acquireTokenRedirect')
+    expect(groupSrc).not.toMatch(/acquireTokenPopup/)
+  })
+
+  it('parsea LoginName con formato "i:0#.f|membership|email"', () => {
+    expect(groupSrc).toContain('LoginName')
+    expect(groupSrc).toContain("split('|').pop()")
+  })
+})
+
+// ── 13. spMembersVerifiedSync — cache compartido de verificación ────────────
+
+describe('spMembersVerifiedSync — Cache de verificación', () => {
+  const verifiedSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/spMembersVerifiedSync.js'),
+    'utf-8'
+  )
+
+  it('usa archivo paralelo mrc-sp-members-verified.json', () => {
+    expect(verifiedSrc).toContain("FILENAME = 'mrc-sp-members-verified.json'")
+  })
+
+  it('exporta loadVerified y saveVerified', () => {
+    expect(verifiedSrc).toContain('export async function loadVerified')
+    expect(verifiedSrc).toContain('export async function saveVerified')
+  })
+
+  it('reusa el resolver centralizado', () => {
+    expect(verifiedSrc).toContain("from './sharepointSiteResolver'")
+  })
+})
+
+// ── 14. graphService — userExistsInAzureAD ──────────────────────────────────
+
+describe('graphService — Validación email contra AD', () => {
+  const graphSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/graphService.js'),
+    'utf-8'
+  )
+
+  it('exporta userExistsInAzureAD', () => {
+    expect(graphSrc).toContain('export async function userExistsInAzureAD')
+  })
+
+  it('detecta cuentas deshabilitadas', () => {
+    expect(graphSrc).toContain('accountEnabled')
+    expect(graphSrc).toContain("'Cuenta deshabilitada en AD'")
+  })
+
+  it('reusa scope User.ReadBasic.All ya consentido', () => {
+    expect(graphSrc).toContain('getPeopleToken')
+  })
+})
+
+// ── 15. sharepointSiteResolver — centralización ─────────────────────────────
+
+describe('sharepointSiteResolver — Resolver único', () => {
+  const resolverSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointSiteResolver.js'),
+    'utf-8'
+  )
+  const oldSyncSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointSync.js'),
+    'utf-8'
+  )
+
+  it('exporta resolveSiteId y buildDriveFileUrl', () => {
+    expect(resolverSrc).toContain('export async function resolveSiteId')
+    expect(resolverSrc).toContain('export function buildDriveFileUrl')
+  })
+
+  it('sharepointSync ya no tiene su propia implementación', () => {
+    expect(oldSyncSrc).toContain("from './sharepointSiteResolver'")
+    expect(oldSyncSrc).not.toContain('async function resolveSiteId')
+  })
+})

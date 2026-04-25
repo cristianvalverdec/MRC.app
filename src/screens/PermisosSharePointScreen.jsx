@@ -26,11 +26,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Download, CheckCircle2, Users, Loader, ShieldAlert,
   Cloud, CloudOff, RefreshCw, UserPlus, Inbox, X, Trash2, Mail, Clock,
+  ShieldCheck, AlertTriangle, ChevronDown, ChevronUp, History,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import { getLideres } from '../services/lideresService'
-import { loadAddedEmails, saveAddedEmails } from '../services/spMembersAddedSync'
+import { loadAddedEmails, saveAddedEmails, AUDIT_MAX_ENTRIES } from '../services/spMembersAddedSync'
+import { loadVerified, saveVerified } from '../services/spMembersVerifiedSync'
+import { getMrcMembersEmails } from '../services/sharepointGroupService'
+import { userExistsInAzureAD } from '../services/graphService'
 import {
   getPendingAccessRequests,
   markAccessRequestProcessed,
@@ -43,6 +47,20 @@ const MANUAL_KEY = 'mrc-sp-members-manual'
 
 const EMAIL_RE = /^[a-z0-9._%+-]+@agrosuper\.com$/i
 
+// Lectura defensiva desde localStorage. Si el valor no es un array válido
+// (puede haber quedado 'null' por flujos legacy o corrupción), retorna [].
+// Esto fixea el bug "e is not iterable" que se disparaba al hacer spread
+// sobre el resultado en componentes posteriores (en bundle minificado el
+// spread sobre null se reportaba como "e is not iterable").
+function safeArrayParse(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch { return [] }
+}
+
 export default function PermisosSharePointScreen() {
   const navigate  = useNavigate()
   const role      = useUserStore((s) => s.role)
@@ -54,14 +72,18 @@ export default function PermisosSharePointScreen() {
   const [copied,    setCopied]    = useState(false)
   const [filter,    setFilter]    = useState('')
 
-  const [addedSet, setAddedSet] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(ADDED_KEY) || '[]')) }
-    catch { return new Set() }
-  })
-  const [manualEntries, setManualEntries] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(MANUAL_KEY) || '[]') }
-    catch { return [] }
-  })
+  const [addedSet, setAddedSet] = useState(() => new Set(safeArrayParse(ADDED_KEY)))
+  const [manualEntries, setManualEntries] = useState(() => safeArrayParse(MANUAL_KEY))
+  const [auditLog, setAuditLog] = useState([])
+  const [cloudVersion, setCloudVersion] = useState(0)
+
+  // Estado de verificación de membresía real en MRC Members (SP REST)
+  const [verifiedSet,    setVerifiedSet]    = useState(new Set())
+  const [verifiedAt,     setVerifiedAt]     = useState(null)
+  const [verifyStatus,   setVerifyStatus]   = useState('idle') // 'idle' | 'fetching' | 'ok' | 'error'
+  const [verifyError,    setVerifyError]    = useState(null)
+  const [orphanEmails,   setOrphanEmails]   = useState([])    // en grupo SP, no en listado app
+  const [auditOpen,      setAuditOpen]      = useState(false)
 
   // syncStatus: 'idle' | 'pulling' | 'pushing' | 'ok' | 'error'
   const [syncStatus, setSyncStatus] = useState('idle')
@@ -86,13 +108,20 @@ export default function PermisosSharePointScreen() {
   }
 
   // ── Push del estado actual a SharePoint ──────────────────────────────
-  const pushToCloud = useCallback(async (setToPush, manualToPush) => {
+  // Usa la firma nueva con objeto-payload para incluir audit log + version.
+  const pushToCloud = useCallback(async (setToPush, manualToPush, auditToPush, versionToPush) => {
     setSyncStatus('pushing')
     setSyncError(null)
     try {
-      await saveAddedEmails([...setToPush], manualToPush)
+      await saveAddedEmails({
+        added:   [...setToPush],
+        manual:  manualToPush,
+        audit:   auditToPush || [],
+        version: typeof versionToPush === 'number' ? versionToPush : 0,
+      })
       setSyncStatus('ok')
       setLastSyncAt(new Date())
+      setCloudVersion(v => (typeof versionToPush === 'number' ? versionToPush : v) + 1)
     } catch (err) {
       setSyncStatus('error')
       setSyncError(err?.message || 'Error al sincronizar con SharePoint')
@@ -101,22 +130,32 @@ export default function PermisosSharePointScreen() {
 
   function toggleAdded(email) {
     let nextSet
+    let nowAdded = false
     setAddedSet(prev => {
       nextSet = new Set(prev)
       if (nextSet.has(email)) nextSet.delete(email)
-      else nextSet.add(email)
+      else { nextSet.add(email); nowAdded = true }
       persistLocalAdded(nextSet)
       return nextSet
     })
-    pushToCloud(nextSet, manualEntries)
+    const nextAudit = [...auditLog, {
+      ts:     new Date().toISOString(),
+      by:     adminMail || '',
+      action: nowAdded ? 'toggle_added' : 'toggle_pending',
+      email,
+    }].slice(-AUDIT_MAX_ENTRIES)
+    setAuditLog(nextAudit)
+    pushToCloud(nextSet, manualEntries, nextAudit, cloudVersion)
   }
 
   function retryPush() {
-    pushToCloud(addedSet, manualEntries)
+    pushToCloud(addedSet, manualEntries, auditLog, cloudVersion)
   }
 
   // ── Email manual: agregar / quitar ───────────────────────────────────
-  function handleAddManual() {
+  const [verifyingEmail, setVerifyingEmail] = useState(false)
+
+  async function handleAddManual() {
     const email = newEmail.trim().toLowerCase()
     if (!email) {
       setEmailErr('Ingresa un correo @agrosuper.com')
@@ -136,9 +175,25 @@ export default function PermisosSharePointScreen() {
       return
     }
 
+    // Validar contra Azure AD para evitar typos
+    setVerifyingEmail(true)
+    setEmailErr(null)
+    const adCheck = await userExistsInAzureAD(email)
+    setVerifyingEmail(false)
+
+    if (!adCheck.exists) {
+      setEmailErr(
+        adCheck.error
+          ? `No se pudo validar (${adCheck.error}). Revisa el correo.`
+          : 'Este correo no existe en Azure AD Agrosuper. Revisa por typos.'
+      )
+      return
+    }
+
     const entry = {
       email,
-      name:    newName.trim(),
+      // Si el usuario no tipeó nombre, usamos el de AD
+      name:    newName.trim() || adCheck.displayName || '',
       addedBy: adminMail || '',
       addedAt: new Date().toISOString(),
     }
@@ -148,14 +203,18 @@ export default function PermisosSharePointScreen() {
     setNewEmail('')
     setNewName('')
     setEmailErr(null)
-    pushToCloud(addedSet, next)
+    const nextAudit = [...auditLog, {
+      ts: new Date().toISOString(), by: adminMail || '',
+      action: 'manual_add', email, meta: { name: entry.name },
+    }].slice(-AUDIT_MAX_ENTRIES)
+    setAuditLog(nextAudit)
+    pushToCloud(addedSet, next, nextAudit, cloudVersion)
   }
 
   function handleRemoveManual(email) {
     const next = manualEntries.filter(m => m.email !== email)
     setManualEntries(next)
     persistLocalManual(next)
-    // También lo quitamos del set de "agregados" si estaba marcado
     let nextSet = addedSet
     if (addedSet.has(email)) {
       nextSet = new Set(addedSet)
@@ -163,7 +222,107 @@ export default function PermisosSharePointScreen() {
       setAddedSet(nextSet)
       persistLocalAdded(nextSet)
     }
-    pushToCloud(nextSet, next)
+    const nextAudit = [...auditLog, {
+      ts: new Date().toISOString(), by: adminMail || '',
+      action: 'manual_remove', email,
+    }].slice(-AUDIT_MAX_ENTRIES)
+    setAuditLog(nextAudit)
+    pushToCloud(nextSet, next, nextAudit, cloudVersion)
+  }
+
+  // ── Verificación real de membresía en MRC Members (SP REST) ──────────
+  async function handleVerifyMembership() {
+    setVerifyStatus('fetching')
+    setVerifyError(null)
+    try {
+      const result = await getMrcMembersEmails()
+      if (!result) return // redirigió a consent — la página recarga
+      const { emails: groupEmails, fetchedAt, total } = result
+
+      setVerifiedSet(groupEmails)
+      setVerifiedAt(new Date(fetchedAt))
+      setVerifyStatus('ok')
+
+      // Reconciliación: si hay emails marcados "Agregado" pero NO están
+      // en el grupo, los desmarcamos automáticamente y avisamos.
+      // Si hay emails en el grupo pero NO marcados "Agregado", los marcamos.
+      const allListedEmails = new Set([
+        ...lideres.map(l => l.email.toLowerCase()),
+        ...manualEntries.map(m => m.email.toLowerCase()),
+      ])
+      const reconciledAdded = new Set()
+      for (const email of allListedEmails) {
+        if (groupEmails.has(email)) reconciledAdded.add(email)
+      }
+
+      // Detectar huérfanos: en grupo pero no en listado app
+      const orphans = []
+      for (const email of groupEmails) {
+        if (!allListedEmails.has(email)) orphans.push(email)
+      }
+      setOrphanEmails(orphans)
+
+      // Solo persistir si hay diferencias reales con el set local
+      const sameSize = reconciledAdded.size === addedSet.size
+      const sameContent = sameSize && [...reconciledAdded].every(e => addedSet.has(e))
+      if (!sameContent) {
+        setAddedSet(reconciledAdded)
+        persistLocalAdded(reconciledAdded)
+        const nextAudit = [...auditLog, {
+          ts: fetchedAt, by: adminMail || '',
+          action: 'verify_run', email: '',
+          meta: { totalInGroup: total, reconciled: reconciledAdded.size, orphans: orphans.length },
+        }].slice(-AUDIT_MAX_ENTRIES)
+        setAuditLog(nextAudit)
+        pushToCloud(reconciledAdded, manualEntries, nextAudit, cloudVersion)
+      } else {
+        const nextAudit = [...auditLog, {
+          ts: fetchedAt, by: adminMail || '',
+          action: 'verify_run', email: '',
+          meta: { totalInGroup: total, orphans: orphans.length },
+        }].slice(-AUDIT_MAX_ENTRIES)
+        setAuditLog(nextAudit)
+      }
+
+      // Cache compartida en la nube — fire-and-forget
+      saveVerified({
+        verifiedEmails: [...groupEmails],
+        verifiedBy:     adminMail || '',
+        totalInGroup:   total,
+      }).catch(e => console.warn('[verify] saveVerified falló:', e?.message))
+    } catch (err) {
+      setVerifyStatus('error')
+      setVerifyError(err?.message || 'Error al verificar membresía')
+    }
+  }
+
+  function handleAcceptOrphan(email) {
+    const lowerEmail = email.toLowerCase()
+    if (manualEntries.some(m => m.email === lowerEmail)) return
+
+    const entry = {
+      email:   lowerEmail,
+      name:    '',
+      addedBy: adminMail || '',
+      addedAt: new Date().toISOString(),
+    }
+    const nextManual = [...manualEntries, entry]
+    setManualEntries(nextManual)
+    persistLocalManual(nextManual)
+
+    const nextSet = new Set(addedSet)
+    nextSet.add(lowerEmail)
+    setAddedSet(nextSet)
+    persistLocalAdded(nextSet)
+
+    setOrphanEmails(prev => prev.filter(e => e !== email))
+
+    const nextAudit = [...auditLog, {
+      ts: new Date().toISOString(), by: adminMail || '',
+      action: 'orphan_accept', email: lowerEmail,
+    }].slice(-AUDIT_MAX_ENTRIES)
+    setAuditLog(nextAudit)
+    pushToCloud(nextSet, nextManual, nextAudit, cloudVersion)
   }
 
   // ── Solicitudes pendientes: cargar y procesar ────────────────────────
@@ -213,7 +372,7 @@ export default function PermisosSharePointScreen() {
           setManualEntries(nextManual)
           persistLocalManual(nextManual)
         }
-        pushToCloud(nextSet, nextManual)
+        pushToCloud(nextSet, nextManual, auditLog, cloudVersion)
       }
       // Quitamos la solicitud del listado pendientes localmente
       setPendingRequests(prev => prev.filter(r => r.id !== req.id))
@@ -236,8 +395,9 @@ export default function PermisosSharePointScreen() {
         setSyncError(err?.message || 'No se pudo leer el set compartido')
         return null
       }),
+      loadVerified().catch(() => null),
     ])
-      .then(([lista, cloudData]) => {
+      .then(([lista, cloudData, verifiedData]) => {
         if (cancelled) return
         const seen = new Set()
         const dedup = lista.filter(l => {
@@ -248,22 +408,32 @@ export default function PermisosSharePointScreen() {
         setLideres(dedup.sort((a, b) => a.email.localeCompare(b.email)))
 
         if (cloudData?.added) {
-          const cloudSet = new Set(cloudData.added.map(e => e.toLowerCase()))
+          const validAdded = (Array.isArray(cloudData.added) ? cloudData.added : [])
+            .filter(e => typeof e === 'string' && e.includes('@'))
+            .map(e => e.toLowerCase())
+          const cloudSet = new Set(validAdded)
           setAddedSet(cloudSet)
           persistLocalAdded(cloudSet)
-          if (Array.isArray(cloudData.manual)) {
-            setManualEntries(cloudData.manual)
-            persistLocalManual(cloudData.manual)
-          }
+          const validManual = (Array.isArray(cloudData.manual) ? cloudData.manual : [])
+            .filter(m => m && typeof m.email === 'string')
+          setManualEntries(validManual)
+          persistLocalManual(validManual)
+          setAuditLog(Array.isArray(cloudData.audit) ? cloudData.audit : [])
+          setCloudVersion(typeof cloudData.version === 'number' ? cloudData.version : 0)
           setSyncStatus('ok')
           setLastSyncAt(cloudData.updatedAt ? new Date(cloudData.updatedAt) : new Date())
         } else if (cloudData === null) {
-          // Primer uso. Si tenemos algo local, lo subimos.
           if (addedSet.size > 0 || manualEntries.length > 0) {
-            pushToCloud(addedSet, manualEntries)
+            pushToCloud(addedSet, manualEntries, auditLog, cloudVersion)
           } else {
             setSyncStatus('ok')
           }
+        }
+
+        // Cache de verificación previa — solo lectura, no es la fuente de verdad
+        if (verifiedData?.verifiedEmails) {
+          setVerifiedSet(new Set(verifiedData.verifiedEmails.map(e => e.toLowerCase())))
+          setVerifiedAt(verifiedData.verifiedAt ? new Date(verifiedData.verifiedAt) : null)
         }
       })
       .catch(e => !cancelled && setError(e?.message || 'Error al cargar líderes'))
@@ -589,6 +759,93 @@ export default function PermisosSharePointScreen() {
           </button>
         </motion.div>
 
+        {/* ── Botón Verificar permisos en SharePoint ───────────────────── */}
+        <motion.button
+          onClick={handleVerifyMembership}
+          disabled={verifyStatus === 'fetching'}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '12px 14px', marginBottom: 16,
+            borderRadius: 10, border: '1px solid rgba(47,128,237,0.45)',
+            background: verifyStatus === 'fetching' ? 'rgba(47,128,237,0.08)' : 'rgba(47,128,237,0.18)',
+            color: '#60A5FA', cursor: verifyStatus === 'fetching' ? 'wait' : 'pointer',
+            fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+          }}
+        >
+          {verifyStatus === 'fetching'
+            ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Consultando MRC Members…</>
+            : <><ShieldCheck size={14} /> Verificar permisos en SharePoint</>}
+        </motion.button>
+
+        {/* Estado de verificación */}
+        {(verifyStatus === 'ok' || verifyStatus === 'error' || verifiedAt) && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', marginBottom: 12, borderRadius: 8, fontSize: 12,
+            background: verifyStatus === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(39,174,96,0.06)',
+            border: `1px solid ${verifyStatus === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(39,174,96,0.25)'}`,
+            color: verifyStatus === 'error' ? '#F87171' : 'var(--color-text-muted)',
+          }}>
+            <ShieldCheck size={13} color={verifyStatus === 'error' ? '#F87171' : '#27AE60'} />
+            <span style={{ flex: 1 }}>
+              {verifyStatus === 'error'
+                ? (verifyError || 'Error al verificar')
+                : verifiedAt
+                  ? `Verificado ${verifiedAt.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${verifiedSet.size} en grupo MRC Members`
+                  : 'Sin verificar todavía'}
+            </span>
+          </div>
+        )}
+
+        {/* ── Huérfanos: en grupo SP pero no en listado app ────────────── */}
+        {orphanEmails.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: 'rgba(242,201,76,0.08)', border: '1px solid rgba(242,201,76,0.35)',
+              borderRadius: 10, padding: '12px 14px', marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <AlertTriangle size={14} color="#F2C94C" />
+              <h3 style={{
+                margin: 0, fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800,
+                color: '#F2C94C', textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                Huérfanos detectados ({orphanEmails.length})
+              </h3>
+            </div>
+            <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+              Estos correos están en MRC Members en SharePoint pero no aparecen en el
+              listado de Líderes ni como manuales. Probablemente alguien los agregó
+              directo desde SharePoint UI sin pasar por la app.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {orphanEmails.map(email => (
+                <div key={email} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 10px', background: 'var(--color-navy-mid)',
+                  border: '1px solid rgba(242,201,76,0.25)', borderRadius: 7,
+                }}>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--color-text)' }}>{email}</span>
+                  <button
+                    onClick={() => handleAcceptOrphan(email)}
+                    style={{
+                      padding: '4px 9px', borderRadius: 6,
+                      background: 'rgba(39,174,96,0.15)', border: '1px solid rgba(39,174,96,0.4)',
+                      color: '#27AE60', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Aceptar como manual
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
         {/* ── Agregar email manual ───────────────────────────────────── */}
         <motion.section
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}
@@ -642,14 +899,17 @@ export default function PermisosSharePointScreen() {
             />
             <button
               onClick={handleAddManual}
+              disabled={verifyingEmail}
               style={{
                 padding: '9px 14px', borderRadius: 7, border: 'none',
-                background: '#F57C20', color: '#fff',
+                background: verifyingEmail ? 'rgba(245,124,32,0.5)' : '#F57C20', color: '#fff',
                 fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                cursor: verifyingEmail ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5,
               }}
             >
-              <UserPlus size={13} /> Agregar
+              {verifyingEmail
+                ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> Validando AD…</>
+                : <><UserPlus size={13} /> Agregar</>}
             </button>
           </div>
           {emailErr && (
@@ -703,7 +963,26 @@ export default function PermisosSharePointScreen() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {filtered.map((l, i) => {
-              const added = addedSet.has(l.email)
+              const added       = addedSet.has(l.email)
+              const emailLower  = l.email.toLowerCase()
+              // Estado del semáforo:
+              //   verde  — verificado en el grupo MRC Members
+              //   rojo   — marcado "Agregado" pero AUSENTE del grupo (alerta)
+              //   gris   — sin verificación todavía (estado neutro)
+              let ledColor = '#9CA3AF'  // gris por defecto
+              let ledTitle = 'Sin verificar — presiona "Verificar permisos"'
+              if (verifiedAt) {
+                if (verifiedSet.has(emailLower)) {
+                  ledColor = '#27AE60'
+                  ledTitle = 'Confirmado en grupo MRC Members'
+                } else if (added) {
+                  ledColor = '#EB5757'
+                  ledTitle = 'Marcado como Agregado pero NO está en MRC Members'
+                } else {
+                  ledColor = '#9CA3AF'
+                  ledTitle = 'No está en MRC Members (correcto, marcado como Pendiente)'
+                }
+              }
               return (
                 <motion.div
                   key={l.email}
@@ -716,6 +995,16 @@ export default function PermisosSharePointScreen() {
                     borderRadius: 10, padding: '10px 12px',
                   }}
                 >
+                  {/* LED semáforo de verificación SP */}
+                  <span
+                    title={ledTitle}
+                    style={{
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: ledColor,
+                      boxShadow: `0 0 6px ${ledColor}`,
+                      flexShrink: 0,
+                    }}
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: 13, color: 'var(--color-text)',
@@ -760,6 +1049,61 @@ export default function PermisosSharePointScreen() {
               )
             })}
           </div>
+        )}
+
+        {/* ── Audit log (colapsable) ────────────────────────────────────── */}
+        {auditLog.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+            style={{
+              marginTop: 20, background: 'var(--color-navy-mid)',
+              border: '1px solid var(--color-border)', borderRadius: 10,
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              onClick={() => setAuditOpen(o => !o)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 14px', background: 'transparent', border: 'none',
+                color: 'var(--color-text)', cursor: 'pointer',
+                fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: 0.5,
+              }}
+            >
+              <History size={13} color="#60A5FA" />
+              <span style={{ flex: 1, textAlign: 'left' }}>Historial de cambios ({auditLog.length})</span>
+              {auditOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {auditOpen && (
+              <div style={{
+                maxHeight: 320, overflowY: 'auto',
+                borderTop: '1px solid var(--color-border)',
+              }}>
+                {[...auditLog].reverse().map((a, idx) => (
+                  <div key={idx} style={{
+                    padding: '8px 14px',
+                    borderBottom: idx < auditLog.length - 1 ? '1px solid var(--color-border)' : 'none',
+                    fontSize: 11, color: 'var(--color-text-muted)',
+                    display: 'flex', flexDirection: 'column', gap: 2,
+                  }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{
+                        background: 'rgba(47,128,237,0.12)', color: '#60A5FA',
+                        padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                      }}>{a.action}</span>
+                      <span style={{ color: 'var(--color-text)' }}>{a.email || '—'}</span>
+                    </div>
+                    <div style={{ fontSize: 10 }}>
+                      {new Date(a.ts).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {a.by && ` · ${a.by}`}
+                      {a.meta && ` · ${JSON.stringify(a.meta)}`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.section>
         )}
       </div>
     </div>

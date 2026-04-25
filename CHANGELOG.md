@@ -5,6 +5,54 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.9] — 2026-04-25
+
+### Verificación real de membresía MRC Members + hardening crítico para lanzamiento nacional
+
+**1. Hotfix: `e is not iterable` al agregar email manual**
+- Causa: spread sobre `null` proveniente de `JSON.parse(localStorage)` o de un cloud JSON con `added: null` legacy. En bundle minificado el error se reportaba con variable de una letra (`"e is not iterable"`).
+- Fix: nueva utility `safeArrayParse(key)` en `PermisosSharePointScreen` que valida `Array.isArray()` después del parse.
+- En `loadAddedEmails`: defensa estricta — `data.added`, `data.manual`, `data.audit` se normalizan a `[]` si vienen null/undefined/objeto, y se filtran entradas inválidas.
+- En `saveAddedEmails`: detecta firma legacy vs payload-objeto, convierte Set a array si llega uno por accidente.
+
+**2. Verificación real de permisos en SharePoint (semáforo verde/rojo/gris)**
+- Microsoft Graph **NO expone** miembros de SharePoint Site Groups (solo M365 Groups). MRC Members es un Site Group, así que la única vía es **SharePoint REST**.
+- Nuevo servicio `sharepointGroupService.js`: token con audience SP REST (scope `https://agrosuper.sharepoint.com/AllSites.Read`) + `getMrcMembersEmails()` que retorna `Set<email>` con una sola petición.
+- **CRÍTICO para no romper la conexión existente con TI**: el scope SP REST está completamente **aislado** en `sharePointRestScopes` (msalConfig.js). El `loginRequest` original (User.Read + Sites.ReadWrite.All + etc.) queda **intacto**. Solo cuando un admin presiona "Verificar permisos" por primera vez se solicita el nuevo permiso vía `acquireTokenSilent`/`acquireTokenRedirect` separado. Usuarios normales nunca tocan este flujo. Si TI prefiere pre-aprobar tenant-wide, puede hacerlo en Azure portal sin requerir cambios de código.
+- Nuevo botón **"Verificar permisos en SharePoint"** en pantalla. Reconciliación automática:
+  - 🟢 Verde — confirmado en grupo MRC Members.
+  - 🔴 Rojo — marcado "Agregado" pero AUSENTE del grupo (alerta de inconsistencia).
+  - ⚪ Gris — sin verificación todavía o no está en grupo (correcto si está como Pendiente).
+- Cache compartida `mrc-sp-members-verified.json` (nuevo `spMembersVerifiedSync.js`): cualquier admin que abra la app desde otro dispositivo ve el último estado verificado sin re-consultar.
+
+**3. Detección automática de "huérfanos"**
+- Si la verificación devuelve emails que están en MRC Members pero NO en `lideres` ni `manualEntries`, se muestran al final con badge amarillo `<AlertTriangle>` y botón "Aceptar como manual".
+- Detecta el caso de admins que agregan correos directamente desde SharePoint UI saltándose la app.
+
+**4. Validación de email manual contra Azure AD**
+- Antes de aceptar un email manual, llamada a Graph `GET /users/{email}` para confirmar que existe en el tenant Agrosuper. Bloquea typos como `fgaticaaa@agrosuper.com`.
+- Reusa el scope `User.ReadBasic.All` ya consentido — sin nuevo permiso.
+- Si el usuario no tipeó nombre, lo autocompleta con el `displayName` de AD.
+- Detecta cuentas deshabilitadas y las rechaza explícitamente.
+
+**5. Audit log compartido (200 últimas acciones, FIFO)**
+- Tabla colapsable al final de la pantalla con historial: `toggle_added`, `toggle_pending`, `manual_add`, `manual_remove`, `verify_run`, `request_processed`, `orphan_accept`.
+- Cada entrada con timestamp, admin, email, metadata. Crucial para compliance/auditoría en lanzamiento nacional.
+- Campo `version` agregado al JSON cloud para preparar concurrencia explícita en futuras iteraciones.
+
+**6. Refactor — centralización de `resolveSiteId`**
+- Nuevo `services/sharepointSiteResolver.js` con `resolveSiteId`, `buildSiteEndpoint`, `buildDriveFileUrl`. Importado por `sharepointSync.js`, `spMembersAddedSync.js`, `spMembersVerifiedSync.js`. Antes había dos implementaciones idénticas duplicadas.
+
+**7. Tests centinela**
+- 22 tests nuevos cubriendo: defensa null/undefined, scope SP REST aislado, semáforo LED, validación AD, huérfanos, audit, parsing de LoginName, redirect (no popup) tras consent_required.
+- 136/136 tests pasan.
+
+**Pendiente para v1.9.10**
+- Concurrencia: si `cloudVersion` ya cambió cuando intentamos push, hacer merge automático de `added` + `manual` en lugar de last-write-wins ciego.
+- Notificación al solicitante cuando su solicitud es marcada Procesada (vía Power Automate).
+
+---
+
 ## [1.9.8] — 2026-04-25
 
 ### Conexión SharePoint — etapa crítica para lanzamiento nacional

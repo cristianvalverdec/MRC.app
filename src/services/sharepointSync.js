@@ -15,6 +15,7 @@
 //   VITE_SHAREPOINT_SITE_URL   — URL del sitio (ej: https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL)
 
 import { getGraphToken } from '../config/msalInstance'
+import { resolveSiteId, buildDriveFileUrl } from './sharepointSiteResolver'
 
 const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -23,39 +24,9 @@ const IS_DEV_MODE =
 // Nombre del archivo en la raíz de la biblioteca Documents del sitio
 const CONFIG_FILENAME = 'mrc-forms-config.json'
 
-// Cache del siteId para no resolverlo en cada llamada
-let _cachedSiteId = null
-
-// ── Resolver el siteId a partir de la URL del sitio ──────────────────────
-// Llama a GET /sites/{hostname}:{/path} → devuelve el ID real del sitio.
-// Este enfoque es el más robusto: evita problemas con formatos de URL compuestos.
-async function resolveSiteId(token) {
-  if (_cachedSiteId) return _cachedSiteId
-
-  const siteUrl = import.meta.env.VITE_SHAREPOINT_SITE_URL
-  if (!siteUrl) throw new Error('VITE_SHAREPOINT_SITE_URL no configurado')
-
-  const url = new URL(siteUrl)
-  const endpoint = `https://graph.microsoft.com/v1.0/sites/${url.hostname}:${url.pathname}`
-
-  const response = await fetch(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '')
-    throw new Error(`No se pudo resolver el sitio SharePoint (${response.status}): ${body.slice(0, 120)}`)
-  }
-
-  const data = await response.json()
-  _cachedSiteId = data.id
-  console.info('[MRC Sync] Site ID resuelto:', _cachedSiteId)
-  return _cachedSiteId
-}
-
 // ── URL del archivo usando el siteId resuelto ────────────────────────────
 function buildFileUrl(siteId) {
-  return `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${CONFIG_FILENAME}:/content`
+  return buildDriveFileUrl(siteId, CONFIG_FILENAME)
 }
 
 // ── Subir configuración de formularios a SharePoint ──────────────────────
