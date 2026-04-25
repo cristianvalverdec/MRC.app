@@ -9,6 +9,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useKPIsAllBranches } from '../hooks/useKPIs'
 import useGoalsStore, { getTramo, DEFAULT_ACTIVITY_TARGETS, TRAMO_META } from '../store/goalsStore'
 import AccessRequestCTA from '../components/ui/AccessRequestCTA'
+import AppHeader from '../components/layout/AppHeader'
 
 // ── Fuentes ────────────────────────────────────────────────────────────────
 const FD = "'Barlow Condensed', sans-serif"
@@ -640,35 +641,28 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
 
-      {/* Header */}
-      <div style={{ padding: '8px 14px 4px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.01em', lineHeight: 1 }}>
-                Estatus diario
-              </div>
-              <div style={{ padding: '2px 8px', borderRadius: 6, background: `${C.orange}22`, fontFamily: FD, fontSize: 10, fontWeight: 700, color: C.orange }}>
-                SEM {week}
-              </div>
-            </div>
-            <div style={{ fontFamily: FB, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>
-              {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+      {/* Header — usa AppHeader para botón de retroceso estándar */}
+      <AppHeader
+        title={`Estatus Diario · Sem ${week}`}
+        rightAction={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {role === 'admin' && (
-              <button onClick={() => setShowDL(true)} title="Descargar imagen" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-                <Upload size={16} color={C.orange} />
-              </button>
+              <motion.button
+                whileTap={{ scale: 0.88 }}
+                onClick={() => setShowDL(true)}
+                title="Descargar imagen"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+              >
+                <Upload size={17} color={C.orange} />
+              </motion.button>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: isOnline ? C.success : C.danger, boxShadow: `0 0 8px ${isOnline ? C.success : C.danger}` }} />
-              <span style={{ fontFamily: FD, fontSize: 9, color: 'var(--color-text-muted)' }}>SYNC</span>
+              <span style={{ fontFamily: FD, fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.06em' }}>SYNC</span>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI pills globales */}
       <div style={{ padding: '6px 14px 8px', display: 'flex', gap: 6, flexShrink: 0 }}>
