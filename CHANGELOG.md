@@ -5,6 +5,40 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.10] — 2026-04-25
+
+### Hallazgo crítico — el grupo MRC Members era un grupo "fantasma"
+
+**Diagnóstico:** En pruebas con `tfigueroa@agrosuper.com` se confirmó que MRC Members fue creado en SharePoint pero **nunca recibió un permission level asignado** (Edit/Contribute/Read). Es un grupo que agrupa usuarios pero no les concede acceso real al sitio. Eso explica por qué fgaticaa y otros usuarios tenían 403 a pesar de estar listados en MRC Members. Al moverlos a "Integrantes de la SSO AS COMERCIAL" (el grupo Members nativo del sitio) recibieron acceso inmediato.
+
+**Solución:** Cambiar el target de toda la app al grupo nativo que SÍ funciona:
+
+- `sharepointGroupService.js`: `GROUP_NAME = 'Integrantes de la SSO AS COMERCIAL'`. Este es el grupo nativo del template SharePoint con Edit asignado por defecto.
+- Toda la copy de `PermisosSharePointScreen.jsx` actualizada (13 ocurrencias) — ahora indica "Integrantes SSO AS COMERCIAL" como destino del "Copiar emails".
+- Banner informativo verde explicando que estamos apuntando al grupo correcto y que MRC Members quedó deprecated en la app.
+
+### Hotfix — flujo de consent ya no muestra el diálogo "Aprobación necesaria" repetidamente
+
+**Diagnóstico:** Cuando v1.9.9 detectaba `consent_required` (caso Agrosuper, donde TI tiene "user consent" deshabilitado), llamaba `acquireTokenRedirect` automáticamente. En la práctica esto solo encola una solicitud en Azure Portal para que TI apruebe — y volverá a aparecer en el siguiente intento, generando frustración.
+
+**Fix:**
+- `sharepointGroupService.js`: nueva clase `ConsentRequiredError` con `code: 'CONSENT_REQUIRED'`. `getSharePointRestToken()` la lanza en lugar de redirigir.
+- Nueva función exportada `requestSharePointConsentExplicit()` — el redirect solo se dispara cuando el usuario lo elige activamente.
+- `PermisosSharePointScreen.jsx`: nuevo estado `verifyStatus === 'consent_pending'` con UI dedicada — banner amarillo con explicación clara de la situación, botón "Reintentar verificación" (silencioso, funciona automáticamente apenas TI apruebe), botón "Reenviar solicitud a TI" (explícito), y un texto plantilla para enviar a TI con las instrucciones técnicas exactas en Azure Portal.
+
+**Tests:**
+- Test centinela contra retorno automático al consent.
+- Test centinela del nuevo target group `Integrantes de la SSO AS COMERCIAL`.
+- 137/137 pasan.
+
+### Acción requerida del usuario
+
+1. **Desplegar v1.9.10 inmediatamente** — desbloquea la verificación apuntando al grupo correcto.
+2. **Decidir qué hacer con MRC Members** en SharePoint: o (a) eliminarlo si no se usa, o (b) asignarle un permission level "Edit" para que se vuelva funcional. La app no necesita ninguna de las dos para operar.
+3. **Migración de usuarios**: usuarios que están solo en MRC Members deben moverse a "Integrantes de la SSO AS COMERCIAL" (manual desde SharePoint UI o vía "Copiar emails" de la app).
+
+---
+
 ## [1.9.9] — 2026-04-25
 
 ### Verificación real de membresía MRC Members + hardening crítico para lanzamiento nacional

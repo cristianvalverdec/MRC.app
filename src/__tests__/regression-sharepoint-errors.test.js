@@ -377,8 +377,22 @@ describe('sharepointGroupService — SP REST aislado', () => {
     expect(groupSrc).toContain('export async function getSharePointRestToken')
   })
 
-  it('apunta al grupo "MRC Members"', () => {
-    expect(groupSrc).toContain("GROUP_NAME = 'MRC Members'")
+  it('apunta al grupo nativo Integrantes SSO AS COMERCIAL (no al fantasma MRC Members)', () => {
+    // Decisión v1.9.10 — MRC Members fue creado sin permission level
+    // asignado, así que no otorga acceso real al sitio. El grupo nativo
+    // "Integrantes de la SSO AS COMERCIAL" SÍ tiene Edit asignado por
+    // defecto, así que es la fuente de verdad para verificación.
+    expect(groupSrc).toContain("GROUP_NAME = 'Integrantes de la SSO AS COMERCIAL'")
+  })
+
+  it('NO debe usar consent_required como condición para auto-redirect', () => {
+    // Hotfix v1.9.10: en tenants con user-consent deshabilitado (Agrosuper),
+    // el redirect automático solo encolaba más solicitudes. Ahora se lanza
+    // ConsentRequiredError y el caller decide.
+    expect(groupSrc).toContain('ConsentRequiredError')
+    expect(groupSrc).toContain("code = 'CONSENT_REQUIRED'")
+    // Debe existir una función explícita para el redirect, no automática
+    expect(groupSrc).toContain('export async function requestSharePointConsentExplicit')
   })
 
   it('maneja consent_required con acquireTokenRedirect (no popup)', () => {

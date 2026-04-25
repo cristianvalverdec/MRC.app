@@ -1,8 +1,20 @@
-// ── Consulta del grupo SharePoint MRC Members ────────────────────────────
+// ── Consulta del grupo SharePoint con permisos reales sobre el sitio ────
+//
+// IMPORTANTE — historia v1.9.10:
+// Originalmente apuntábamos a "MRC Members", pero descubrimos en pruebas
+// con tfigueroa@agrosuper.com que ese grupo fue creado SIN permission
+// level asignado (Edit/Contribute/Read) sobre el sitio SSOASCOMERCIAL.
+// Es un grupo "fantasma": agrupa usuarios pero no les concede acceso real.
+//
+// El grupo nativo "Integrantes de la SSO AS COMERCIAL" SÍ tiene Edit
+// asignado por defecto (el grupo Members del template del sitio). Mover
+// un usuario a ese grupo le da acceso inmediato, sin fricción.
+//
+// Mientras TI no asigne un permission level a MRC Members o lo elimine,
+// la fuente de verdad para "tiene acceso al sitio" es el grupo nativo.
 //
 // Microsoft Graph NO expone los miembros de los SharePoint Site Groups
-// (solo de M365 Groups). Como "MRC Members" es un Site Group del sitio
-// SSOASCOMERCIAL, la única opción robusta es la SharePoint REST API.
+// (solo de M365 Groups), así que la única opción robusta es SP REST.
 //
 // Endpoint:
 //   GET {site}/_api/web/sitegroups/getbyname('MRC Members')/users
@@ -25,7 +37,10 @@ const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
   import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
-const GROUP_NAME = 'MRC Members'
+// Apuntamos al grupo nativo que SÍ otorga permisos. Si TI eventualmente
+// arregla MRC Members (asignándole un permission level) podemos volver
+// a apuntar acá; por ahora este es el grupo funcional.
+const GROUP_NAME = 'Integrantes de la SSO AS COMERCIAL'
 
 function getSiteRootUrl() {
   const raw = import.meta.env.VITE_SHAREPOINT_SITE_URL
@@ -33,9 +48,25 @@ function getSiteRootUrl() {
   return raw.replace(/\/$/, '')
 }
 
-// Adquiere un token con audience SharePoint. Si el usuario no ha
-// consentido aún, dispara redirect (UNA VEZ).
-export async function getSharePointRestToken({ allowInteraction = true } = {}) {
+// Error tipado para consent pendiente — el caller decide qué UI mostrar.
+export class ConsentRequiredError extends Error {
+  constructor(message = 'Permiso AllSites.Read pendiente de aprobación TI') {
+    super(message)
+    this.code = 'CONSENT_REQUIRED'
+    this.name = 'ConsentRequiredError'
+  }
+}
+
+// Adquiere un token con audience SharePoint en modo SILENCIOSO.
+// IMPORTANTE: NO dispara redirect automáticamente. Si el tenant requiere
+// admin consent (caso Agrosuper), un redirect solo encola otra solicitud
+// y muestra al usuario el diálogo "Aprobación necesaria" repetidamente.
+//
+// El caller debe:
+//   - Capturar `ConsentRequiredError` y mostrar UI explicativa.
+//   - Solo llamar `requestSharePointConsentExplicit()` si el usuario decide
+//     activamente solicitar aprobación (botón claramente etiquetado).
+export async function getSharePointRestToken() {
   const accounts = msalInstance.getAllAccounts()
   if (!accounts.length) throw new Error('Sin sesión activa')
 
@@ -51,22 +82,31 @@ export async function getSharePointRestToken({ allowInteraction = true } = {}) {
       code === 'consent_required' ||
       code === 'interaction_required' ||
       err?.name === 'InteractionRequiredAuthError'
-    if (isInteractionNeeded && allowInteraction) {
-      // Redirect — el admin volverá a la pantalla con el token concedido.
-      // NO usamos popup porque rompe la sesión PWA en Android.
-      await msalInstance.acquireTokenRedirect({
-        scopes:  sharePointRestScopes.scopes,
-        account: accounts[0],
-      })
-      // acquireTokenRedirect no resuelve (la página recarga), pero por
-      // las dudas devolvemos null para que el caller no continúe.
-      return null
+    if (isInteractionNeeded) {
+      throw new ConsentRequiredError(
+        'TI Agrosuper debe aprobar el permiso "AllSites.Read" para esta app. ' +
+        'Tu solicitud quedó en cola en Azure Portal — la verificación funcionará ' +
+        'automáticamente apenas TI apruebe (sin recargar la app).'
+      )
     }
     throw err
   }
 }
 
-// Devuelve los emails de los miembros actuales del grupo MRC Members.
+// Dispara el flujo de solicitud de consent (redirect a Microsoft).
+// Solo invocar si el usuario lo eligió activamente en la UI.
+// Recordar que en tenants con "user consent" deshabilitado, esto solo
+// encola una solicitud al admin global — no concede el permiso.
+export async function requestSharePointConsentExplicit() {
+  const accounts = msalInstance.getAllAccounts()
+  if (!accounts.length) throw new Error('Sin sesión activa')
+  await msalInstance.acquireTokenRedirect({
+    scopes:  sharePointRestScopes.scopes,
+    account: accounts[0],
+  })
+}
+
+// Devuelve los emails de los miembros actuales del grupo SP del sitio.
 // Una sola petición — el grupo completo en una respuesta. Soporta hasta
 // 500 usuarios (configurable con $top si crece más).
 //
@@ -89,11 +129,9 @@ export async function getMrcMembersEmails() {
     }
   }
 
+  // Puede lanzar ConsentRequiredError — el caller la captura y muestra UI.
   const token = await getSharePointRestToken()
-  if (!token) {
-    // El flujo se desvió a redirect — la página se va a recargar
-    return null
-  }
+  if (!token) return null
 
   const siteUrl = getSiteRootUrl()
   const url = `${siteUrl}/_api/web/sitegroups/getbyname('${encodeURIComponent(GROUP_NAME)}')/users` +

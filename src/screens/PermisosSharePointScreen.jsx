@@ -7,7 +7,7 @@
 //      al admin marcar cada una como Procesada/Rechazada (PATCH al item).
 //
 //   2. AGREGAR EMAIL MANUAL — input para incluir un correo @agrosuper.com
-//      arbitrario en el set MRC Members (útil para invitados o áreas que
+//      arbitrario en el set Integrantes SSO AS COMERCIAL (útil para invitados o áreas que
 //      no están en la lista de Líderes MRC). Se persiste en la nube como
 //      parte de mrc-sp-members-added.json (campo `manual`).
 //
@@ -33,7 +33,10 @@ import useUserStore from '../store/userStore'
 import { getLideres } from '../services/lideresService'
 import { loadAddedEmails, saveAddedEmails, AUDIT_MAX_ENTRIES } from '../services/spMembersAddedSync'
 import { loadVerified, saveVerified } from '../services/spMembersVerifiedSync'
-import { getMrcMembersEmails } from '../services/sharepointGroupService'
+import {
+  getMrcMembersEmails,
+  requestSharePointConsentExplicit,
+} from '../services/sharepointGroupService'
 import { userExistsInAzureAD } from '../services/graphService'
 import {
   getPendingAccessRequests,
@@ -77,13 +80,14 @@ export default function PermisosSharePointScreen() {
   const [auditLog, setAuditLog] = useState([])
   const [cloudVersion, setCloudVersion] = useState(0)
 
-  // Estado de verificación de membresía real en MRC Members (SP REST)
+  // Estado de verificación de membresía real en Integrantes SSO AS COMERCIAL (SP REST)
   const [verifiedSet,    setVerifiedSet]    = useState(new Set())
   const [verifiedAt,     setVerifiedAt]     = useState(null)
-  const [verifyStatus,   setVerifyStatus]   = useState('idle') // 'idle' | 'fetching' | 'ok' | 'error'
+  const [verifyStatus,   setVerifyStatus]   = useState('idle') // 'idle' | 'fetching' | 'ok' | 'error' | 'consent_pending'
   const [verifyError,    setVerifyError]    = useState(null)
   const [orphanEmails,   setOrphanEmails]   = useState([])    // en grupo SP, no en listado app
   const [auditOpen,      setAuditOpen]      = useState(false)
+  const [consentRedirecting, setConsentRedirecting] = useState(false)
 
   // syncStatus: 'idle' | 'pulling' | 'pushing' | 'ok' | 'error'
   const [syncStatus, setSyncStatus] = useState('idle')
@@ -230,13 +234,13 @@ export default function PermisosSharePointScreen() {
     pushToCloud(nextSet, next, nextAudit, cloudVersion)
   }
 
-  // ── Verificación real de membresía en MRC Members (SP REST) ──────────
+  // ── Verificación real de membresía en Integrantes SSO AS COMERCIAL (SP REST) ──────────
   async function handleVerifyMembership() {
     setVerifyStatus('fetching')
     setVerifyError(null)
     try {
       const result = await getMrcMembersEmails()
-      if (!result) return // redirigió a consent — la página recarga
+      if (!result) return
       const { emails: groupEmails, fetchedAt, total } = result
 
       setVerifiedSet(groupEmails)
@@ -291,8 +295,30 @@ export default function PermisosSharePointScreen() {
         totalInGroup:   total,
       }).catch(e => console.warn('[verify] saveVerified falló:', e?.message))
     } catch (err) {
+      // Caso especial: TI no ha aprobado el consent → estado dedicado.
+      // NO disparamos redirect automático — el usuario decide explícitamente
+      // si quiere reintentar la solicitud de aprobación a TI.
+      if (err?.code === 'CONSENT_REQUIRED' || err?.name === 'ConsentRequiredError') {
+        setVerifyStatus('consent_pending')
+        setVerifyError(err?.message || null)
+        return
+      }
       setVerifyStatus('error')
       setVerifyError(err?.message || 'Error al verificar membresía')
+    }
+  }
+
+  // Acción explícita: el usuario elige reenviar la solicitud de consent a TI
+  async function handleRequestConsentToIT() {
+    setConsentRedirecting(true)
+    try {
+      await requestSharePointConsentExplicit()
+      // El redirect navega fuera de la app; si volvemos aquí es porque algo
+      // se canceló — restauramos el estado.
+    } catch (err) {
+      setVerifyError(err?.message || 'No se pudo iniciar el flujo de aprobación')
+    } finally {
+      setConsentRedirecting(false)
     }
   }
 
@@ -524,9 +550,10 @@ export default function PermisosSharePointScreen() {
           <div style={{ fontWeight: 700, color: '#60A5FA', marginBottom: 4, fontFamily: 'var(--font-display)', fontSize: 13 }}>
             ¿Para qué sirve esta pantalla?
           </div>
-          Todos los líderes aquí listados necesitan acceso <strong style={{ color: 'var(--color-text)' }}>Contribute</strong> al sitio
+          Todos los líderes aquí listados necesitan acceso <strong style={{ color: 'var(--color-text)' }}>Edit</strong> al sitio
           SSOASCOMERCIAL para usar la app MRC correctamente.
-          Usa "Copiar emails" y pégalos en el diálogo <em>Add users</em> del grupo <strong style={{ color: 'var(--color-text)' }}>MRC Members</strong> en SharePoint.
+          Usa "Copiar emails" y pégalos en el diálogo <em>Add users</em> del grupo <strong style={{ color: '#27AE60' }}>Integrantes de la SSO AS COMERCIAL</strong> en SharePoint
+          (es el grupo nativo del sitio que SÍ otorga permisos — el grupo "MRC Members" original no tenía permission level asignado).
         </motion.div>
 
         {/* ── Solicitudes pendientes ─────────────────────────────────── */}
@@ -774,12 +801,12 @@ export default function PermisosSharePointScreen() {
           }}
         >
           {verifyStatus === 'fetching'
-            ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Consultando MRC Members…</>
+            ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Consultando Integrantes SSO AS COMERCIAL…</>
             : <><ShieldCheck size={14} /> Verificar permisos en SharePoint</>}
         </motion.button>
 
         {/* Estado de verificación */}
-        {(verifyStatus === 'ok' || verifyStatus === 'error' || verifiedAt) && (
+        {(verifyStatus === 'ok' || verifyStatus === 'error' || verifiedAt) && verifyStatus !== 'consent_pending' && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', marginBottom: 12, borderRadius: 8, fontSize: 12,
@@ -792,10 +819,81 @@ export default function PermisosSharePointScreen() {
               {verifyStatus === 'error'
                 ? (verifyError || 'Error al verificar')
                 : verifiedAt
-                  ? `Verificado ${verifiedAt.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${verifiedSet.size} en grupo MRC Members`
+                  ? `Verificado ${verifiedAt.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${verifiedSet.size} en grupo Integrantes SSO AS COMERCIAL`
                   : 'Sin verificar todavía'}
             </span>
           </div>
+        )}
+
+        {/* Estado especial: consent pendiente de aprobación TI */}
+        {verifyStatus === 'consent_pending' && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: '14px 16px', marginBottom: 12, borderRadius: 10,
+              background: 'rgba(242,201,76,0.08)', border: '1px solid rgba(242,201,76,0.4)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Clock size={14} color="#F2C94C" />
+              <strong style={{
+                fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800,
+                color: '#F2C94C', textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                Pendiente aprobación de TI
+              </strong>
+            </div>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text)', lineHeight: 1.6 }}>
+              La verificación directa contra el grupo SharePoint requiere un permiso
+              (<code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>AllSites.Read</code>)
+              que en Agrosuper solo puede aprobar un Global Admin de Azure AD.
+            </p>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--color-text)' }}>Tu solicitud ya está en cola.</strong> Cuando TI la apruebe en Azure
+              Portal, presiona "Reintentar verificación" y funcionará automáticamente sin necesidad
+              de recargar la app ni iniciar sesión nuevamente. Mientras tanto, mantén el toggle
+              Agregado/Pendiente manual y usa el listado como fuente de verdad.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleVerifyMembership}
+                disabled={verifyStatus === 'fetching'}
+                style={{
+                  padding: '8px 14px', borderRadius: 7,
+                  background: 'rgba(47,128,237,0.15)', border: '1px solid rgba(47,128,237,0.4)',
+                  color: '#60A5FA', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <RefreshCw size={12} /> Reintentar verificación
+              </button>
+              <button
+                onClick={handleRequestConsentToIT}
+                disabled={consentRedirecting}
+                style={{
+                  padding: '8px 14px', borderRadius: 7,
+                  background: 'transparent', border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-muted)', fontSize: 12, fontWeight: 600,
+                  cursor: consentRedirecting ? 'wait' : 'pointer',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {consentRedirecting ? 'Redirigiendo…' : 'Reenviar solicitud a TI'}
+              </button>
+            </div>
+            <details style={{ marginTop: 10 }}>
+              <summary style={{ fontSize: 11, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+                ¿Qué le digo a TI exactamente?
+              </summary>
+              <div style={{
+                marginTop: 8, padding: '10px 12px', borderRadius: 6,
+                background: 'rgba(0,0,0,0.15)', fontSize: 11, color: 'var(--color-text-muted)',
+                lineHeight: 1.6, fontFamily: 'monospace',
+              }}>
+                Hola TI, en Azure Portal → Enterprise applications → "MRC - Misión Riesgo Cero" → Permissions, hay una solicitud pendiente para aprobar el permiso delegado <strong>AllSites.Read</strong> de SharePoint Online. Es de bajo privilegio (solo lectura) y solo lo usa la pantalla de Permisos SharePoint para confirmar que los usuarios marcados están realmente en el grupo Integrantes SSO AS COMERCIAL. Por favor concedan "Grant admin consent" cuando puedan. Gracias.
+              </div>
+            </details>
+          </motion.div>
         )}
 
         {/* ── Huérfanos: en grupo SP pero no en listado app ────────────── */}
@@ -817,7 +915,7 @@ export default function PermisosSharePointScreen() {
               </h3>
             </div>
             <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-              Estos correos están en MRC Members en SharePoint pero no aparecen en el
+              Estos correos están en Integrantes SSO AS COMERCIAL en SharePoint pero no aparecen en el
               listado de Líderes ni como manuales. Probablemente alguien los agregó
               directo desde SharePoint UI sin pasar por la app.
             </p>
@@ -930,7 +1028,7 @@ export default function PermisosSharePointScreen() {
           }}
         >
           <ShieldAlert size={14} />
-          Abrir People and Groups → MRC Members en SharePoint ↗
+          Abrir People and Groups → Integrantes SSO AS COMERCIAL en SharePoint ↗
         </motion.a>
 
         {/* Buscador */}
@@ -966,7 +1064,7 @@ export default function PermisosSharePointScreen() {
               const added       = addedSet.has(l.email)
               const emailLower  = l.email.toLowerCase()
               // Estado del semáforo:
-              //   verde  — verificado en el grupo MRC Members
+              //   verde  — verificado en el grupo Integrantes SSO AS COMERCIAL
               //   rojo   — marcado "Agregado" pero AUSENTE del grupo (alerta)
               //   gris   — sin verificación todavía (estado neutro)
               let ledColor = '#9CA3AF'  // gris por defecto
@@ -974,13 +1072,13 @@ export default function PermisosSharePointScreen() {
               if (verifiedAt) {
                 if (verifiedSet.has(emailLower)) {
                   ledColor = '#27AE60'
-                  ledTitle = 'Confirmado en grupo MRC Members'
+                  ledTitle = 'Confirmado en grupo Integrantes SSO AS COMERCIAL'
                 } else if (added) {
                   ledColor = '#EB5757'
-                  ledTitle = 'Marcado como Agregado pero NO está en MRC Members'
+                  ledTitle = 'Marcado como Agregado pero NO está en Integrantes SSO AS COMERCIAL'
                 } else {
                   ledColor = '#9CA3AF'
-                  ledTitle = 'No está en MRC Members (correcto, marcado como Pendiente)'
+                  ledTitle = 'No está en Integrantes SSO AS COMERCIAL (correcto, marcado como Pendiente)'
                 }
               }
               return (
