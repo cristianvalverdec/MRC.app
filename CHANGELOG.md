@@ -5,6 +5,41 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.11] — 2026-04-25
+
+### Editor de formularios — tres mejoras y mapeo dinámico a SharePoint
+
+**1. Pregunta Q48 — Carta de Amonestación (gap de configuración)**
+
+La pregunta "¿La acción insegura amerita una carta de amonestación escrita?" no existía en `formDefinitions.js`. Se agregó en la sección CIERRE del formulario `pauta-verificacion-reglas-oro` con `visibleWhen` idéntico al de Q47: aparece solo cuando alguna Regla de Oro registra `CON_OBSERVACIONES`. Usa `disableNA: true` ya que no admite respuesta neutral.
+
+**2. Preguntas SI/NO sin opción N/A**
+
+`QuestionYesNo` ahora soporta el campo `disableNA: true` en la definición de pregunta para mostrar solo las opciones SÍ/NO. En el editor aparece el toggle "Incluir opción N/A" (activado por defecto) al editar cualquier pregunta de tipo `yesno`.
+
+**3. Nuevo tipo de pregunta: RUT chileno**
+
+Nuevo componente `QuestionRut` con:
+- Teclado virtual personalizado: dígitos 0–9, tecla K (azul) y ⌫ (rojo)
+- Formato automático `XX.XXX.XXX-K` mientras se tipea
+- Validación en tiempo real por Módulo 11 (✓ verde / ✗ rojo)
+- Disponible en el editor como tipo **"RUT"**
+
+**4. Mapeo dinámico de preguntas a columnas SharePoint**
+
+Hasta ahora el mapeo de respuestas a columnas SP era completamente hardcodeado en los 8 mappers de `sharepointData.js`. Preguntas nuevas creadas desde el editor perdían sus respuestas silenciosamente al enviar.
+
+- `SP_COLUMN_CATALOG` exportado con columnas conocidas de cada lista (fallback estático).
+- `fetchListColumns(formType)` lee las columnas reales vía `GET /lists/{listId}/columns` (Graph API).
+- Nueva sección **"Columna SharePoint"** en el editor de cada pregunta: dropdown de columnas conocidas, botón "☁ Leer desde SP" que reemplaza el catálogo con las columnas reales de la lista, e input libre para nombres personalizados.
+- Al enviar, `submitFormToSharePoint` aplica automáticamente los `spColumn` guardados en los overrides sin tocar los mappers existentes.
+
+**Fix: input de columna personalizada no aparecía**
+
+Al seleccionar "✏ Nombre personalizado…" el campo de texto no se mostraba. El bug era que `onChange` seteaba `spColumn = ''`, haciendo `isCustom = false` de inmediato. Corregido con estado `customColMode` independiente del valor del campo.
+
+---
+
 ## [1.9.10] — 2026-04-25
 
 ### Hallazgo crítico — el grupo MRC Members era un grupo "fantasma"
