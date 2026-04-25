@@ -5,6 +5,44 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.8] — 2026-04-25
+
+### Conexión SharePoint — etapa crítica para lanzamiento nacional
+
+**1. Cooldown de solicitud: 24h → 5 min**
+- `accessRequestService.js`: `COOLDOWN_MS = 5 * 60 * 1000`. Antes 24h era excesivo en período de pruebas — si una solicitud salía mal, el dispositivo quedaba bloqueado todo un día.
+- Nueva función `clearAccessRequestCooldown()` para reenviar manualmente sin esperar.
+- En `AccessRequestCTA`, junto al estado "Solicitud enviada (5 min)" hay un link "Reenviar ahora" que limpia el cooldown.
+
+**2. Auto-refresh de token MSAL (caso fgaticaa)**
+- Cuando un usuario es agregado al grupo MRC Members, su token cacheado conserva los claims antiguos y sigue recibiendo 403. `acquireTokenSilent` por sí solo NO refresca si el token aún no expiró.
+- `getGraphToken({ forceRefresh: true })` ahora invalida el cache y solicita uno nuevo al backend Azure AD.
+- Nuevo helper `forceRefreshGraphToken()` exportado desde `msalInstance.js`.
+- En `AccessRequestCTA`: nuevo botón **"Reintentar conexión"** (azul, primario) que llama `forceRefreshGraphToken()` y recarga la app. Es la primera acción que un usuario debería intentar antes de solicitar acceso — útil cuando el admin ya lo agregó al grupo pero el token está desactualizado.
+
+**3. Solicitudes pendientes visibles en la app**
+- Nuevo servicio `accessRequestsListService.js`: `getPendingAccessRequests()` lee la lista `SolicitudesAccesoMRC` vía Graph; `markAccessRequestProcessed(id, { status, processedBy })` hace PATCH al item.
+- En `PermisosSharePointScreen`: bloque "Solicitudes pendientes" arriba de las stats. Cada solicitud muestra nombre, email, razón, fecha, y dos botones — "Marcar procesada" (verde) y "Rechazar" (rojo).
+- Al marcar como procesada: la solicitud se actualiza en SP (`Status: Procesada`, `ProcessedBy`, `ProcessedAt`) y el email se añade automáticamente al set de "agregados" + se inserta en el listado como entrada manual si no estaba.
+
+**4. Agregar emails manuales al set MRC Members**
+- Bloque "Agregar email manual" en `PermisosSharePointScreen`: input email + nombre opcional. Valida `@agrosuper.com` con regex. Bloquea duplicados con líderes registrados o manuales existentes.
+- Los emails manuales se sincronizan junto al set de agregados en `mrc-sp-members-added.json` (campo `manual: [{ email, name, addedBy, addedAt }]`).
+- Aparecen en el listado con badge azul `<Mail>` y botón papelera. Se incluyen en "Copiar emails" y CSV.
+- Útil para invitados, áreas que no están en la lista de Líderes MRC pero necesitan acceso.
+
+**Tests centinela nuevos**
+- `accessRequestService` cooldown 5 min y `clearAccessRequestCooldown` exportado (no debe volver a 24h).
+- `PermisosSharePointScreen` integra solicitudes + manualEntries con validación @agrosuper.com.
+- `msalInstance` expone `forceRefresh` param y `forceRefreshGraphToken()`.
+- `accessRequestsListService` apunta a `SolicitudesAccesoMRC` y filtra `Status=Pendiente`.
+- 114/114 tests pasan.
+
+**Documentación pendiente**
+- Sección 10 del CLAUDE.md merece una regla nueva: "Cooldown de solicitudes nunca > 30 min en producción durante despliegue inicial".
+
+---
+
 ## [1.9.7] — 2026-04-25
 
 ### Fix — Solicitudes de acceso anonimizadas + sync del set "agregados"

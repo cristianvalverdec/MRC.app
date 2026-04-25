@@ -19,7 +19,12 @@ export const msal = { instance: msalInstance }
 // reutilice el token cacheado o lo renueve vía refresh token HTTP POST.
 // NUNCA lanza auth interactiva (popup/redirect) — en PWA mobile eso
 // abre el navegador, rompe la sesión y puede causar loops de re-login.
-export async function getGraphToken() {
+//
+// `forceRefresh: true` invalida el token cacheado y obtiene uno nuevo del
+// backend de Azure AD. Crítico cuando un usuario fue agregado al grupo
+// MRC Members en SharePoint pero su token aún tiene los claims antiguos
+// y recibe 403 al consultar el sitio.
+export async function getGraphToken({ forceRefresh = false } = {}) {
   const accounts = msalInstance.getAllAccounts()
   if (!accounts.length) {
     throw new Error('[MRC] Sin cuenta activa. Cierra y abre la app.')
@@ -28,6 +33,7 @@ export async function getGraphToken() {
     const result = await msalInstance.acquireTokenSilent({
       ...loginRequest,
       account: accounts[0],
+      forceRefresh,
     })
     useAuthHealthStore.getState().setTokenOk()
     return result.accessToken
@@ -49,4 +55,10 @@ export async function getGraphToken() {
     useAuthHealthStore.getState().setTokenError(message)
     throw new Error(message)
   }
+}
+
+// Atajo para forzar refresh del token. Útil cuando el usuario fue agregado
+// al grupo MRC Members y necesita un token con los claims actualizados.
+export async function forceRefreshGraphToken() {
+  return getGraphToken({ forceRefresh: true })
 }

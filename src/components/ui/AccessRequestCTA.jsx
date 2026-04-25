@@ -10,9 +10,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldAlert, Send, CheckCircle2, Clock, X } from 'lucide-react'
+import { ShieldAlert, Send, CheckCircle2, Clock, X, RefreshCw } from 'lucide-react'
 import useUserStore from '../../store/userStore'
-import { requestSiteAccess, isRequestOnCooldown, getLastRequestTime } from '../../services/accessRequestService'
+import { requestSiteAccess, isRequestOnCooldown, getLastRequestTime, clearAccessRequestCooldown } from '../../services/accessRequestService'
+import { forceRefreshGraphToken } from '../../config/msalInstance'
 
 export default function AccessRequestCTA({ compact = false, onSent }) {
   // userStore guarda los campos planos (name, email, role) — NO existe `profile`.
@@ -27,17 +28,47 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
   const [sending, setSending] = useState(false)
   const [sent,    setSent]    = useState(false)
   const [error,   setError]   = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+  // Versión local del cooldown para forzar re-render cuando se limpia.
+  const [cooldownVersion, setCooldownVersion] = useState(0)
 
   const cooldown   = isRequestOnCooldown()
   const lastSentAt = getLastRequestTime()
   const hasIdentity = Boolean(email)
+  // Usar cooldownVersion solo para que el lint no se queje de variable
+  // declarada y no usada — el render se dispara al setearla.
+  void cooldownVersion
 
   function formatCooldownMsg() {
     if (!lastSentAt) return ''
     const d = new Date(lastSentAt)
     const hhmm = d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
     const date  = d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })
-    return `Solicitud enviada el ${date} a las ${hhmm}. Puedes volver a solicitar en 24 h.`
+    return `Solicitud enviada el ${date} a las ${hhmm}. Puedes volver a solicitar en 5 min.`
+  }
+
+  // Caso fgaticaa: ya está en MRC Members pero su token cacheado tiene
+  // claims viejos. forceRefresh obtiene un token nuevo del backend Azure
+  // AD que sí refleja la pertenencia al grupo. Si funciona, recargamos
+  // para que toda la app vuelva a intentar las consultas SP con claims
+  // frescos. Si vuelve a 403, el usuario puede solicitar acceso normal.
+  async function handleRetryConnection() {
+    setRefreshing(true)
+    setError(null)
+    try {
+      await forceRefreshGraphToken()
+      // Esperamos un instante para que el usuario vea el feedback
+      // antes del reload.
+      setTimeout(() => window.location.reload(), 600)
+    } catch (err) {
+      setError(err?.message || 'No se pudo refrescar la sesión.')
+      setRefreshing(false)
+    }
+  }
+
+  function handleClearCooldown() {
+    clearAccessRequestCooldown()
+    setCooldownVersion(v => v + 1)
   }
 
   async function handleSend() {
@@ -82,36 +113,70 @@ export default function AccessRequestCTA({ compact = false, onSent }) {
       <span>Sin sesión válida — vuelve a iniciar sesión</span>
     </div>
   ) : cooldown ? (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: compact ? '6px 10px' : '8px 14px',
-      borderRadius: 8,
-      background: 'rgba(156,163,175,0.1)',
-      border: '1px solid rgba(156,163,175,0.25)',
-      color: 'var(--color-text-muted)',
-      fontSize: 13,
-    }}>
-      <Clock size={14} />
-      <span>Solicitud enviada (24 h)</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: compact ? '6px 10px' : '8px 14px',
+        borderRadius: 8,
+        background: 'rgba(156,163,175,0.1)',
+        border: '1px solid rgba(156,163,175,0.25)',
+        color: 'var(--color-text-muted)',
+        fontSize: 13,
+      }}>
+        <Clock size={14} />
+        <span style={{ flex: 1 }}>Solicitud enviada (5 min)</span>
+        <button
+          onClick={handleClearCooldown}
+          title="Reenviar antes de los 5 minutos"
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: '#60A5FA', fontSize: 11, fontWeight: 600,
+            padding: '2px 6px',
+          }}
+        >
+          Reenviar ahora
+        </button>
+      </div>
     </div>
   ) : (
-    <button
-      onClick={() => { setOpen(true); setSent(false); setError(null); setReason('') }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: compact ? '6px 12px' : '10px 16px',
-        borderRadius: 8,
-        background: 'rgba(245,124,32,0.12)',
-        border: '1px solid rgba(245,124,32,0.35)',
-        color: '#F57C20',
-        fontSize: 13, fontWeight: 600,
-        cursor: 'pointer',
-        fontFamily: 'var(--font-body)',
-      }}
-    >
-      <ShieldAlert size={14} />
-      Solicitar acceso
-    </button>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <button
+        onClick={handleRetryConnection}
+        disabled={refreshing}
+        title="Si ya estás en MRC Members, esto refresca tu token con los permisos actualizados"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: compact ? '6px 12px' : '10px 14px',
+          borderRadius: 8,
+          background: 'rgba(47,128,237,0.12)',
+          border: '1px solid rgba(47,128,237,0.35)',
+          color: '#60A5FA',
+          fontSize: 13, fontWeight: 600,
+          cursor: refreshing ? 'wait' : 'pointer',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <RefreshCw size={14} style={refreshing ? { animation: 'spin 1s linear infinite' } : {}} />
+        {refreshing ? 'Refrescando…' : 'Reintentar conexión'}
+      </button>
+      <button
+        onClick={() => { setOpen(true); setSent(false); setError(null); setReason('') }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: compact ? '6px 12px' : '10px 16px',
+          borderRadius: 8,
+          background: 'rgba(245,124,32,0.12)',
+          border: '1px solid rgba(245,124,32,0.35)',
+          color: '#F57C20',
+          fontSize: 13, fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <ShieldAlert size={14} />
+        Solicitar acceso
+      </button>
+    </div>
   )
 
   // ── Card exterior (modo no-compact) ───────────────────────────────────

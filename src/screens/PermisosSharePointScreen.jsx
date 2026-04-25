@@ -1,31 +1,52 @@
 // ── PermisosSharePointScreen ──────────────────────────────────────────────
 //
-// Pantalla de administrador para gestionar el acceso de usuarios al sitio
-// SharePoint SSOASCOMERCIAL.
+// Pantalla de administrador para gestionar el acceso al sitio SharePoint
+// SSOASCOMERCIAL. Tres bloques principales:
 //
-// Funciones:
-//   • Carga la lista de líderes registrados (todos activos) y muestra sus emails.
-//   • Botón "Copiar emails" para pegar en el diálogo "Add users" de SharePoint.
-//   • Botón "Descargar CSV" con Email, Nombre, Cargo, Instalación.
-//   • Solicitudes de acceso pendientes (lista SolicitudesAccesoMRC) — próximamente.
+//   1. SOLICITUDES PENDIENTES — lee la lista SolicitudesAccesoMRC y deja
+//      al admin marcar cada una como Procesada/Rechazada (PATCH al item).
+//
+//   2. AGREGAR EMAIL MANUAL — input para incluir un correo @agrosuper.com
+//      arbitrario en el set MRC Members (útil para invitados o áreas que
+//      no están en la lista de Líderes MRC). Se persiste en la nube como
+//      parte de mrc-sp-members-added.json (campo `manual`).
+//
+//   3. LISTADO COMPLETO — líderes registrados + emails manuales, con
+//      botón "Copiar emails" para pegar en el diálogo Add users de SP,
+//      "Descargar CSV", y toggle Agregado/Pendiente por email.
+//
+// El estado "agregado" (set de emails ya añadidos al grupo) se sincroniza
+// vía SharePoint para que se vea igual desde cualquier dispositivo.
 //
 // Solo visible para role === 'admin'.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Copy, Download, CheckCircle2, Users, Loader, ShieldAlert, Cloud, CloudOff, RefreshCw } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Copy, Download, CheckCircle2, Users, Loader, ShieldAlert,
+  Cloud, CloudOff, RefreshCw, UserPlus, Inbox, X, Trash2, Mail, Clock,
+} from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import { getLideres } from '../services/lideresService'
 import { loadAddedEmails, saveAddedEmails } from '../services/spMembersAddedSync'
+import {
+  getPendingAccessRequests,
+  markAccessRequestProcessed,
+} from '../services/accessRequestsListService'
 
 const SP_SITE = 'https://agrosuper.sharepoint.com/sites/SSOASCOMERCIAL'
 const SP_MEMBERS_URL = `${SP_SITE}/_layouts/15/user.aspx`
+const ADDED_KEY  = 'mrc-sp-members-added'
+const MANUAL_KEY = 'mrc-sp-members-manual'
+
+const EMAIL_RE = /^[a-z0-9._%+-]+@agrosuper\.com$/i
 
 export default function PermisosSharePointScreen() {
-  const navigate = useNavigate()
-  const role = useUserStore((s) => s.role)
+  const navigate  = useNavigate()
+  const role      = useUserStore((s) => s.role)
+  const adminMail = useUserStore((s) => s.email)
 
   const [lideres,   setLideres]   = useState([])
   const [loading,   setLoading]   = useState(true)
@@ -33,36 +54,50 @@ export default function PermisosSharePointScreen() {
   const [copied,    setCopied]    = useState(false)
   const [filter,    setFilter]    = useState('')
 
-  // Set de "marcados como agregados". Se persiste en SharePoint
-  // (mrc-sp-members-added.json) para que se sincronice entre dispositivos.
-  // localStorage se mantiene como caché optimista para responder al toque.
-  const ADDED_KEY = 'mrc-sp-members-added'
   const [addedSet, setAddedSet] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(ADDED_KEY) || '[]')) }
     catch { return new Set() }
   })
+  const [manualEntries, setManualEntries] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(MANUAL_KEY) || '[]') }
+    catch { return [] }
+  })
+
   // syncStatus: 'idle' | 'pulling' | 'pushing' | 'ok' | 'error'
   const [syncStatus, setSyncStatus] = useState('idle')
   const [syncError,  setSyncError]  = useState(null)
   const [lastSyncAt, setLastSyncAt] = useState(null)
 
-  function persistLocal(set) {
+  const [pendingRequests,  setPendingRequests]  = useState([])
+  const [requestsLoading,  setRequestsLoading]  = useState(true)
+  const [requestsError,    setRequestsError]    = useState(null)
+  const [processingId,     setProcessingId]     = useState(null)
+
+  const [newEmail, setNewEmail] = useState('')
+  const [newName,  setNewName]  = useState('')
+  const [emailErr, setEmailErr] = useState(null)
+
+  // ── Persistencia local (caché optimista) ──────────────────────────────
+  function persistLocalAdded(set) {
     try { localStorage.setItem(ADDED_KEY, JSON.stringify([...set])) } catch { /* ignore */ }
   }
+  function persistLocalManual(arr) {
+    try { localStorage.setItem(MANUAL_KEY, JSON.stringify(arr)) } catch { /* ignore */ }
+  }
 
-  // Push del set actual a SharePoint. fire-and-forget no — actualiza syncStatus.
-  async function pushToCloud(setToPush) {
+  // ── Push del estado actual a SharePoint ──────────────────────────────
+  const pushToCloud = useCallback(async (setToPush, manualToPush) => {
     setSyncStatus('pushing')
     setSyncError(null)
     try {
-      await saveAddedEmails([...setToPush])
+      await saveAddedEmails([...setToPush], manualToPush)
       setSyncStatus('ok')
       setLastSyncAt(new Date())
     } catch (err) {
       setSyncStatus('error')
       setSyncError(err?.message || 'Error al sincronizar con SharePoint')
     }
-  }
+  }, [])
 
   function toggleAdded(email) {
     let nextSet
@@ -70,28 +105,133 @@ export default function PermisosSharePointScreen() {
       nextSet = new Set(prev)
       if (nextSet.has(email)) nextSet.delete(email)
       else nextSet.add(email)
-      persistLocal(nextSet)
+      persistLocalAdded(nextSet)
       return nextSet
     })
-    // Push inmediato — si falla, el indicador de error muestra "Reintentar".
-    pushToCloud(nextSet)
+    pushToCloud(nextSet, manualEntries)
   }
 
   function retryPush() {
-    pushToCloud(addedSet)
+    pushToCloud(addedSet, manualEntries)
   }
 
+  // ── Email manual: agregar / quitar ───────────────────────────────────
+  function handleAddManual() {
+    const email = newEmail.trim().toLowerCase()
+    if (!email) {
+      setEmailErr('Ingresa un correo @agrosuper.com')
+      return
+    }
+    if (!EMAIL_RE.test(email)) {
+      setEmailErr('Solo correos @agrosuper.com son válidos')
+      return
+    }
+    // Duplicado en líderes
+    if (lideres.some(l => l.email.toLowerCase() === email)) {
+      setEmailErr('Ese correo ya está en el listado de líderes registrados')
+      return
+    }
+    if (manualEntries.some(m => m.email.toLowerCase() === email)) {
+      setEmailErr('Ese correo ya fue agregado manualmente')
+      return
+    }
+
+    const entry = {
+      email,
+      name:    newName.trim(),
+      addedBy: adminMail || '',
+      addedAt: new Date().toISOString(),
+    }
+    const next = [...manualEntries, entry]
+    setManualEntries(next)
+    persistLocalManual(next)
+    setNewEmail('')
+    setNewName('')
+    setEmailErr(null)
+    pushToCloud(addedSet, next)
+  }
+
+  function handleRemoveManual(email) {
+    const next = manualEntries.filter(m => m.email !== email)
+    setManualEntries(next)
+    persistLocalManual(next)
+    // También lo quitamos del set de "agregados" si estaba marcado
+    let nextSet = addedSet
+    if (addedSet.has(email)) {
+      nextSet = new Set(addedSet)
+      nextSet.delete(email)
+      setAddedSet(nextSet)
+      persistLocalAdded(nextSet)
+    }
+    pushToCloud(nextSet, next)
+  }
+
+  // ── Solicitudes pendientes: cargar y procesar ────────────────────────
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true)
+    setRequestsError(null)
+    try {
+      const list = await getPendingAccessRequests()
+      setPendingRequests(list)
+    } catch (err) {
+      setRequestsError(err?.message || 'No se pudieron cargar las solicitudes')
+    } finally {
+      setRequestsLoading(false)
+    }
+  }, [])
+
+  async function processRequest(req, status = 'Procesada') {
+    setProcessingId(req.id)
+    try {
+      await markAccessRequestProcessed(req.id, {
+        status,
+        processedBy: adminMail || '',
+      })
+      // Si fue procesada (no rechazada), añadimos su email al set de
+      // "agregados" para que el admin no tenga que buscarlo después.
+      if (status === 'Procesada' && req.requesterEmail) {
+        const email = req.requesterEmail.toLowerCase()
+        const nextSet = new Set(addedSet)
+        nextSet.add(email)
+        setAddedSet(nextSet)
+        persistLocalAdded(nextSet)
+        // Y si el email no estaba en líderes ni en manuales, lo
+        // agregamos como manual para que aparezca en el listado.
+        const existsInLideres = lideres.some(l => l.email.toLowerCase() === email)
+        const existsInManual  = manualEntries.some(m => m.email.toLowerCase() === email)
+        let nextManual = manualEntries
+        if (!existsInLideres && !existsInManual) {
+          nextManual = [
+            ...manualEntries,
+            {
+              email,
+              name:    req.requesterName || '',
+              addedBy: adminMail || '',
+              addedAt: new Date().toISOString(),
+            },
+          ]
+          setManualEntries(nextManual)
+          persistLocalManual(nextManual)
+        }
+        pushToCloud(nextSet, nextManual)
+      }
+      // Quitamos la solicitud del listado pendientes localmente
+      setPendingRequests(prev => prev.filter(r => r.id !== req.id))
+    } catch (err) {
+      setRequestsError(err?.message || 'Error al procesar solicitud')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  // ── Bootstrap: paralelo lista líderes + sync nube + solicitudes ──────
   useEffect(() => {
     if (role !== 'admin') return
-
     let cancelled = false
 
-    // Carga paralela: líderes + set agregados desde SharePoint.
     Promise.all([
       getLideres(),
       loadAddedEmails().catch(err => {
-        // No bloqueamos la pantalla si falla la sync; mostramos el error
-        // como banner pero seguimos con el set local.
         setSyncStatus('error')
         setSyncError(err?.message || 'No se pudo leer el set compartido')
         return null
@@ -108,22 +248,28 @@ export default function PermisosSharePointScreen() {
         setLideres(dedup.sort((a, b) => a.email.localeCompare(b.email)))
 
         if (cloudData?.added) {
-          // SharePoint manda — sobreescribimos el set local con lo de la nube.
-          // (En esta primera iteración no hay merge, gana el remoto.)
           const cloudSet = new Set(cloudData.added.map(e => e.toLowerCase()))
           setAddedSet(cloudSet)
-          persistLocal(cloudSet)
+          persistLocalAdded(cloudSet)
+          if (Array.isArray(cloudData.manual)) {
+            setManualEntries(cloudData.manual)
+            persistLocalManual(cloudData.manual)
+          }
           setSyncStatus('ok')
           setLastSyncAt(cloudData.updatedAt ? new Date(cloudData.updatedAt) : new Date())
-        } else if (cloudData === null && syncStatus !== 'error') {
-          // Primer uso: aún no existe el archivo en la nube. Subimos lo local
-          // para inicializarlo.
-          if (addedSet.size > 0) pushToCloud(addedSet)
-          else setSyncStatus('ok')
+        } else if (cloudData === null) {
+          // Primer uso. Si tenemos algo local, lo subimos.
+          if (addedSet.size > 0 || manualEntries.length > 0) {
+            pushToCloud(addedSet, manualEntries)
+          } else {
+            setSyncStatus('ok')
+          }
         }
       })
       .catch(e => !cancelled && setError(e?.message || 'Error al cargar líderes'))
       .finally(() => !cancelled && setLoading(false))
+
+    loadRequests()
 
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,15 +285,27 @@ export default function PermisosSharePointScreen() {
     )
   }
 
-  const filtered = filter.trim()
-    ? lideres.filter(l =>
-        l.email.includes(filter.toLowerCase()) ||
-        l.nombre.toLowerCase().includes(filter.toLowerCase()) ||
-        l.instalacion.toLowerCase().includes(filter.toLowerCase())
-      )
-    : lideres
+  // ── Vista combinada: líderes + emails manuales como filas extra ──────
+  const allEntries = [
+    ...lideres,
+    ...manualEntries.map(m => ({
+      email:       m.email,
+      nombre:      m.name || '',
+      cargoMRC:    'Agregado manual',
+      instalacion: m.addedBy ? `por ${m.addedBy}` : '',
+      _manual:     true,
+    })),
+  ]
 
-  const pendingEmails = lideres.filter(l => !addedSet.has(l.email)).map(l => l.email)
+  const filtered = filter.trim()
+    ? allEntries.filter(l =>
+        l.email.includes(filter.toLowerCase()) ||
+        (l.nombre || '').toLowerCase().includes(filter.toLowerCase()) ||
+        (l.instalacion || '').toLowerCase().includes(filter.toLowerCase())
+      )
+    : allEntries
+
+  const pendingEmails = allEntries.filter(l => !addedSet.has(l.email)).map(l => l.email)
 
   function handleCopy() {
     const text = pendingEmails.join(';')
@@ -160,7 +318,7 @@ export default function PermisosSharePointScreen() {
   function handleDownloadCsv() {
     const rows = [
       ['Email', 'Nombre', 'Cargo MRC', 'Instalación', 'Agregado'],
-      ...lideres.map(l => [
+      ...allEntries.map(l => [
         l.email, l.nombre, l.cargoMRC, l.instalacion,
         addedSet.has(l.email) ? 'Sí' : 'No',
       ]),
@@ -175,8 +333,8 @@ export default function PermisosSharePointScreen() {
     URL.revokeObjectURL(url)
   }
 
-  const addedCount   = lideres.filter(l => addedSet.has(l.email)).length
-  const pendingCount = lideres.length - addedCount
+  const addedCount   = allEntries.filter(l => addedSet.has(l.email)).length
+  const pendingCount = allEntries.length - addedCount
 
   return (
     <div className="content-col" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
@@ -198,10 +356,137 @@ export default function PermisosSharePointScreen() {
           </div>
           Todos los líderes aquí listados necesitan acceso <strong style={{ color: 'var(--color-text)' }}>Contribute</strong> al sitio
           SSOASCOMERCIAL para usar la app MRC correctamente.
-          Usa el botón "Copiar emails" y pégalos en el diálogo <em>Add users</em> del grupo <strong style={{ color: 'var(--color-text)' }}>MRC Members</strong> en SharePoint.
+          Usa "Copiar emails" y pégalos en el diálogo <em>Add users</em> del grupo <strong style={{ color: 'var(--color-text)' }}>MRC Members</strong> en SharePoint.
         </motion.div>
 
-        {/* Indicador de sync con SharePoint */}
+        {/* ── Solicitudes pendientes ─────────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}
+          style={{ marginBottom: 18 }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Inbox size={15} color="#F57C20" />
+            <h3 style={{
+              margin: 0, fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800,
+              color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Solicitudes pendientes
+            </h3>
+            <span style={{
+              background: pendingRequests.length > 0 ? 'rgba(245,124,32,0.15)' : 'rgba(156,163,175,0.1)',
+              color: pendingRequests.length > 0 ? '#F57C20' : 'var(--color-text-muted)',
+              borderRadius: 999, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+            }}>
+              {pendingRequests.length}
+            </span>
+            <button
+              onClick={loadRequests}
+              disabled={requestsLoading}
+              title="Recargar"
+              style={{
+                marginLeft: 'auto', background: 'transparent', border: 'none',
+                color: 'var(--color-text-muted)', cursor: requestsLoading ? 'wait' : 'pointer',
+                padding: 4,
+              }}
+            >
+              <RefreshCw size={13} style={requestsLoading ? { animation: 'spin 1s linear infinite' } : {}} />
+            </button>
+          </div>
+
+          {requestsError && (
+            <div style={{
+              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#F87171',
+              marginBottom: 8,
+            }}>
+              {requestsError}
+            </div>
+          )}
+
+          {requestsLoading ? (
+            <div style={{ padding: 16, textAlign: 'center' }}>
+              <Loader size={18} color="var(--color-text-muted)" style={{ animation: 'spin 1s linear infinite' }} />
+            </div>
+          ) : pendingRequests.length === 0 ? (
+            <div style={{
+              padding: '14px 12px', borderRadius: 8,
+              background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.2)',
+              fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center',
+            }}>
+              Sin solicitudes pendientes.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <AnimatePresence>
+                {pendingRequests.map(req => (
+                  <motion.div
+                    key={req.id}
+                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                    style={{
+                      background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+                      borderRadius: 10, padding: '10px 12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 13, color: 'var(--color-text)',
+                          fontWeight: 700, fontFamily: 'var(--font-body)',
+                        }}>
+                          {req.requesterName || '(sin nombre)'}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#60A5FA', marginTop: 1 }}>
+                          {req.requesterEmail || '(sin email)'}
+                        </div>
+                        {req.reason && (
+                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                            "{req.reason}"
+                          </div>
+                        )}
+                        {req.createdAt && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            <Clock size={10} />
+                            {new Date(req.createdAt).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                      <button
+                        onClick={() => processRequest(req, 'Procesada')}
+                        disabled={processingId === req.id || !req.requesterEmail}
+                        style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          padding: '7px 10px', borderRadius: 7,
+                          background: 'rgba(39,174,96,0.15)', border: '1px solid rgba(39,174,96,0.4)',
+                          color: '#27AE60', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+                          cursor: processingId === req.id ? 'wait' : 'pointer',
+                        }}
+                      >
+                        <CheckCircle2 size={12} /> Marcar procesada
+                      </button>
+                      <button
+                        onClick={() => processRequest(req, 'Rechazada')}
+                        disabled={processingId === req.id}
+                        style={{
+                          padding: '7px 10px', borderRadius: 7,
+                          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                          color: '#F87171', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+                          cursor: processingId === req.id ? 'wait' : 'pointer',
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </motion.section>
+
+        {/* ── Indicador de sync con SharePoint ───────────────────────── */}
         {(syncStatus !== 'idle') && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -250,9 +535,9 @@ export default function PermisosSharePointScreen() {
           style={{ display: 'flex', gap: 10, marginBottom: 16 }}
         >
           {[
-            { label: 'Total líderes', value: lideres.length, color: 'var(--color-text)' },
-            { label: 'Pendientes',    value: pendingCount,    color: pendingCount > 0 ? '#F57C20' : '#27AE60' },
-            { label: 'Agregados',     value: addedCount,      color: '#27AE60' },
+            { label: 'Total',      value: allEntries.length, color: 'var(--color-text)' },
+            { label: 'Pendientes', value: pendingCount,      color: pendingCount > 0 ? '#F57C20' : '#27AE60' },
+            { label: 'Agregados',  value: addedCount,        color: '#27AE60' },
           ].map(s => (
             <div key={s.label} style={{
               flex: 1, background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
@@ -276,7 +561,7 @@ export default function PermisosSharePointScreen() {
             disabled={loading || pendingCount === 0}
             style={{
               flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-              padding: '11px 14px', borderRadius: 10, border: 'none', cursor: pendingCount === 0 ? 'not-allowed' : 'pointer',
+              padding: '11px 14px', borderRadius: 10, cursor: pendingCount === 0 ? 'not-allowed' : 'pointer',
               background: copied ? 'rgba(39,174,96,0.15)' : 'rgba(245,124,32,0.12)',
               color: copied ? '#27AE60' : '#F57C20',
               fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
@@ -290,7 +575,7 @@ export default function PermisosSharePointScreen() {
 
           <button
             onClick={handleDownloadCsv}
-            disabled={loading || lideres.length === 0}
+            disabled={loading || allEntries.length === 0}
             style={{
               flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
               padding: '11px 14px', borderRadius: 10, border: '1px solid var(--color-border)',
@@ -304,10 +589,78 @@ export default function PermisosSharePointScreen() {
           </button>
         </motion.div>
 
+        {/* ── Agregar email manual ───────────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.13 }}
+          style={{
+            background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+            borderRadius: 10, padding: '12px 14px', marginBottom: 16,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <UserPlus size={14} color="#60A5FA" />
+            <h3 style={{
+              margin: 0, fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800,
+              color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Agregar email manual
+            </h3>
+          </div>
+          <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+            Para correos @agrosuper.com que no están en la lista de Líderes MRC pero
+            necesitan acceso al sitio (invitados, áreas extra, etc.). Aparecerán en el
+            listado de abajo y se incluirán al copiar emails.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <input
+              type="email"
+              placeholder="correo@agrosuper.com"
+              value={newEmail}
+              onChange={e => { setNewEmail(e.target.value); setEmailErr(null) }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddManual() }}
+              style={{
+                flex: '2 1 220px', boxSizing: 'border-box',
+                padding: '9px 10px', background: 'var(--color-input-bg)',
+                border: `1px solid ${emailErr ? 'rgba(239,68,68,0.5)' : 'var(--color-border)'}`,
+                borderRadius: 7, color: 'var(--color-text)', fontSize: 12,
+                fontFamily: 'var(--font-body)',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Nombre (opcional)"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddManual() }}
+              style={{
+                flex: '1 1 140px', boxSizing: 'border-box',
+                padding: '9px 10px', background: 'var(--color-input-bg)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 7, color: 'var(--color-text)', fontSize: 12,
+                fontFamily: 'var(--font-body)',
+              }}
+            />
+            <button
+              onClick={handleAddManual}
+              style={{
+                padding: '9px 14px', borderRadius: 7, border: 'none',
+                background: '#F57C20', color: '#fff',
+                fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              <UserPlus size={13} /> Agregar
+            </button>
+          </div>
+          {emailErr && (
+            <div style={{ fontSize: 11, color: '#F87171', marginTop: 4 }}>{emailErr}</div>
+          )}
+        </motion.section>
+
         {/* Enlace directo a SharePoint Members */}
         <motion.a
           href={SP_MEMBERS_URL} target="_blank" rel="noopener noreferrer"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.16 }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 14px', marginBottom: 16,
@@ -355,7 +708,7 @@ export default function PermisosSharePointScreen() {
                 <motion.div
                   key={l.email}
                   initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.015 }}
+                  transition={{ delay: Math.min(i * 0.01, 0.5) }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     background: added ? 'rgba(39,174,96,0.07)' : 'var(--color-navy-mid)',
@@ -364,7 +717,13 @@ export default function PermisosSharePointScreen() {
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: 'var(--color-text)', fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{
+                      fontSize: 13, color: 'var(--color-text)',
+                      fontFamily: 'var(--font-body)', fontWeight: 600,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      {l._manual && <Mail size={11} color="#60A5FA" />}
                       {l.email}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
@@ -385,6 +744,18 @@ export default function PermisosSharePointScreen() {
                   >
                     {added ? <><CheckCircle2 size={12} /> Agregado</> : <><Users size={12} /> Pendiente</>}
                   </button>
+                  {l._manual && (
+                    <button
+                      onClick={() => handleRemoveManual(l.email)}
+                      title="Eliminar email manual"
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: '#F87171', padding: 4,
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </motion.div>
               )
             })}

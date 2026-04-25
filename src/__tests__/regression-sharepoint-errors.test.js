@@ -101,10 +101,15 @@ describe('accessRequestService — Flujo de solicitud', () => {
     expect(accessRequestSrc).toContain('export async function requestSiteAccess')
   })
 
-  it('implementa cooldown de 24 horas', () => {
+  it('implementa cooldown de 5 minutos (no 24h — muy restrictivo en lanzamiento)', () => {
     expect(accessRequestSrc).toContain('COOLDOWN_MS')
-    expect(accessRequestSrc).toContain('24 * 60 * 60 * 1000')
+    expect(accessRequestSrc).toContain('5 * 60 * 1000')
     expect(accessRequestSrc).toContain('isRequestOnCooldown')
+    expect(accessRequestSrc).not.toContain('24 * 60 * 60 * 1000')
+  })
+
+  it('expone clearAccessRequestCooldown para reenvíos manuales', () => {
+    expect(accessRequestSrc).toContain('export function clearAccessRequestCooldown')
   })
 
   it('lee la URL del webhook desde urlLinksService (no hardcodeada)', () => {
@@ -206,5 +211,64 @@ describe('PermisosSharePointScreen — Sync de set agregados', () => {
 
   it('toggleAdded llama al push remoto (no fire-and-forget silencioso)', () => {
     expect(permisosScreenSrc).toContain('pushToCloud')
+  })
+
+  it('integra solicitudes pendientes (SolicitudesAccesoMRC)', () => {
+    expect(permisosScreenSrc).toContain('getPendingAccessRequests')
+    expect(permisosScreenSrc).toContain('markAccessRequestProcessed')
+    expect(permisosScreenSrc).toContain('processRequest')
+  })
+
+  it('permite agregar emails manuales con validación @agrosuper.com', () => {
+    expect(permisosScreenSrc).toContain('handleAddManual')
+    expect(permisosScreenSrc).toContain('manualEntries')
+    expect(permisosScreenSrc).toMatch(/@agrosuper\\.com/)
+  })
+})
+
+// ── 8. msalInstance: forceRefresh para caso fgaticaa ────────────────────────
+//
+// Cuando un usuario es agregado al grupo MRC Members en SharePoint, su token
+// MSAL en caché conserva los claims antiguos hasta que expira el access token
+// (típicamente 1h). Antes de v1.9.8 el usuario quedaba bloqueado en 403 hasta
+// reinicio completo. Ahora `forceRefreshGraphToken` invalida el cache y obtiene
+// uno nuevo del backend Azure AD.
+
+describe('msalInstance — forceRefresh', () => {
+  const msalInstanceSrc = readFileSync(
+    resolve(import.meta.dirname, '../config/msalInstance.js'),
+    'utf-8'
+  )
+
+  it('getGraphToken acepta { forceRefresh }', () => {
+    expect(msalInstanceSrc).toMatch(/forceRefresh\s*=\s*false/)
+    expect(msalInstanceSrc).toContain('forceRefresh,')
+  })
+
+  it('exporta forceRefreshGraphToken como atajo', () => {
+    expect(msalInstanceSrc).toContain('export async function forceRefreshGraphToken')
+  })
+})
+
+// ── 9. accessRequestsListService: lectura/escritura de solicitudes ──────────
+
+describe('accessRequestsListService — Lista SolicitudesAccesoMRC', () => {
+  const listServiceSrc = readFileSync(
+    resolve(import.meta.dirname, '../services/accessRequestsListService.js'),
+    'utf-8'
+  )
+
+  it('exporta getPendingAccessRequests y markAccessRequestProcessed', () => {
+    expect(listServiceSrc).toContain('export async function getPendingAccessRequests')
+    expect(listServiceSrc).toContain('export async function markAccessRequestProcessed')
+  })
+
+  it('usa la lista correcta SolicitudesAccesoMRC', () => {
+    expect(listServiceSrc).toContain("LIST_NAME = 'SolicitudesAccesoMRC'")
+  })
+
+  it('filtra por Status=Pendiente por defecto', () => {
+    expect(listServiceSrc).toContain("'Pendiente'")
+    expect(listServiceSrc).toContain('includeProcessed')
   })
 })

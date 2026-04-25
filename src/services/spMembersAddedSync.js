@@ -9,7 +9,13 @@
 // Documents del sitio SSOASCOMERCIAL (mismo patrón que mrc-forms-config.json).
 //
 // Formato:
-//   { added: ["email1@...", "email2@..."], updatedAt: "2026-04-25T..." }
+//   {
+//     added:  ["email1@...", "email2@..."],   // marcados como ya agregados al grupo
+//     manual: [{ email, name?, addedBy, addedAt }],  // emails extra que no
+//             vienen de la lista de Líderes pero el admin quiere incluirlos
+//             en el set "MRC Members" (ej. invitados externos, áreas extra)
+//     updatedAt: "2026-04-25T..."
+//   }
 
 import { getGraphToken } from '../config/msalInstance'
 
@@ -61,18 +67,29 @@ export async function loadAddedEmails() {
 
   const data = await res.json()
   if (!data || !Array.isArray(data.added)) return null
+  // Compatibilidad hacia atrás: archivos pre-1.9.8 no tienen `manual`.
+  if (!Array.isArray(data.manual)) data.manual = []
   return data
 }
 
 // Guarda el set completo en SharePoint. Reintentos para 5xx/red, 4xx falla rápido.
-export async function saveAddedEmails(addedArray) {
+// `addedArray`  — emails marcados como ya agregados al grupo.
+// `manualArray` — emails extra que el admin agregó manualmente (objetos
+//                 { email, name?, addedBy, addedAt }). Default: [].
+export async function saveAddedEmails(addedArray, manualArray = []) {
   if (IS_DEV_MODE) return { success: true, dev: true }
 
   const token  = await getGraphToken()
   const siteId = await resolveSiteId(token)
   const url    = buildFileUrl(siteId)
   const body   = JSON.stringify({
-    added: [...new Set(addedArray.filter(Boolean).map(e => e.toLowerCase()))],
+    added:  [...new Set((addedArray || []).filter(Boolean).map(e => e.toLowerCase()))],
+    manual: (manualArray || []).filter(m => m?.email).map(m => ({
+      email:   m.email.toLowerCase(),
+      name:    m.name    || '',
+      addedBy: m.addedBy || '',
+      addedAt: m.addedAt || new Date().toISOString(),
+    })),
     updatedAt: new Date().toISOString(),
   })
 

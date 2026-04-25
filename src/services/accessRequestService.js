@@ -9,14 +9,21 @@
 // URL del webhook: configurable desde la UI admin vía urlLinksService
 // (id: 'power-automate-access-request') — no requiere redeploy.
 //
-// Cooldown: 24h por dispositivo (localStorage). Evita solicitudes duplicadas.
+// Cooldown: 5 minutos por dispositivo (localStorage). Evita spam pero no
+// bloquea retests reales — el caso de uso típico es: usuario solicita,
+// admin lo agrega al grupo en SP, usuario reintenta. 5 min es suficiente
+// para evitar dobles clicks sin frustrar pruebas reales.
+//
+// Antes era 24h pero resultaba excesivo en período de despliegue: si una
+// solicitud salía mal (ej. sin email por bug v1.9.6) el dispositivo
+// quedaba bloqueado todo un día.
 
 import { getLink } from './urlLinksService'
 
 const COOLDOWN_KEY = 'mrc-access-request-cooldown'
-const COOLDOWN_MS  = 24 * 60 * 60 * 1000 // 24 horas
+const COOLDOWN_MS  = 5 * 60 * 1000 // 5 minutos
 
-// Devuelve true si el usuario ya envió una solicitud en las últimas 24h
+// Devuelve true si el usuario ya envió una solicitud dentro del cooldown
 export function isRequestOnCooldown() {
   try {
     const raw = localStorage.getItem(COOLDOWN_KEY)
@@ -43,6 +50,13 @@ function setCooldown() {
   try {
     localStorage.setItem(COOLDOWN_KEY, JSON.stringify({ sentAt: new Date().toISOString() }))
   } catch { /* ignore */ }
+}
+
+// Limpia manualmente el cooldown — útil cuando una solicitud previa salió
+// mal (ej. anonimizada por bug pre-1.9.7) y el usuario necesita reenviar
+// sin esperar la ventana completa.
+export function clearAccessRequestCooldown() {
+  try { localStorage.removeItem(COOLDOWN_KEY) } catch { /* ignore */ }
 }
 
 // Envía la solicitud de acceso al webhook de Power Automate.
