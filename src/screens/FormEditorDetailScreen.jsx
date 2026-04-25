@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { formDefinitions } from '../forms/formDefinitions'
-import { SP_COLUMN_CATALOG } from '../services/sharepointData'
+import { SP_COLUMN_CATALOG, fetchListColumns } from '../services/sharepointData'
 import useFormEditorStore from '../store/formEditorStore'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -456,6 +456,16 @@ function QuestionEditorPanel({ question, allQuestions, sections, formId, onSave,
       : [],
   }
   const [draft, setDraft] = useState(normalizedQuestion)
+
+  // Columna SP: modo texto libre (independiente de draft.spColumn para evitar bucle)
+  const knownCatalog = SP_COLUMN_CATALOG[formId] || []
+  const initIsCustom = !!normalizedQuestion.spColumn &&
+    !knownCatalog.some((c) => c.internal === normalizedQuestion.spColumn)
+  const [customColMode, setCustomColMode] = useState(initIsCustom)
+  // Columnas dinámicas leídas desde la Graph API (override del catálogo estático)
+  const [dynamicCols, setDynamicCols]   = useState(null)
+  const [colFetchStatus, setColFetchStatus] = useState('idle') // idle|loading|ok|error
+
   const questionsById = Object.fromEntries(allQuestions.map((q) => [q.id, q]))
   const destinationIds = allQuestions.map((q) => q.id).filter((id) => id !== question.id)
 
@@ -709,47 +719,88 @@ function QuestionEditorPanel({ question, allQuestions, sections, formId, onSave,
 
           {/* Columna SharePoint */}
           {(() => {
-            const knownCols = SP_COLUMN_CATALOG[formId] || []
-            const isKnown   = knownCols.some((c) => c.internal === draft.spColumn)
-            const isCustom  = draft.spColumn && !isKnown
+            const colList  = dynamicCols ?? knownCatalog
+            const isKnown  = colList.some((c) => c.internal === draft.spColumn)
+            const selectVal = customColMode ? '__custom__' : (draft.spColumn || '')
             return (
               <div style={sectionStyle}>
-                <label style={labelStyle}>Columna SharePoint</label>
+                {/* Cabecera con botón "Leer desde SharePoint" */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Columna SharePoint</label>
+                  <button
+                    onClick={async () => {
+                      setColFetchStatus('loading')
+                      const cols = await fetchListColumns(formId)
+                      if (cols) { setDynamicCols(cols); setColFetchStatus('ok') }
+                      else setColFetchStatus('error')
+                      setTimeout(() => setColFetchStatus('idle'), 3000)
+                    }}
+                    disabled={colFetchStatus === 'loading'}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                      background: colFetchStatus === 'ok'    ? 'rgba(39,174,96,0.12)'
+                               : colFetchStatus === 'error'  ? 'rgba(235,87,87,0.10)'
+                               : 'rgba(47,128,237,0.10)',
+                      border: `1px solid ${colFetchStatus === 'ok'   ? 'rgba(39,174,96,0.3)'
+                                         : colFetchStatus === 'error' ? 'rgba(235,87,87,0.3)'
+                                         : 'rgba(47,128,237,0.3)'}`,
+                      color: colFetchStatus === 'ok'    ? '#6FCF97'
+                           : colFetchStatus === 'error' ? '#EB5757'
+                           : '#2F80ED',
+                      fontFamily: 'var(--font-body)', fontSize: 11,
+                    }}
+                  >
+                    {colFetchStatus === 'loading' ? '⏳ Leyendo…'
+                   : colFetchStatus === 'ok'      ? '✓ Actualizadas'
+                   : colFetchStatus === 'error'   ? '✗ Sin acceso'
+                   : '☁ Leer desde SP'}
+                  </button>
+                </div>
                 <p style={{
                   fontFamily: 'var(--font-body)', fontSize: 11,
                   color: 'var(--color-text-muted)', margin: '0 0 8px', lineHeight: 1.5,
                 }}>
                   Nombre interno de la columna donde se depositará la respuesta.
                   Déjalo en blanco si el sistema ya la mapea automáticamente.
+                  {dynamicCols && (
+                    <span style={{ color: '#6FCF97' }}> ({dynamicCols.length} columnas leídas desde SharePoint)</span>
+                  )}
                 </p>
+
                 <select
-                  value={isCustom ? '__custom__' : (draft.spColumn || '')}
+                  value={selectVal}
                   onChange={(e) => {
-                    if (e.target.value === '__custom__') update('spColumn', '')
-                    else update('spColumn', e.target.value)
+                    if (e.target.value === '__custom__') {
+                      setCustomColMode(true)
+                      update('spColumn', '')
+                    } else {
+                      setCustomColMode(false)
+                      update('spColumn', e.target.value)
+                    }
                   }}
                   style={{ ...inputStyle, padding: '9px 12px' }}
                 >
                   <option value="">— Sin asignación (mapeada automáticamente o no aplica)</option>
-                  {knownCols.map((col) => (
+                  {colList.map((col) => (
                     <option key={col.internal} value={col.internal}>{col.label}</option>
                   ))}
                   <option value="__custom__">✏ Nombre personalizado…</option>
                 </select>
-                {isCustom && (
+
+                {customColMode && (
                   <input
+                    autoFocus
                     value={draft.spColumn || ''}
                     onChange={(e) => update('spColumn', e.target.value.trim())}
                     placeholder="Ej: Carta_x0020_Amonestaci_x00f3_n"
                     style={{ ...inputStyle, marginTop: 8 }}
                   />
                 )}
-                {draft.spColumn && isKnown && (
-                  <p style={{
-                    fontFamily: 'var(--font-body)', fontSize: 11,
-                    color: '#27AE60', margin: '6px 0 0',
-                  }}>
-                    ✓ Columna reconocida — se enviará automáticamente al guardar el formulario.
+
+                {draft.spColumn && isKnown && !customColMode && (
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#27AE60', margin: '6px 0 0' }}>
+                    ✓ Columna reconocida — la respuesta se enviará a esta columna al guardar.
                   </p>
                 )}
               </div>

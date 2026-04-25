@@ -1008,3 +1008,35 @@ export async function fetchTodayKPIsAllBranches() {
 
   return result
 }
+
+// ── Leer columnas reales de una lista SharePoint ──────────────────────────
+// Llama a Graph API GET /lists/{listId}/columns y devuelve
+// [{ internal: string, label: string }] filtrado de columnas ocultas/sistema.
+// Retorna null si el listId está vacío, en modo dev o hay error de red.
+export async function fetchListColumns(formType) {
+  if (IS_DEV_MODE) return null
+  const config = getListConfig(formType)
+  if (!config?.listId) return null
+
+  try {
+    const token   = await getGraphToken()
+    const siteUrl = getSiteUrl()
+    const res = await fetch(`${siteUrl}/lists/${config.listId}/columns`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const SYSTEM_COLS = new Set([
+      'ContentType','Attachments','Edit','DocIcon','LinkTitle','LinkTitleNoMenu',
+      '_HasCopyDestinations','_CopySource','owshiddenversion','WorkflowVersion',
+      '_UIVersion','_UIVersionString','ParentLeafName','ParentVersionString',
+      '_CheckinComment','LinkCheckedOutTitle','_IsCurrentVersion',
+      'ItemChildCount','FolderChildCount','AppAuthor','AppEditor',
+      'SMTotalSize','SMTotalFileStreamSize','SMTotalFileCount',
+    ])
+    return (data.value || [])
+      .filter((col) => !col.hidden && !SYSTEM_COLS.has(col.name))
+      .map((col) => ({ internal: col.name, label: col.displayName || col.name }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  } catch { return null }
+}
