@@ -369,6 +369,110 @@ function getListConfig(formType) {
   return base
 }
 
+// ── Catálogo de columnas SP conocidas por formulario ─────────────────────
+// Permite al editor de formularios mostrar un dropdown con las columnas
+// disponibles en cada lista. Solo incluye columnas "libres" (no mapeadas
+// automáticamente por los mappers estáticos) más las más útiles para
+// preguntas personalizadas. El admin puede escribir nombres propios.
+export const SP_COLUMN_CATALOG = {
+  'pauta-verificacion-reglas-oro': [
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Nombre_x0020_Colaborador',            label: 'Nombre Colaborador' },
+    { internal: '_x00c1_rea',                          label: 'Área' },
+    { internal: 'Turno',                               label: 'Turno' },
+    { internal: 'Regla_x0020_de_x0020_Oro',            label: 'Regla de Oro' },
+    { internal: 'Conducta_x0020_Observada',            label: 'Conducta Observada' },
+    { internal: 'Equipo_x0020_de_x0020_Venta_x002',    label: 'Equipo de Venta' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
+    { internal: 'Cargo',                               label: 'Cargo' },
+  ],
+  'observacion-conductual': [
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Nombre_x0020_Colaborador',            label: 'Nombre Colaborador' },
+    { internal: '_x00c1_rea',                          label: 'Área' },
+    { internal: 'Turno',                               label: 'Turno' },
+    { internal: 'Regla_x0020_de_x0020_Oro',            label: 'Regla de Oro' },
+    { internal: 'Equipo_x0020_de_x0020_Venta',         label: 'Equipo de Venta' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
+    { internal: 'Cargo',                               label: 'Cargo' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+  ],
+  'caminata-seguridad': [
+    { internal: '_x00c1_rea',                          label: 'Área' },
+    { internal: 'Turno',                               label: 'Turno' },
+    { internal: 'Tem_x00e1_tica',                      label: 'Temática' },
+    { internal: 'Desviaci_x00f3_n_x0020_de_x0020_',   label: 'Desviación detectada' },
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+  ],
+  'inspeccion-simple': [
+    { internal: 'Categor_x00ed_a',                     label: 'Categoría' },
+    { internal: 'Lugar_x0020_Especifico',              label: 'Lugar específico' },
+    { internal: 'Condici_x00f3_n_x0020_Insegura',      label: 'Condición insegura' },
+    { internal: 'Medida_x0020_de_x0020_Control',       label: 'Medida de control' },
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+  ],
+  'difusiones-sso': [
+    { internal: 'Sucursal',                            label: 'Sucursal' },
+    { internal: '_x00c1_rea',                          label: 'Área' },
+    { internal: 'Responsable',                         label: 'Responsable' },
+    { internal: 'CargoResponsable',                    label: 'Cargo Responsable' },
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+  ],
+  'permiso-trabajo-contratista': [
+    { internal: 'Empresa_x0020_Contratista',           label: 'Empresa Contratista' },
+    { internal: 'RUT_x0020_Empresa',                   label: 'RUT Empresa' },
+    { internal: 'Supervisor_x0020_Contratista',        label: 'Supervisor Contratista' },
+    { internal: 'Tel_x00e9_fono_x0020_Supervisor',     label: 'Teléfono Supervisor' },
+    { internal: 'Ubicaci_x00f3_n_x0020_Faena',         label: 'Ubicación Faena' },
+    { internal: 'Descripci_x00f3_n_x0020_Trabajo',     label: 'Descripción Trabajo' },
+    { internal: 'Fecha_x0020_Inicio',                  label: 'Fecha Inicio' },
+    { internal: 'Fecha_x0020_T_x00e9_rmino',           label: 'Fecha Término' },
+    { internal: 'N_x00ba__x0020_Trabajadores',         label: 'N° Trabajadores' },
+    { internal: 'Tipo_x0020_Trabajo',                  label: 'Tipo de Trabajo' },
+    { internal: 'Peligros_x0020_Identificados',        label: 'Peligros Identificados' },
+    { internal: 'Nivel_x0020_Riesgo',                  label: 'Nivel de Riesgo' },
+    { internal: 'EPP_x0020_Utilizado',                 label: 'EPP Utilizado' },
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+  ],
+  'cierre-trabajo-contratista': [
+    { internal: 'Empresa_x0020_Contratista',           label: 'Empresa Contratista' },
+    { internal: 'Ubicaci_x00f3_n_x0020_Faena',         label: 'Ubicación Faena' },
+    { internal: 'Tipo_x0020_Trabajo',                  label: 'Tipo de Trabajo' },
+    { internal: 'Observaciones',                       label: 'Observaciones' },
+    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
+    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+  ],
+}
+
+// Lee los spColumn asignados desde el editor de formularios (localStorage).
+// Devuelve { questionId: 'NombreColumnaInterna', ... }
+function readEditorSpColumns(formId) {
+  try {
+    const raw = localStorage.getItem('mrc-form-editor-store')
+    if (!raw) return {}
+    const state    = JSON.parse(raw)?.state
+    const override = state?.editedForms?.[formId]
+    if (!override) return {}
+    const questions = override.sections
+      ? override.sections.flatMap((s) => s.questions || [])
+      : Object.values(override.questions || {})
+    return Object.fromEntries(
+      questions.filter((q) => q.id && q.spColumn).map((q) => [q.id, q.spColumn])
+    )
+  } catch { return {} }
+}
+
 // ── Enviar un registro a SharePoint ──────────────────────────────────────
 // Convierte base64 dataURL a Uint8Array binario
 function base64ToBytes(dataUrl) {
@@ -417,6 +521,15 @@ export async function submitFormToSharePoint(submission) {
   const siteUrl = getSiteUrl()
   const url     = `${siteUrl}/lists/${config.listId}/items`
   const fields  = config.mapFields(submission)
+
+  // Columnas asignadas dinámicamente desde el editor de formularios
+  const editorCols = readEditorSpColumns(submission.formType)
+  for (const [qId, col] of Object.entries(editorCols)) {
+    if (!col || fields[col] !== undefined) continue   // vacío o ya mapeado estáticamente
+    const val = submission.answers?.[qId]
+    if (val === undefined || val === null) continue
+    fields[col] = Array.isArray(val) ? val.join(' | ') : String(val)
+  }
 
   console.info('[MRC] POST →', url)
   console.info('[MRC] fields →', fields)

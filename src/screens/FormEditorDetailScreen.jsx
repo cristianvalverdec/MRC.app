@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { formDefinitions } from '../forms/formDefinitions'
+import { SP_COLUMN_CATALOG } from '../services/sharepointData'
 import useFormEditorStore from '../store/formEditorStore'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -443,7 +444,7 @@ function FlowView({ questions }) {
 }
 
 // ── Panel editor de pregunta (bottom sheet) ───────────────────────────────
-function QuestionEditorPanel({ question, allQuestions, sections, onSave, onClose }) {
+function QuestionEditorPanel({ question, allQuestions, sections, formId, onSave, onClose }) {
   // Normalizar options: si es string (ej '__DYNAMIC_AZURE_AD__') → array vacío;
   // si los items son strings simples (ej select de instalaciones) → convertir a objetos {value, label}
   const normalizedQuestion = {
@@ -705,6 +706,55 @@ function QuestionEditorPanel({ question, allQuestions, sections, onSave, onClose
               </button>
             </div>
           )}
+
+          {/* Columna SharePoint */}
+          {(() => {
+            const knownCols = SP_COLUMN_CATALOG[formId] || []
+            const isKnown   = knownCols.some((c) => c.internal === draft.spColumn)
+            const isCustom  = draft.spColumn && !isKnown
+            return (
+              <div style={sectionStyle}>
+                <label style={labelStyle}>Columna SharePoint</label>
+                <p style={{
+                  fontFamily: 'var(--font-body)', fontSize: 11,
+                  color: 'var(--color-text-muted)', margin: '0 0 8px', lineHeight: 1.5,
+                }}>
+                  Nombre interno de la columna donde se depositará la respuesta.
+                  Déjalo en blanco si el sistema ya la mapea automáticamente.
+                </p>
+                <select
+                  value={isCustom ? '__custom__' : (draft.spColumn || '')}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') update('spColumn', '')
+                    else update('spColumn', e.target.value)
+                  }}
+                  style={{ ...inputStyle, padding: '9px 12px' }}
+                >
+                  <option value="">— Sin asignación (mapeada automáticamente o no aplica)</option>
+                  {knownCols.map((col) => (
+                    <option key={col.internal} value={col.internal}>{col.label}</option>
+                  ))}
+                  <option value="__custom__">✏ Nombre personalizado…</option>
+                </select>
+                {isCustom && (
+                  <input
+                    value={draft.spColumn || ''}
+                    onChange={(e) => update('spColumn', e.target.value.trim())}
+                    placeholder="Ej: Carta_x0020_Amonestaci_x00f3_n"
+                    style={{ ...inputStyle, marginTop: 8 }}
+                  />
+                )}
+                {draft.spColumn && isKnown && (
+                  <p style={{
+                    fontFamily: 'var(--font-body)', fontSize: 11,
+                    color: '#27AE60', margin: '6px 0 0',
+                  }}>
+                    ✓ Columna reconocida — se enviará automáticamente al guardar el formulario.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Etiqueta principal */}
           <div style={sectionStyle}>
@@ -1421,6 +1471,7 @@ export default function FormEditorDetailScreen() {
             question={editingQ}
             allQuestions={questions}
             sections={staticForm?.sections || []}
+            formId={formId}
             onSave={saveQuestion}
             onClose={() => setEditingQ(null)}
           />
