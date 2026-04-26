@@ -5,6 +5,35 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.12] — 2026-04-25
+
+### Editor de formularios — override autoritativo + resiliencia ante pérdida de datos
+
+**Problema resuelto:** Los cambios guardados en el editor podían perderse si el localStorage del navegador se limpiaba (reinstalación de PWA, limpieza manual de caché), dejando el formulario en su versión base de código sin los ajustes configurados.
+
+**1. Override del editor es la fuente de verdad definitiva**
+
+`FormScreen` ya no mezcla el override con el estático como base. Lo que el administrador guarda en el editor **es** el formulario — preguntas eliminadas se eliminan definitivamente, preguntas añadidas permanecen, labels y opciones modificadas prevalecen. El estático (`formDefinitions.js`) solo aporta las funciones `visibleWhen` (no serializables en JSON) y actúa de semilla si no existe ningún backup.
+
+**2. Triple respaldo anti-pérdida**
+
+Cada guardado en el editor escribe simultáneamente en tres niveles:
+- **Zustand persist** (`mrc-form-editor-store`) — carga inmediata en cada apertura
+- **Hard backup** (`mrc-editor-hardbackup`) — clave separada que sobrevive resets o migraciones del store de Zustand
+- **SharePoint** (`mrc-forms-config.json`) — sobrevive cualquier limpieza del navegador o reinstalación
+
+Al iniciar la app, `pullFromCloud` restaura desde hard backup si `editedForms` está vacío antes de contactar SharePoint, y aplica siempre el cloud si el store local quedó vacío (sin importar timestamps).
+
+**3. Renumeración de preguntas al eliminar**
+
+Al eliminar una pregunta en el editor, el campo `order` de las preguntas restantes se renormaliza automáticamente (1, 2, 3…) sin huecos en la secuencia.
+
+**4. Formulario Reglas de Oro — base definitiva ajustada**
+
+Las preguntas Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q13, Q14, Q15, Q17 y Q47 se eliminaron permanentemente de `formDefinitions.js`. La sección DATOS GENERALES queda con Q1 (Instalación) y Q16 (Coordinador SIGAS); CIERRE queda con Q46 y Q48. Esta es la versión base que se muestra si no existe ningún override ni backup.
+
+---
+
 ## [1.9.11] — 2026-04-25
 
 ### Editor de formularios — tres mejoras y mapeo dinámico a SharePoint
