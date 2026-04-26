@@ -5,6 +5,16 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.13] — 2026-04-25
+
+### Pregunta tipo RUT — teclado nativo y fix de cursor
+
+**Teclado nativo del dispositivo:** La pregunta de tipo RUT reemplaza el teclado virtual personalizado por un `<input>` nativo con `inputMode="text"` y `autoCapitalize="characters"`. El sistema operativo muestra su teclado habitual; en iOS la K se capitaliza automáticamente. El formato `XX.XXX.XXX-K` se aplica en tiempo real mientras se escribe, y la validación Módulo 11 muestra borde verde/rojo con etiqueta ✓/✗ inline.
+
+**Fix cursor al borrar/editar:** Al borrar o editar en medio del RUT, el cursor ya no saltaba al inicio. Se implementó rastreo de posición lógica: antes del re-render se cuenta cuántos dígitos reales hay a la izquierda del cursor, y con `requestAnimationFrame` se reposiciona el cursor en el mismo lugar dentro del nuevo string formateado.
+
+---
+
 ## [1.9.12] — 2026-04-25
 
 ### Editor de formularios — override autoritativo + resiliencia ante pérdida de datos
