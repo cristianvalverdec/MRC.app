@@ -266,20 +266,8 @@ export const formDefinitions = {
       {
         id: 'dg', title: 'DATOS GENERALES',
         questions: [
-          { id: 'Q1', type: 'select', label: 'Instalación donde se realizará la Verificación de Reglas Oro', required: true, placeholder: 'Selecciona la instalación', options: ['Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo','Hijuelas','San Antonio','Viña del Mar','Miraflores','Huechuraba','Lo Espejo','Rancagua','Curicó','Talca','Chillán','Los Ángeles','Concepción','Temuco','Valdivia','Osorno','Puerto Montt','Castro','Coyhaique','Punta Arenas','San Felipe','Oficina Central','Oficina Vespucio'] },
-          { id: 'Q3',  type: 'text', label: 'Nombre GERENTE',                              required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q4',  type: 'text', label: 'Nombre SUBGERENTE',                           required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q5',  type: 'text', label: 'Nombre JEFE DE ZONA',                         required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q6',  type: 'text', label: 'Nombre JEFE DE OPERACIONES',                  required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q7',  type: 'text', label: 'Nombre JEFE ADMINISTRATIVO',                  required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q8',  type: 'text', label: 'Nombre JEFE DE FRIGORÍFICO',                  required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q9',  type: 'select', label: 'Equipo del colaborador observado', required: true, options: ['Foodservice','Venta Digital','Norte','Centro','Santiago','Sur','Servicio al Cliente'] },
-          { id: 'Q10', type: 'text', label: 'Nombre JEFE O AYUDANTE DE DESPACHO',          required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q13', type: 'text', label: 'Nombre OBSERVADOR COMITÉ PARITARIO',          required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q14', type: 'text', label: 'Nombre OBSERVADOR EQUIPO SSO',                required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q15', type: 'text', label: 'Nombre OBSERVADOR ACHS',                      required: true, placeholder: 'Escriba el nombre completo' },
+          { id: 'Q1',  type: 'select', label: 'Instalación donde se realizará la Verificación de Reglas Oro', required: true, placeholder: 'Selecciona la instalación', options: ['Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo','Hijuelas','San Antonio','Viña del Mar','Miraflores','Huechuraba','Lo Espejo','Rancagua','Curicó','Talca','Chillán','Los Ángeles','Concepción','Temuco','Valdivia','Osorno','Puerto Montt','Castro','Coyhaique','Punta Arenas','San Felipe','Oficina Central','Oficina Vespucio'] },
           { id: 'Q16', type: 'text', label: 'Nombre COORDINADOR SIGAS / JEFE DE CALIDAD',  required: true, placeholder: 'Escriba el nombre completo' },
-          { id: 'Q17', type: 'text', label: 'Nombre COLABORADOR SUCURSAL',                 required: true, placeholder: 'Escriba el nombre completo' },
         ],
       },
 
@@ -413,14 +401,6 @@ export const formDefinitions = {
             visibleWhen: (a) => {
               const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
               return rqs.some(q => a[q] === 'SIN_OBSERVACIONES')
-            },
-          },
-          { id: 'Q47', type: 'text', required: true,
-            label: 'Describa las acciones correctivas acordadas con el colaborador',
-            placeholder: 'Detalle los compromisos, plazos y responsables de las acciones correctivas…',
-            visibleWhen: (a) => {
-              const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
-              return rqs.some(q => a[q] === 'CON_OBSERVACIONES')
             },
           },
           { id: 'Q48', type: 'yesno', required: true,
