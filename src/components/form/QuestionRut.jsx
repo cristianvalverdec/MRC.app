@@ -1,3 +1,5 @@
+import { useRef } from 'react'
+
 // Formatea un RUT raw (solo dígitos + K) al formato chileno: XX.XXX.XXX-K
 function formatRUT(raw) {
   const clean = raw.replace(/[^0-9kK]/g, '').toUpperCase()
@@ -30,15 +32,37 @@ function validateRUT(raw) {
 }
 
 export default function QuestionRut({ question, value, onChange }) {
-  const raw      = (value || '').replace(/[^0-9kK]/g, '').toUpperCase()
+  const inputRef  = useRef(null)
+  const raw       = (value || '').replace(/[^0-9kK]/g, '').toUpperCase()
   const displayed = formatRUT(raw)
   const valid     = validateRUT(raw)
 
   function handleChange(e) {
-    // Extrae solo dígitos y K del valor que ingresó el usuario (con o sin formato)
-    const newRaw = e.target.value.replace(/[^0-9kK]/g, '').toUpperCase()
+    const input    = e.target
+    const selStart = input.selectionStart
+    const oldVal   = input.value
+
+    const newRaw = oldVal.replace(/[^0-9kK]/g, '').toUpperCase()
     if (newRaw.length > 9) return   // máximo 8 dígitos + 1 DV
     onChange(question.id, newRaw)
+
+    // Cuenta cuántos dígitos/K hay antes del cursor en el valor formateado anterior.
+    // Después del re-render, reposiciona el cursor en la misma posición lógica.
+    const realBefore = oldVal.slice(0, selStart).replace(/[^0-9kK]/gi, '').length
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      const fmt = el.value
+      let count = 0
+      let pos   = fmt.length
+      for (let i = 0; i < fmt.length; i++) {
+        if (/[0-9kK]/i.test(fmt[i])) {
+          count++
+          if (count === realBefore) { pos = i + 1; break }
+        }
+      }
+      el.setSelectionRange(pos, pos)
+    })
   }
 
   const borderColor  = valid === true ? '#27AE60' : valid === false ? '#EB5757' : 'var(--color-border)'
@@ -62,6 +86,7 @@ export default function QuestionRut({ question, value, onChange }) {
 
       <div style={{ position: 'relative' }}>
         <input
+          ref={inputRef}
           type="text"
           inputMode="text"
           value={displayed}
