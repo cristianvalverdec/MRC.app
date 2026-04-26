@@ -760,34 +760,31 @@ export default function FormScreen() {
   const editedOverride = editedForms[formType]
   const staticForm     = formDefinitions[formType] || customForms[formType] || null
 
-  // Merge del override restaurando visibleWhen desde el estático.
-  // Las funciones visibleWhen no sobreviven JSON.stringify (se pierden al persistir en localStorage).
-  // Un spread simple sobreescribiría sections/questions sin visibleWhen → todo visible al mismo tiempo.
+  // El override guardado por el editor es AUTORITATIVO: contiene exactamente las secciones y
+  // preguntas que el administrador configuró. No se mezcla con el estático como base porque
+  // eso causaría que preguntas intencionalmente eliminadas reaparecieran.
+  // El estático solo provee las funciones visibleWhen (no serializables en JSON).
+  // Si no hay override → se usa directamente el estático (formDefinitions.js es la base correcta).
   const form = (() => {
     if (!editedOverride) return staticForm
 
-    // Formularios de secciones: restaurar visibleWhen a nivel de sección y de pregunta
+    // Formularios de secciones: override autoritativo + restaurar visibleWhen desde estático
     if (editedOverride.sections && staticForm?.sections) {
-      const mergedSections = staticForm.sections.map((staticSec) => {
-        const overrideSec = editedOverride.sections.find((s) => s.id === staticSec.id)
-        if (!overrideSec) return staticSec
-        // Merge: estático como base, override encima para preservar ediciones.
-        // Preguntas estáticas eliminadas del override se restauran automáticamente
-        // (evita que Q17 u otras desaparezcan del formulario y lleguen vacías a SP).
-        const overrideQMap = Object.fromEntries(
-          (overrideSec.questions || []).map((q) => [q.id, q])
-        )
-        const mergedQuestions = staticSec.questions.map((sq) => {
-          const oq = overrideQMap[sq.id]
-          return oq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : sq
-        })
-        // Agregar preguntas nuevas del editor que no existen en el estático
-        ;(overrideSec.questions || []).forEach((oq) => {
-          if (!staticSec.questions.find((sq) => sq.id === oq.id)) {
-            mergedQuestions.push(oq)
-          }
-        })
-        return { ...staticSec, ...overrideSec, visibleWhen: staticSec.visibleWhen, questions: mergedQuestions }
+      // Mapa de visibleWhen del estático (funciones no sobreviven JSON.stringify)
+      const staticVWMap = {}
+      staticForm.sections.forEach((sec) => {
+        sec.questions?.forEach((q) => { if (q.visibleWhen) staticVWMap[q.id] = q.visibleWhen })
+      })
+      const mergedSections = editedOverride.sections.map((overrideSec) => {
+        const staticSec = staticForm.sections.find((s) => s.id === overrideSec.id)
+        return {
+          ...overrideSec,
+          visibleWhen: staticSec?.visibleWhen,
+          questions: (overrideSec.questions || []).map((q) => ({
+            ...q,
+            visibleWhen: staticVWMap[q.id],
+          })),
+        }
       })
       return { ...staticForm, ...editedOverride, sections: mergedSections }
     }

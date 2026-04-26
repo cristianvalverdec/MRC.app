@@ -30,13 +30,18 @@ describe('FormEditorDetailScreen — initQuestions (regresión v1.2.6)', () => {
   })
 })
 
-describe('FormScreen — merge de override restaura visibleWhen (regresión v1.3.x)', () => {
-  it('debe restaurar visibleWhen del estático al hacer merge de secciones con override', () => {
-    expect(formScreen).toContain('visibleWhen: staticSec.visibleWhen')
+describe('FormScreen — override autoritativo restaura visibleWhen (regresión v1.3.x + v1.9.12)', () => {
+  it('el override del editor es autoritativo: usa editedOverride.sections directamente', () => {
+    // El formulario mostrado usa EXACTAMENTE lo que el admin guardó (no mezcla con estático)
+    expect(formScreen).toContain('editedOverride.sections.map')
   })
 
-  it('debe restaurar visibleWhen del estático al hacer merge de preguntas con override', () => {
-    expect(formScreen).toContain('visibleWhen: sq.visibleWhen')
+  it('debe restaurar visibleWhen de sección desde el estático (staticSec?.visibleWhen)', () => {
+    expect(formScreen).toContain('visibleWhen: staticSec?.visibleWhen')
+  })
+
+  it('debe restaurar visibleWhen de pregunta desde el mapa estático (staticVWMap)', () => {
+    expect(formScreen).toContain('visibleWhen: staticVWMap[q.id]')
   })
 
   it('handleSave del editor debe eliminar _section/_sectionTitle/visibleWhen del override', () => {

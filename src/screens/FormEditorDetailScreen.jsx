@@ -1213,7 +1213,10 @@ export default function FormEditorDetailScreen() {
 
   // Eliminar
   const deleteQuestion = (id) => {
-    markChanged(questions.filter(q => q.id !== id))
+    const remaining = questions.filter((q) => q.id !== id)
+    // Renormalizar order para que sea secuencial sin huecos tras la eliminación
+    const renumbered = remaining.map((q, idx) => ({ ...q, order: idx + 1 }))
+    markChanged(renumbered)
     setDeleteConfirm(null)
   }
 

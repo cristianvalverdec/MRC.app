@@ -44,6 +44,13 @@ const useFormEditorStore = create(
           editedForms:  { ...state.editedForms, [formId]: formOverride },
           lastSyncedAt: new Date().toISOString(),
         }))
+        // Hard backup: copia en clave separada de Zustand persist.
+        // Sobrevive un reset/migración del store sin perder las ediciones del admin.
+        try {
+          const hb = JSON.parse(localStorage.getItem('mrc-editor-hardbackup') || '{}')
+          hb[formId] = { ...formOverride, _backupAt: new Date().toISOString() }
+          localStorage.setItem('mrc-editor-hardbackup', JSON.stringify(hb))
+        } catch { /* ignore */ }
         get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
@@ -52,6 +59,12 @@ const useFormEditorStore = create(
           const { [formId]: _, ...rest } = state.editedForms
           return { editedForms: rest, lastSyncedAt: new Date().toISOString() }
         })
+        // Limpiar también del hard backup para que no restaure al estado reseteado
+        try {
+          const hb = JSON.parse(localStorage.getItem('mrc-editor-hardbackup') || '{}')
+          delete hb[formId]
+          localStorage.setItem('mrc-editor-hardbackup', JSON.stringify(hb))
+        } catch { /* ignore */ }
         get()._syncToCloud().catch((e) => console.warn('[MRC Sync] Cloud sync falló (datos guardados local):', e?.message))
       },
 
@@ -116,6 +129,25 @@ const useFormEditorStore = create(
       // Esto protege cambios locales no sincronizados de ser borrados por datos obsoletos.
       pullFromCloud: async () => {
         set({ pullStatus: 'pulling', lastPullError: null })
+
+        // Si editedForms está vacío (localStorage limpiado o store recién inicializado),
+        // intentar restaurar desde el hard backup local antes de contactar SharePoint.
+        if (Object.keys(get().editedForms || {}).length === 0) {
+          try {
+            const hb = JSON.parse(localStorage.getItem('mrc-editor-hardbackup') || '{}')
+            const forms = Object.fromEntries(
+              Object.entries(hb).map(([id, v]) => {
+                const { _backupAt, ...form } = v  // eslint-disable-line no-unused-vars
+                return [id, form]
+              })
+            )
+            if (Object.keys(forms).length > 0) {
+              set({ editedForms: forms })
+              console.info('[MRC Sync] Formularios restaurados desde hard backup local ✓')
+            }
+          } catch { /* ignore */ }
+        }
+
         try {
           const data = await loadFormsFromSharePoint()
           const nowIso = new Date().toISOString()
@@ -125,12 +157,13 @@ const useFormEditorStore = create(
 
             // Sobrescribir SOLO si:
             //   a) este dispositivo nunca ha guardado nada (primera vez), O
-            //   b) cloud tiene timestamp Y ese timestamp es posterior al local
-            // Si cloud no tiene timestamp (versión antigua sin savedAt) → NO sobrescribir:
-            //   archivos sin savedAt son anteriores a esta lógica y pueden ser datos viejos.
+            //   b) el store local está vacío aunque tenga historial (posible reset de Zustand), O
+            //   c) cloud tiene timestamp Y ese timestamp es posterior al local
+            // Si cloud no tiene timestamp → NO sobrescribir (podría ser datos viejos).
             const cloudIsNewer =
-              !localLastSync ||                              // a) dispositivo sin historial local
-              (cloudSavedAt && cloudSavedAt > localLastSync) // b) cloud explícitamente más nuevo
+              !localLastSync ||                                          // a) sin historial local
+              Object.keys(get().editedForms || {}).length === 0 ||      // b) store vacío
+              (cloudSavedAt && cloudSavedAt > localLastSync)            // c) cloud más nuevo
 
             if (cloudIsNewer) {
               set({
