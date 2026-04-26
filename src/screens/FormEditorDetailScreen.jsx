@@ -1104,6 +1104,24 @@ export default function FormEditorDetailScreen() {
     const override = ef[formId]
     if (override?.questions) return dictToArray(override.questions)
     if (isWizard && staticForm?.questions) return dictToArray(staticForm.questions)
+    if (override?.sections && staticForm?.sections) {
+      // Merge: estático como base, override encima, preguntas nuevas del editor al final.
+      // Garantiza que preguntas estáticas eliminadas accidentalmente del override
+      // sigan apareciendo en el editor (evita pérdida de mapeo a SharePoint).
+      const staticQMap = {}
+      staticForm.sections.forEach((s) => {
+        ;(s.questions || []).forEach((q) => {
+          staticQMap[q.id] = { ...q, _section: s.id, _sectionTitle: s.title }
+        })
+      })
+      const merged = { ...staticQMap }
+      override.sections.forEach((s) => {
+        ;(s.questions || []).forEach((q) => {
+          merged[q.id] = { ...(merged[q.id] || {}), ...q, _section: s.id, _sectionTitle: s.title }
+        })
+      })
+      return Object.values(merged).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    }
     if (override?.sections) {
       return override.sections.flatMap((s) =>
         (s.questions || []).map((q) => ({ ...q, _section: s.id, _sectionTitle: s.title }))

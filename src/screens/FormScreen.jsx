@@ -771,10 +771,21 @@ export default function FormScreen() {
       const mergedSections = staticForm.sections.map((staticSec) => {
         const overrideSec = editedOverride.sections.find((s) => s.id === staticSec.id)
         if (!overrideSec) return staticSec
-        const baseQuestions = overrideSec.questions?.length ? overrideSec.questions : staticSec.questions
-        const mergedQuestions = baseQuestions.map((oq) => {
-          const sq = staticSec.questions.find((q) => q.id === oq.id)
-          return sq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : oq
+        // Merge: estático como base, override encima para preservar ediciones.
+        // Preguntas estáticas eliminadas del override se restauran automáticamente
+        // (evita que Q17 u otras desaparezcan del formulario y lleguen vacías a SP).
+        const overrideQMap = Object.fromEntries(
+          (overrideSec.questions || []).map((q) => [q.id, q])
+        )
+        const mergedQuestions = staticSec.questions.map((sq) => {
+          const oq = overrideQMap[sq.id]
+          return oq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : sq
+        })
+        // Agregar preguntas nuevas del editor que no existen en el estático
+        ;(overrideSec.questions || []).forEach((oq) => {
+          if (!staticSec.questions.find((sq) => sq.id === oq.id)) {
+            mergedQuestions.push(oq)
+          }
         })
         return { ...staticSec, ...overrideSec, visibleWhen: staticSec.visibleWhen, questions: mergedQuestions }
       })
