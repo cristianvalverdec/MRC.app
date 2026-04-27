@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Plus, Trash2, ChevronUp, ChevronDown, Save,
   GitBranch, List, AlertTriangle, CheckCircle2,
-  RotateCcw, ArrowRight, Cloud, CloudOff, RefreshCw,
+  RotateCcw, ArrowRight, Cloud, CloudOff, RefreshCw, Eye,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { formDefinitions } from '../forms/formDefinitions'
@@ -694,6 +694,71 @@ function QuestionEditorPanel({ question, allQuestions, sections, formId, onSave,
             </button>
           </div>
 
+          {/* Visibilidad condicional de la pregunta */}
+          {(() => {
+            const controllers = allQuestions
+              .filter((q) => q.id !== draft.id && ['select', 'radio'].includes(q.type) && Array.isArray(q.options) && q.options.length > 0)
+            const cond = draft.visibleCondition || null
+            const enabled = !!cond?.questionId
+            const selected = controllers.find((c) => c.id === cond?.questionId)
+            const opts = (selected?.options || []).map((o) =>
+              typeof o === 'string' ? { value: o, label: o } : { value: o.value ?? o.label, label: o.label ?? o.value }
+            )
+            return (
+              <div style={sectionStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: enabled ? 10 : 0 }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-primary)' }}>
+                    Mostrar solo si otra pregunta tiene cierto valor
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (enabled) update('visibleCondition', null)
+                      else update('visibleCondition', { questionId: controllers[0]?.id || '', equals: '' })
+                    }}
+                    disabled={!enabled && controllers.length === 0}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12,
+                      cursor: !enabled && controllers.length === 0 ? 'default' : 'pointer',
+                      border: 'none',
+                      background: enabled ? 'var(--color-blue-btn)' : 'rgba(255,255,255,0.1)',
+                      position: 'relative', transition: 'background 0.2s',
+                      opacity: !enabled && controllers.length === 0 ? 0.4 : 1,
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 3, transition: 'left 0.2s',
+                      left: enabled ? 23 : 3,
+                    }} />
+                  </button>
+                </div>
+                {enabled && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <select
+                      value={cond.questionId || ''}
+                      onChange={(e) => update('visibleCondition', { questionId: e.target.value, equals: '' })}
+                      style={inputStyle}
+                    >
+                      {controllers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.id} — {truncateLabel(c.label, 50)}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={cond.equals ?? ''}
+                      onChange={(e) => update('visibleCondition', { ...cond, equals: e.target.value })}
+                      style={inputStyle}
+                    >
+                      <option value="">— Seleccionar valor —</option>
+                      {opts.map((o) => (
+                        <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
           {/* Incluir N/A (solo tipo yesno) */}
           {draft.type === 'yesno' && (
             <div style={{ ...sectionStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1070,10 +1135,21 @@ function SyncIndicator({ status, error, onRetry }) {
 }
 
 // ── Gestor de secciones (tab "Secciones") ─────────────────────────────────
-function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAdd }) {
+function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAdd, onSetVisibleCondition }) {
   const [editingId, setEditingId] = useState(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, title, count }
+  const [conditionFor, setConditionFor] = useState(null)   // sección a la que se le edita la condición
+
+  // Preguntas con opciones discretas (radio/select) que sirven como controladoras
+  // de visibilidad. Se ofrecen como base para la condición.
+  const controllerQuestions = questions
+    .filter((q) => ['select', 'radio'].includes(q.type) && Array.isArray(q.options) && q.options.length > 0)
+    .map((q) => ({
+      id: q.id,
+      label: q.label,
+      options: q.options.map((o) => typeof o === 'string' ? { value: o, label: o } : { value: o.value ?? o.label, label: o.label ?? o.value }),
+    }))
 
   const countBySection = sections.reduce((acc, s) => {
     acc[s.id] = questions.filter((q) => q._section === s.id).length
@@ -1171,10 +1247,32 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
               }}>
                 {qCount} {qCount === 1 ? 'pregunta' : 'preguntas'} · id: <code style={{ fontFamily: 'monospace', fontSize: 10 }}>{s.id}</code>
               </div>
+              {s.visibleCondition?.questionId && (
+                <div style={{
+                  fontFamily: 'var(--font-body)', fontSize: 10,
+                  color: '#F2994A', marginTop: 3,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  <Eye size={10} />
+                  Visible si {s.visibleCondition.questionId} = "{String(s.visibleCondition.equals ?? (s.visibleCondition.in || []).join(' / '))}"
+                </div>
+              )}
             </div>
 
             {!isEditing && (
               <>
+                <button
+                  onClick={() => setConditionFor(s)}
+                  title="Configurar visibilidad condicional"
+                  style={{
+                    background: s.visibleCondition ? 'rgba(242,153,74,0.12)' : 'none',
+                    border: `1px solid ${s.visibleCondition ? 'rgba(242,153,74,0.4)' : 'var(--color-border)'}`,
+                    borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
+                    color: s.visibleCondition ? '#F2994A' : 'var(--color-text-muted)',
+                  }}
+                >
+                  <Eye size={13} />
+                </button>
                 <button
                   onClick={() => startEdit(s)}
                   style={{
@@ -1222,6 +1320,21 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
         AGREGAR SECCIÓN
       </button>
 
+      {/* Modal de condición de visibilidad */}
+      <AnimatePresence>
+        {conditionFor && (
+          <SectionVisibilityModal
+            section={conditionFor}
+            controllers={controllerQuestions.filter((c) => !questions.some((q) => q.id === c.id && q._section === conditionFor.id))}
+            onCancel={() => setConditionFor(null)}
+            onSave={(condition) => {
+              onSetVisibleCondition(conditionFor.id, condition)
+              setConditionFor(null)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Modal confirmar eliminación con selector de destino */}
       <AnimatePresence>
         {confirmDelete && (
@@ -1237,6 +1350,152 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+function SectionVisibilityModal({ section, controllers, onCancel, onSave }) {
+  const initial = section.visibleCondition || null
+  const [enabled, setEnabled] = useState(!!initial?.questionId)
+  const [questionId, setQuestionId] = useState(initial?.questionId || controllers[0]?.id || '')
+  const [equalsValue, setEqualsValue] = useState(initial?.equals ?? '')
+
+  const selected = controllers.find((c) => c.id === questionId)
+
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 8, padding: '9px 12px',
+    fontFamily: 'var(--font-body)', fontSize: 13,
+    color: 'var(--color-text-primary)', outline: 'none',
+  }
+  const labelStyle = {
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+    color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+    textTransform: 'uppercase', marginBottom: 6, display: 'block',
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        style={{
+          background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+          borderRadius: 14, padding: 22, maxWidth: 420, width: '100%',
+        }}
+      >
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+          VISIBILIDAD DE SECCIÓN
+        </div>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+          Sección "<strong style={{ color: 'var(--color-text-primary)' }}>{section.title}</strong>" — define cuándo se muestra en el formulario.
+          Si está desactivada, la sección y sus preguntas serán siempre visibles.
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-primary)' }}>
+            Mostrar solo si una pregunta tiene cierto valor
+          </span>
+          <button
+            onClick={() => setEnabled(!enabled)}
+            style={{
+              width: 44, height: 24, borderRadius: 12, cursor: 'pointer', border: 'none',
+              background: enabled ? 'var(--color-blue-btn)' : 'rgba(255,255,255,0.1)',
+              position: 'relative', transition: 'background 0.2s',
+            }}
+          >
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%', background: '#fff',
+              position: 'absolute', top: 3, transition: 'left 0.2s',
+              left: enabled ? 23 : 3,
+            }} />
+          </button>
+        </div>
+
+        {enabled && controllers.length === 0 && (
+          <div style={{
+            background: 'rgba(235,87,87,0.1)', border: '1px solid rgba(235,87,87,0.3)',
+            borderRadius: 8, padding: 12, marginBottom: 12,
+            fontFamily: 'var(--font-body)', fontSize: 12, color: '#FF8A80', lineHeight: 1.5,
+          }}>
+            No hay preguntas tipo radio o select en otras secciones que sirvan como controladoras.
+            Crea primero una pregunta de selección que controle esta visibilidad.
+          </div>
+        )}
+
+        {enabled && controllers.length > 0 && (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Pregunta controladora</label>
+              <select
+                value={questionId}
+                onChange={(e) => { setQuestionId(e.target.value); setEqualsValue('') }}
+                style={inputStyle}
+              >
+                {controllers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.id} — {truncateLabel(c.label, 50)}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>Valor que debe tener</label>
+              <select
+                value={equalsValue}
+                onChange={(e) => setEqualsValue(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">— Seleccionar valor —</option>
+                {(selected?.options || []).map((o) => (
+                  <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, height: 42, background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer',
+              color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)', fontSize: 13,
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              if (!enabled) return onSave(null)
+              if (!questionId || !equalsValue) return
+              onSave({ questionId, equals: equalsValue })
+            }}
+            disabled={enabled && (!questionId || !equalsValue)}
+            style={{
+              flex: 1, height: 42,
+              background: enabled && (!questionId || !equalsValue) ? 'rgba(255,255,255,0.06)' : 'var(--color-blue-btn)',
+              border: 'none', borderRadius: 8,
+              cursor: enabled && (!questionId || !equalsValue) ? 'default' : 'pointer',
+              color: '#fff', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+            }}
+          >
+            GUARDAR
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -1388,14 +1647,19 @@ export default function FormEditorDetailScreen() {
   // panel) leen de este estado — nunca más de staticForm.sections.
   const initSections = useCallback(() => {
     const { editedForms: ef, customForms: cf } = useFormEditorStore.getState()
+    const pick = (s) => ({
+      id: s.id,
+      title: s.title,
+      ...(s.visibleCondition ? { visibleCondition: s.visibleCondition } : {}),
+    })
     if (isCustom) {
       const f = cf[formId]
-      if (f?.sections) return f.sections.map((s) => ({ id: s.id, title: s.title }))
+      if (f?.sections) return f.sections.map(pick)
       return []
     }
     const override = ef[formId]
-    if (override?.sections) return override.sections.map((s) => ({ id: s.id, title: s.title }))
-    if (staticForm?.sections) return staticForm.sections.map((s) => ({ id: s.id, title: s.title }))
+    if (override?.sections) return override.sections.map(pick)
+    if (staticForm?.sections) return staticForm.sections.map(pick)
     return []
   }, [formId, isCustom, staticForm])
 
@@ -1563,6 +1827,7 @@ export default function FormEditorDetailScreen() {
               sections: sectionsState.map((s) => ({
                 id: s.id,
                 title: s.title,
+                ...(s.visibleCondition ? { visibleCondition: s.visibleCondition } : {}),
                 questions: bySection.get(s.id) || [],
               })),
             }
@@ -1577,6 +1842,7 @@ export default function FormEditorDetailScreen() {
               sections: sectionsState.map((s) => ({
                 id: s.id,
                 title: s.title,
+                ...(s.visibleCondition ? { visibleCondition: s.visibleCondition } : {}),
                 questions: (bySection.get(s.id) || []).map(stripInternal),
               })),
             }
@@ -1620,6 +1886,20 @@ export default function FormEditorDetailScreen() {
     const title = 'NUEVA SECCIÓN'
     const id = slugifySection(title)
     setSectionsState([...sectionsState, { id, title }])
+    setHasChanges(true)
+  }
+
+  // Establece (o limpia) la condición de visibilidad serializable de una sección.
+  // null/undefined elimina la condición; un objeto la persiste.
+  const setSectionVisibleCondition = (id, condition) => {
+    setSectionsState(sectionsState.map((s) => {
+      if (s.id !== id) return s
+      if (!condition) {
+        const { visibleCondition: _vc, ...rest } = s
+        return rest
+      }
+      return { ...s, visibleCondition: condition }
+    }))
     setHasChanges(true)
   }
 
@@ -1835,6 +2115,7 @@ export default function FormEditorDetailScreen() {
                 onMove={moveSection}
                 onDelete={deleteSection}
                 onAdd={addSection}
+                onSetVisibleCondition={setSectionVisibleCondition}
               />
             </motion.div>
           ) : (

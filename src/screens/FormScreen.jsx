@@ -768,21 +768,41 @@ export default function FormScreen() {
   const form = (() => {
     if (!editedOverride) return staticForm
 
-    // Formularios de secciones: override autoritativo + restaurar visibleWhen desde estático
+    // Reconstruye una función visibleWhen a partir de un objeto serializable
+    // visibleCondition = { questionId, equals } o { questionId, in: [...] } o
+    // { all: [{questionId, equals}, ...] } / { any: [...] }
+    // Si la condición no es válida, devuelve null (se trata como "siempre visible").
+    const buildVisibleFn = (cond) => {
+      if (!cond || typeof cond !== 'object') return null
+      const evalSingle = (c, ans) => {
+        if (!c?.questionId) return true
+        const v = ans?.[c.questionId]
+        if (Array.isArray(c.in)) return c.in.includes(v)
+        if ('equals' in c) return v === c.equals
+        return true
+      }
+      if (Array.isArray(cond.all)) return (a) => cond.all.every((c) => evalSingle(c, a))
+      if (Array.isArray(cond.any)) return (a) => cond.any.some((c) => evalSingle(c, a))
+      return (a) => evalSingle(cond, a)
+    }
+
+    // Formularios de secciones: override autoritativo + restaurar visibleWhen desde estático.
+    // Si la sección/pregunta no tiene visibleWhen estático pero sí tiene visibleCondition
+    // (configurado desde el editor), se construye la función a partir de la condición serializable.
     if (editedOverride.sections && staticForm?.sections) {
-      // Mapa de visibleWhen del estático (funciones no sobreviven JSON.stringify)
       const staticVWMap = {}
       staticForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => { if (q.visibleWhen) staticVWMap[q.id] = q.visibleWhen })
       })
       const mergedSections = editedOverride.sections.map((overrideSec) => {
         const staticSec = staticForm.sections.find((s) => s.id === overrideSec.id)
+        const secVisible = staticSec?.visibleWhen || buildVisibleFn(overrideSec.visibleCondition)
         return {
           ...overrideSec,
-          visibleWhen: staticSec?.visibleWhen,
+          visibleWhen: secVisible,
           questions: (overrideSec.questions || []).map((q) => ({
             ...q,
-            visibleWhen: staticVWMap[q.id],
+            visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
           })),
         }
       })
@@ -797,7 +817,8 @@ export default function FormScreen() {
         const sq = staticForm.questions[qid]
         const oq = editedOverride.questions[qid]
         if (!oq) return
-        mergedQuestions[qid] = sq ? { ...sq, ...oq, visibleWhen: sq.visibleWhen } : oq
+        const fn = sq?.visibleWhen || buildVisibleFn(oq.visibleCondition)
+        mergedQuestions[qid] = sq ? { ...sq, ...oq, visibleWhen: fn } : { ...oq, visibleWhen: fn }
       })
       return { ...staticForm, ...editedOverride, questions: mergedQuestions }
     }

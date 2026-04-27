@@ -37,11 +37,18 @@ describe('FormScreen — override autoritativo restaura visibleWhen (regresión 
   })
 
   it('debe restaurar visibleWhen de sección desde el estático (staticSec?.visibleWhen)', () => {
-    expect(formScreen).toContain('visibleWhen: staticSec?.visibleWhen')
+    expect(formScreen).toContain('staticSec?.visibleWhen')
   })
 
   it('debe restaurar visibleWhen de pregunta desde el mapa estático (staticVWMap)', () => {
-    expect(formScreen).toContain('visibleWhen: staticVWMap[q.id]')
+    expect(formScreen).toContain('staticVWMap[q.id]')
+  })
+
+  it('reconstruye visibleWhen desde visibleCondition serializable (secciones nuevas creadas en el editor)', () => {
+    // Para secciones/preguntas creadas en el editor (sin función visibleWhen estática)
+    // FormScreen debe construir la función a partir de un objeto serializable.
+    expect(formScreen).toContain('buildVisibleFn')
+    expect(formScreen).toContain('visibleCondition')
   })
 
   it('handleSave del editor debe eliminar _section/_sectionTitle/visibleWhen del override', () => {

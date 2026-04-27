@@ -5,6 +5,29 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.15] — 2026-04-27
+
+### Editor de formularios — visibilidad condicional configurable
+
+**Problema resuelto:** las preguntas Q52/Q53 agregadas para una nueva regla (ej. "REGLA N°8") aparecían siempre en el formulario porque las secciones nuevas no tenían cómo configurar `visibleWhen` (las funciones JS no se serializan al guardar el override en SharePoint/localStorage).
+
+**Solución — condición de visibilidad serializable.** El editor permite ahora declarar, tanto a nivel de sección como de pregunta, una condición del tipo `{ questionId, equals }`. Esa condición:
+
+- Se persiste íntegra en el override (`override.sections[i].visibleCondition` o `q.visibleCondition`).
+- Sobrevive a SharePoint sync, hard backup y JSON.stringify.
+- Es reconstruida como una función `visibleWhen` en `FormScreen` mediante el helper `buildVisibleFn`. Soporta `equals`, `in: [...]`, y combinadores `all` / `any`.
+
+**UI agregada:**
+- En la pestaña "Secciones" del editor, cada tarjeta tiene un botón ojo (Eye). Al click abre el modal "VISIBILIDAD DE SECCIÓN" con un toggle, dropdown de pregunta controladora (filtra a tipos `select`/`radio`) y dropdown del valor esperado.
+- En el panel de edición de una pregunta individual, mismo control bajo "Mostrar solo si otra pregunta tiene cierto valor".
+- Una sección con condición activa muestra debajo del título: "Visible si Q20 = N°8 ...".
+
+**Pre-condición para que aparezca la sección "REGLA N°8":** el admin debe agregar la opción "N°8 ..." al dropdown de Q20 (o crear la pregunta controladora) — eso ya era posible desde el editor de pregunta.
+
+**Tests centinela:** se agrega test que valida la presencia de `buildVisibleFn` y `visibleCondition` en `FormScreen`.
+
+---
+
 ## [1.9.14] — 2026-04-27
 
 ### Editor de formularios — override autoritativo en el editor + gestión de secciones
