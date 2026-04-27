@@ -5,6 +5,20 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.14] — 2026-04-27
+
+### Filtro de semana en Estatus Diario del Programa
+
+**Navegador de semana:** La vista "Todas las sucursales" incluye un navegador compacto entre el header y las KPI pills con flechas `←` `→` para moverse entre semanas. Muestra el número ISO de la semana (`SEM 17`) y el rango de fechas (`21-27 abr`). Al estar en una semana histórica el indicador cambia a azul para distinguirlo visualmente de la semana actual. Límite de 12 semanas hacia atrás.
+
+**Filtro de datos correcto:** `fetchTodayKPIsAllBranches` aplica ahora un rango exacto (inicio y fin de semana) al consultar SharePoint. Las semanas históricas usan cota superior para no mezclar datos de la semana siguiente. El auto-refresh de 2 minutos se desactiva para semanas pasadas (sus datos no cambian).
+
+**PNG de descarga consistente:** El modal de descarga y el canvas generado reflejan la semana seleccionada, tanto en el nombre del archivo (`MRC-Estatus-Semana17-dark-2026-04-27.png`) como en el texto impreso en la imagen.
+
+**Mock data estable:** En modo dev, los datos históricos usan una semilla determinista basada en el lunes de la semana solicitada, por lo que no varían entre recargas.
+
+---
+
 ## [1.9.13] — 2026-04-25
 
 ### Pregunta tipo RUT — teclado nativo y fix de cursor
