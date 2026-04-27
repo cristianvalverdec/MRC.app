@@ -110,12 +110,38 @@ function statusColor(pct) {
   if (pct >= 30) return C.warning
   return C.danger
 }
-function getWeekNumber() {
-  const d    = new Date()
+// Retorna el lunes 00:00 de la semana actual + offset semanas
+function weekMondayFor(offset = 0) {
+  const d = new Date()
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() - (day - 1) + (offset * 7))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Número ISO de la semana para un Date dado
+function isoWeekNum(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
+}
+
+function getWeekNumber(offset = 0) {
+  return isoWeekNum(weekMondayFor(offset))
+}
+
+// "21-27 abr"  o  "29 abr – 5 may"
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+function getWeekDateRange(offset = 0) {
+  const start = weekMondayFor(offset)
+  const end   = new Date(start)
+  end.setDate(end.getDate() + 6)
+  const sm = MESES[start.getMonth()]
+  const em = MESES[end.getMonth()]
+  return sm === em
+    ? `${start.getDate()}-${end.getDate()} ${sm}`
+    : `${start.getDate()} ${sm} – ${end.getDate()} ${em}`
 }
 
 // Porcentaje global de cumplimiento de una sucursal (pautas + cam + dif) tope 120%
@@ -187,7 +213,7 @@ function drawCell(ctx, x, y, w, h, val, key, color, isDark) {
 }
 
 // ── Generador de imagen PNG ────────────────────────────────────────────────
-async function generateWhatsAppImage(dlTheme, branchData) {
+async function generateWhatsAppImage(dlTheme, branchData, weekNum) {
   const isDark  = dlTheme === 'dark'
   const BASE    = import.meta.env.BASE_URL
   const statusC = (val, tgt) => {
@@ -265,7 +291,7 @@ async function generateWhatsAppImage(dlTheme, branchData) {
   ctx.font = "500 18px 'Barlow', 'Helvetica Neue', sans-serif"
   const now     = new Date()
   const dateStr = now.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
-  ctx.fillText(dateStr + '  ·  SEMANA ' + getWeekNumber(), PAD, 118)
+  ctx.fillText(dateStr + '  ·  SEMANA ' + weekNum, PAD, 118)
 
   // KPI globales (3 columnas) — distribuidos uniformemente dentro del header
   const g = getGlobals(branchData)
@@ -564,22 +590,21 @@ function KPITurnoCard({ title, accent, turnos, icon: Icon, delay = 0 }) {
 }
 
 // ── Modal de descarga ──────────────────────────────────────────────────────
-function DownloadModal({ onClose, branchData }) {
+function DownloadModal({ onClose, branchData, weekNum }) {
   const [dlTheme, setDlTheme]         = useState('dark')
   const [downloading, setDownloading] = useState(false)
-  const week = getWeekNumber()
 
   const handleDownload = useCallback(async () => {
     setDownloading(true)
     try {
-      const canvas = await generateWhatsAppImage(dlTheme, branchData)
+      const canvas = await generateWhatsAppImage(dlTheme, branchData, weekNum)
       const link = document.createElement('a')
-      link.download = `MRC-Estatus-Semana${week}-${dlTheme}-${new Date().toISOString().slice(0, 10)}.png`
+      link.download = `MRC-Estatus-Semana${weekNum}-${dlTheme}-${new Date().toISOString().slice(0, 10)}.png`
       link.href = canvas.toDataURL('image/png')
       document.body.appendChild(link); link.click(); document.body.removeChild(link)
     } catch (e) { console.error('[MRC] Error generando imagen:', e) }
     setDownloading(false)
-  }, [dlTheme, branchData, week])
+  }, [dlTheme, branchData, weekNum])
 
   return (
     <motion.div
@@ -624,7 +649,7 @@ function DownloadModal({ onClose, branchData }) {
           cursor: downloading ? 'default' : 'pointer', opacity: downloading ? 0.6 : 1,
         }}>
           <Upload size={14} color={C.orange} />
-          {downloading ? 'GENERANDO…' : `DESCARGAR SEMANA ${week}`}
+          {downloading ? 'GENERANDO…' : `DESCARGAR SEMANA ${weekNum}`}
         </button>
       </motion.div>
     </motion.div>
@@ -632,18 +657,20 @@ function DownloadModal({ onClose, branchData }) {
 }
 
 // ── Vista "Todas las sucursales" ───────────────────────────────────────────
-function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
+function VistaTodas({ onSelectCD, isOnline, branchData, loading, weekOffset, onWeekChange }) {
   const role              = useUserStore(s => s.role)
   const [showDL, setShowDL] = useState(false)
-  const globals = getGlobals(branchData)
-  const week    = getWeekNumber()
+  const globals       = getGlobals(branchData)
+  const week          = getWeekNumber(weekOffset)
+  const weekRange     = getWeekDateRange(weekOffset)
+  const isCurrentWeek = weekOffset === 0
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-navy)' }}>
 
       {/* Header — usa AppHeader para botón de retroceso estándar */}
       <AppHeader
-        title={`Estatus Diario · Sem ${week}`}
+        title={`Estatus · Sem ${week}`}
         rightAction={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {role === 'admin' && (
@@ -663,6 +690,52 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
           </div>
         }
       />
+
+      {/* Navegador de semana */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '2px 8px', flexShrink: 0, gap: 0 }}>
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => onWeekChange(weekOffset - 1)}
+          disabled={weekOffset <= -12}
+          aria-label="Semana anterior"
+          style={{
+            background: 'none', border: 'none', padding: '6px 10px',
+            cursor: weekOffset <= -12 ? 'default' : 'pointer',
+            color: weekOffset <= -12 ? 'var(--color-border)' : C.orange,
+            display: 'flex', alignItems: 'center', flexShrink: 0,
+          }}
+        >
+          <ChevronLeft size={15} strokeWidth={2.5} />
+        </motion.button>
+
+        <div style={{
+          flex: 1, textAlign: 'center', padding: '3px 6px', borderRadius: 7,
+          background: isCurrentWeek ? 'transparent' : `${C.info}14`,
+          border: `1px solid ${isCurrentWeek ? 'transparent' : `${C.info}28`}`,
+          transition: 'background 0.2s, border-color 0.2s',
+        }}>
+          <div style={{ fontFamily: FD, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.2,
+            color: isCurrentWeek ? 'var(--color-text-primary)' : C.info }}>
+            SEM {week}{isCurrentWeek ? ' · SEMANA ACTUAL' : ''}
+          </div>
+          <div style={{ fontFamily: FD, fontSize: 9, color: 'var(--color-text-muted)', lineHeight: 1.2 }}>{weekRange}</div>
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => onWeekChange(Math.min(0, weekOffset + 1))}
+          disabled={weekOffset >= 0}
+          aria-label="Semana siguiente"
+          style={{
+            background: 'none', border: 'none', padding: '6px 10px',
+            cursor: weekOffset >= 0 ? 'default' : 'pointer',
+            color: weekOffset >= 0 ? 'var(--color-border)' : C.orange,
+            display: 'flex', alignItems: 'center', flexShrink: 0,
+          }}
+        >
+          <ChevronRight size={15} strokeWidth={2.5} />
+        </motion.button>
+      </div>
 
       {/* KPI pills globales */}
       <div style={{ padding: '6px 14px 8px', display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -731,7 +804,7 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
 
       {/* Modal descarga */}
       <AnimatePresence>
-        {showDL && <DownloadModal onClose={() => setShowDL(false)} branchData={branchData} />}
+        {showDL && <DownloadModal onClose={() => setShowDL(false)} branchData={branchData} weekNum={week} />}
       </AnimatePresence>
     </div>
   )
@@ -892,10 +965,11 @@ function VistaCD({ cdId, onBack, branchData }) {
 
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function DailyStatusScreenV2() {
-  const { isOnline }                     = useNetworkStatus()
-  const { data, loading, accessDenied }  = useKPIsAllBranches()
-  const [view, setView]                  = useState('todas')
-  const [cdId, setCdId]                  = useState(null)
+  const { isOnline }                      = useNetworkStatus()
+  const [weekOffset, setWeekOffset]       = useState(0)
+  const { data, loading, accessDenied }   = useKPIsAllBranches(weekOffset)
+  const [view, setView]                   = useState('todas')
+  const [cdId, setCdId]                   = useState(null)
 
   // Normalizar keys del hook → nombre canónico de SUCURSALES
   const branchData = data
@@ -945,7 +1019,8 @@ export default function DailyStatusScreenV2() {
               initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.18 }} style={{ height: '100%' }}>
               <VistaTodas isOnline={isOnline} branchData={branchData} loading={loading}
-                onSelectCD={id => { setCdId(id); setView('cd') }} />
+                onSelectCD={id => { setCdId(id); setView('cd') }}
+                weekOffset={weekOffset} onWeekChange={setWeekOffset} />
             </motion.div>
           ) : (
             <motion.div key="cd"

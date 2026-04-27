@@ -83,11 +83,12 @@ function todayISO() {
   return d.toISOString()
 }
 
-// Inicio de la semana actual (lunes 00:00) para KPIs semanales
-function weekStartISO() {
+// Inicio de la semana (lunes 00:00) para un offset de semanas desde la actual.
+// offset=0 → semana actual, offset=-1 → semana pasada, etc.
+function weekStartISO(offset = 0) {
   const d = new Date()
   const day = d.getDay() || 7  // domingo=0 → 7, lunes=1
-  d.setDate(d.getDate() - (day - 1))
+  d.setDate(d.getDate() - (day - 1) + (offset * 7))
   d.setHours(0, 0, 0, 0)
   return d.toISOString()
 }
@@ -931,9 +932,11 @@ function v2MockSeed(seed, max) {
   return Math.max(0, Math.floor((x - Math.floor(x)) * (max + 1)))
 }
 
-export async function fetchTodayKPIsAllBranches() {
+export async function fetchTodayKPIsAllBranches(weekOffset = 0) {
   if (IS_DEV_MODE) {
-    const day = Math.floor(Date.now() / 86400000)
+    // Seed estable basado en el lunes de la semana solicitada (datos históricos fijos)
+    const weekStart = new Date(weekStartISO(weekOffset))
+    const day = Math.floor(weekStart.getTime() / 86400000)
     const result = {}
     V2_BRANCHES.forEach((name, bi) => {
       const b = bi * 19 + day * 3
@@ -948,7 +951,9 @@ export async function fetchTodayKPIsAllBranches() {
 
   const token        = await getGraphToken()
   const siteUrl      = getSiteUrl()
-  const weekStartMs  = new Date(weekStartISO()).getTime()
+  const weekStartMs  = new Date(weekStartISO(weekOffset)).getTime()
+  // Para semanas pasadas aplicamos cota superior; semana actual no tiene cota (datos en tiempo real)
+  const weekEndMs    = weekOffset < 0 ? new Date(weekStartISO(weekOffset + 1)).getTime() : Infinity
   const headers      = { Authorization: `Bearer ${token}` }
 
   const branchLookup = {}
@@ -979,7 +984,8 @@ export async function fetchTodayKPIsAllBranches() {
       }
       const { value = [] } = await res.json()
       value.forEach(item => {
-        if (new Date(item.createdDateTime).getTime() < weekStartMs) return
+        const ts = new Date(item.createdDateTime).getTime()
+        if (ts < weekStartMs || ts >= weekEndMs) return
         cb(item.fields || {})
       })
     } catch (e) { console.warn('[MRC V2]', e.message) }
