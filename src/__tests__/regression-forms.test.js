@@ -81,6 +81,29 @@ describe('FormEditorDetailScreen — v1.9.3 fixes (pregunta nueva no se pierde)'
   })
 })
 
+describe('FormEditorDetailScreen — override autoritativo en el editor (regresión Q16, v1.9.14)', () => {
+  it('initQuestions NO mezcla estático+override: el override es la única fuente de verdad', () => {
+    // Si existe override.sections, el editor debe leerlo directamente.
+    // El merge "estático como base, override encima" causaba que preguntas
+    // eliminadas (ej. Q16 en pauta-verificacion-reglas-oro) reaparecieran.
+    expect(editorScreen).not.toMatch(/Merge: estático como base, override encima/)
+    expect(editorScreen).toMatch(/Override autoritativo[\s\S]*regla v1\.9\.12/)
+  })
+
+  it('soporta gestión de secciones (crear, renombrar, reordenar, eliminar)', () => {
+    expect(editorScreen).toContain('function SectionsManager(')
+    expect(editorScreen).toContain('addSection')
+    expect(editorScreen).toContain('renameSection')
+    expect(editorScreen).toContain('moveSection')
+    expect(editorScreen).toContain('deleteSection')
+  })
+
+  it('handleSaveConfirmed persiste sectionsState (no staticForm.sections)', () => {
+    // Las secciones que el admin gestiona deben sobrevivir al guardado.
+    expect(editorScreen).toMatch(/sections: sectionsState\.map/)
+  })
+})
+
 describe('formEditorStore — sync status honesto (v1.9.3)', () => {
   const store = readFileSync(
     resolve(import.meta.dirname, '../store/formEditorStore.js'),

@@ -5,6 +5,38 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.14] — 2026-04-27
+
+### Editor de formularios — override autoritativo en el editor + gestión de secciones
+
+**1. Q16 ya no reaparece al reabrir el editor**
+
+`initQuestions` mezclaba `staticForm.sections` con `override.sections` como red de seguridad. El efecto colateral: preguntas eliminadas del override (ej. Q16 en pauta-verificacion-reglas-oro) volvían a aparecer al reabrir el editor, y al siguiente guardado se reinsertaban en el override. Ahora el override es la única fuente de verdad — alineado con la regla v1.9.12 que ya regía en `FormScreen`. El estático solo se usa como semilla cuando no existe override aún.
+
+**2. Nueva pestaña "Secciones" — CRUD completo**
+
+Se agregó un gestor de secciones para formularios seccionados (no Wizard). Permite:
+- **Agregar** una sección nueva con título editable.
+- **Renombrar** inline (click EDITAR → input → Enter).
+- **Reordenar** con flechas ▲▼.
+- **Eliminar** con modal de confirmación que pide a qué sección reasignar las preguntas que tenía (no se descartan).
+
+El estado `sectionsState` se persiste como `override.sections` en `mrc-forms-config.json` — sin cambios en el contrato con SharePoint. El selector de sección al crear una pregunta y el dropdown del panel de edición leen de este estado, no del estático. Esto resuelve el caso de la nueva regla de oro (Q53) que no podía asignarse a la sección correcta.
+
+**3. Tests centinela**
+
+- Test contra el retorno del merge "estático + override" en `initQuestions`.
+- Test que valida la presencia de `SectionsManager`, `addSection`, `renameSection`, `moveSection`, `deleteSection`.
+- Test que `handleSaveConfirmed` persiste `sectionsState.map(...)` y no `staticForm.sections.map(...)`.
+
+### Estatus Diario V2 — reparación de regresión del push del 25-abr
+
+El commit `bc72e181` reemplazó el header custom V2 por `<AppHeader rightAction={…}>`. Resultado: el contenedor de `rightAction` (44 px) recortaba SYNC + botón de descarga, y se perdía la jerarquía visual del título "Estatus diario" + badge "SEM N" + fecha que distinguía V2 del resto de pantallas.
+
+Se restauró el header custom y se agregó un botón **ChevronLeft naranja** a la izquierda que invoca `useNavigation().goBack()`. SYNC indicator y botón de descarga vuelven a su sitio original. Layout V2 (KPIs, leyenda, tabla por sucursal) intacto.
+
+---
+
 ## [1.9.13] — 2026-04-25
 
 ### Pregunta tipo RUT — teclado nativo y fix de cursor

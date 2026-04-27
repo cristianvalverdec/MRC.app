@@ -1069,6 +1069,266 @@ function SyncIndicator({ status, error, onRetry }) {
   return null
 }
 
+// ── Gestor de secciones (tab "Secciones") ─────────────────────────────────
+function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAdd }) {
+  const [editingId, setEditingId] = useState(null)
+  const [draftTitle, setDraftTitle] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null) // { id, title, count }
+
+  const countBySection = sections.reduce((acc, s) => {
+    acc[s.id] = questions.filter((q) => q._section === s.id).length
+    return acc
+  }, {})
+
+  const startEdit = (s) => {
+    setEditingId(s.id)
+    setDraftTitle(s.title)
+  }
+  const commitEdit = (id) => {
+    const t = draftTitle.trim()
+    if (t) onRename(id, t)
+    setEditingId(null)
+    setDraftTitle('')
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{
+        fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)',
+        margin: '0 0 4px', lineHeight: 1.5,
+      }}>
+        Las secciones agrupan preguntas dentro del formulario (ej. "DATOS GENERALES", "REGLAS DE ORO", "CIERRE").
+        Cada pregunta debe pertenecer a una sección. Al eliminar una sección, sus preguntas se reasignan a otra.
+      </p>
+
+      {sections.map((s, idx) => {
+        const isEditing = editingId === s.id
+        const qCount = countBySection[s.id] || 0
+        return (
+          <div key={s.id} style={{
+            background: 'var(--color-navy-mid)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10, padding: '10px 12px',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button
+                onClick={() => onMove(idx, -1)} disabled={idx === 0}
+                style={{
+                  background: 'none', border: 'none',
+                  cursor: idx === 0 ? 'default' : 'pointer',
+                  padding: 2, opacity: idx === 0 ? 0.2 : 0.7,
+                }}
+              >
+                <ChevronUp size={14} color="var(--color-text-muted)" />
+              </button>
+              <button
+                onClick={() => onMove(idx, 1)} disabled={idx === sections.length - 1}
+                style={{
+                  background: 'none', border: 'none',
+                  cursor: idx === sections.length - 1 ? 'default' : 'pointer',
+                  padding: 2, opacity: idx === sections.length - 1 ? 0.2 : 0.7,
+                }}
+              >
+                <ChevronDown size={14} color="var(--color-text-muted)" />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {isEditing ? (
+                <input
+                  autoFocus
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  onBlur={() => commitEdit(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit(s.id)
+                    if (e.key === 'Escape') { setEditingId(null); setDraftTitle('') }
+                  }}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(96,165,250,0.4)',
+                    borderRadius: 6, padding: '6px 8px',
+                    fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+                    color: 'var(--color-text-primary)', outline: 'none',
+                    letterSpacing: '0.04em',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+                  color: 'var(--color-text-primary)', letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {s.title}
+                </div>
+              )}
+              <div style={{
+                fontFamily: 'var(--font-body)', fontSize: 11,
+                color: 'var(--color-text-muted)', marginTop: 2,
+              }}>
+                {qCount} {qCount === 1 ? 'pregunta' : 'preguntas'} · id: <code style={{ fontFamily: 'monospace', fontSize: 10 }}>{s.id}</code>
+              </div>
+            </div>
+
+            {!isEditing && (
+              <>
+                <button
+                  onClick={() => startEdit(s)}
+                  style={{
+                    background: 'none', border: '1px solid var(--color-border)',
+                    borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
+                    color: '#60A5FA', fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+                  }}
+                >
+                  EDITAR
+                </button>
+                <button
+                  onClick={() => setConfirmDelete({ id: s.id, title: s.title, count: qCount })}
+                  disabled={sections.length <= 1}
+                  title={sections.length <= 1 ? 'No se puede eliminar la última sección' : 'Eliminar sección'}
+                  style={{
+                    background: 'none', border: '1px solid rgba(235,87,87,0.3)',
+                    borderRadius: 6, padding: '5px 8px',
+                    cursor: sections.length <= 1 ? 'default' : 'pointer',
+                    opacity: sections.length <= 1 ? 0.4 : 1,
+                    color: '#EB5757',
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      })}
+
+      <button
+        onClick={onAdd}
+        style={{
+          marginTop: 4, padding: '10px 12px',
+          background: 'rgba(245,124,32,0.08)',
+          border: '1px dashed rgba(245,124,32,0.4)',
+          borderRadius: 10, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          color: 'var(--color-orange)',
+          fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+          letterSpacing: '0.06em',
+        }}
+      >
+        <Plus size={14} />
+        AGREGAR SECCIÓN
+      </button>
+
+      {/* Modal confirmar eliminación con selector de destino */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <SectionDeleteModal
+            section={confirmDelete}
+            otherSections={sections.filter((s) => s.id !== confirmDelete.id)}
+            onCancel={() => setConfirmDelete(null)}
+            onConfirm={(reassignTo) => {
+              onDelete(confirmDelete.id, reassignTo)
+              setConfirmDelete(null)
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function SectionDeleteModal({ section, otherSections, onCancel, onConfirm }) {
+  const [target, setTarget] = useState(otherSections[0]?.id || '')
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        style={{
+          background: 'var(--color-navy-mid)', border: '1px solid rgba(235,87,87,0.3)',
+          borderRadius: 14, padding: 24, maxWidth: 360, width: '100%',
+        }}
+      >
+        <AlertTriangle size={24} color="#EB5757" style={{ marginBottom: 12 }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>
+          ¿ELIMINAR SECCIÓN?
+        </div>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+          Se eliminará "<strong style={{ color: 'var(--color-text-primary)' }}>{section.title}</strong>".
+          {section.count > 0 && (
+            <> Sus {section.count} {section.count === 1 ? 'pregunta se reasignará' : 'preguntas se reasignarán'} a la sección seleccionada.</>
+          )}
+        </div>
+
+        {section.count > 0 && otherSections.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{
+              fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+              color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+              textTransform: 'uppercase', marginBottom: 6, display: 'block',
+            }}>
+              Reasignar preguntas a
+            </label>
+            <select
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: '9px 12px',
+                fontFamily: 'var(--font-body)', fontSize: 13,
+                color: 'var(--color-text-primary)', outline: 'none',
+              }}
+            >
+              {otherSections.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, height: 42, background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--color-border)', borderRadius: 8, cursor: 'pointer',
+              color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)', fontSize: 13,
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(target || null)}
+            style={{
+              flex: 1, height: 42, background: 'rgba(235,87,87,0.15)',
+              border: '1px solid rgba(235,87,87,0.3)', borderRadius: 8, cursor: 'pointer',
+              color: '#EB5757', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+            }}
+          >
+            ELIMINAR
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 // ── Pantalla principal ────────────────────────────────────────────────────
 export default function FormEditorDetailScreen() {
   const { formId } = useParams()
@@ -1104,24 +1364,9 @@ export default function FormEditorDetailScreen() {
     const override = ef[formId]
     if (override?.questions) return dictToArray(override.questions)
     if (isWizard && staticForm?.questions) return dictToArray(staticForm.questions)
-    if (override?.sections && staticForm?.sections) {
-      // Merge: estático como base, override encima, preguntas nuevas del editor al final.
-      // Garantiza que preguntas estáticas eliminadas accidentalmente del override
-      // sigan apareciendo en el editor (evita pérdida de mapeo a SharePoint).
-      const staticQMap = {}
-      staticForm.sections.forEach((s) => {
-        ;(s.questions || []).forEach((q) => {
-          staticQMap[q.id] = { ...q, _section: s.id, _sectionTitle: s.title }
-        })
-      })
-      const merged = { ...staticQMap }
-      override.sections.forEach((s) => {
-        ;(s.questions || []).forEach((q) => {
-          merged[q.id] = { ...(merged[q.id] || {}), ...q, _section: s.id, _sectionTitle: s.title }
-        })
-      })
-      return Object.values(merged).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    }
+    // Override autoritativo (regla v1.9.12): si existe override.sections, es la
+    // fuente de verdad — preguntas eliminadas en el editor NO reaparecen desde
+    // el estático. El estático solo se usa como semilla cuando no hay override.
     if (override?.sections) {
       return override.sections.flatMap((s) =>
         (s.questions || []).map((q) => ({ ...q, _section: s.id, _sectionTitle: s.title }))
@@ -1137,6 +1382,25 @@ export default function FormEditorDetailScreen() {
 
   const [questions, setQuestions] = useState(initQuestions)
 
+  // ── Estado de secciones (override autoritativo) ─────────────────────────
+  // Inicializa desde override.sections o, si no existe, desde el estático.
+  // A partir de aquí TODAS las operaciones (guardar, asignar, dropdown del
+  // panel) leen de este estado — nunca más de staticForm.sections.
+  const initSections = useCallback(() => {
+    const { editedForms: ef, customForms: cf } = useFormEditorStore.getState()
+    if (isCustom) {
+      const f = cf[formId]
+      if (f?.sections) return f.sections.map((s) => ({ id: s.id, title: s.title }))
+      return []
+    }
+    const override = ef[formId]
+    if (override?.sections) return override.sections.map((s) => ({ id: s.id, title: s.title }))
+    if (staticForm?.sections) return staticForm.sections.map((s) => ({ id: s.id, title: s.title }))
+    return []
+  }, [formId, isCustom, staticForm])
+
+  const [sectionsState, setSectionsState] = useState(initSections)
+
   const [activeTab, setActiveTab] = useState('lista')
   const [editingQ, setEditingQ] = useState(null)
   const [hasChanges, setHasChanges] = useState(false)
@@ -1146,8 +1410,8 @@ export default function FormEditorDetailScreen() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   // Última sección usada al crear una pregunta (recordada entre clicks al FAB).
   // null = preguntar. Para seccionados, arranca en la primera sección.
-  const isSectioned = !!staticForm?.sections && !isWizard
-  const firstSectionId = staticForm?.sections?.[0]?.id || null
+  const isSectioned = !isWizard && (sectionsState.length > 0 || !!staticForm?.sections)
+  const firstSectionId = sectionsState[0]?.id || staticForm?.sections?.[0]?.id || null
   const [addingToSection, setAddingToSection] = useState(null) // id de sección destino del próximo add (o null)
   const [lastSectionUsed, setLastSectionUsed] = useState(firstSectionId)
   const [validationResult, setValidationResult] = useState(null) // { errors, warnings } | null
@@ -1230,7 +1494,7 @@ export default function FormEditorDetailScreen() {
   // En formularios seccionados, primero abre el selector de sección (si hay >1).
   // Si solo hay 1 sección (o es wizard), salta directo a crear la pregunta.
   const addQuestion = (sectionIdOverride = null) => {
-    const sections = staticForm?.sections || []
+    const sections = sectionsState
     // Para seccionados con múltiples secciones: pedir sección antes de crear
     if (isSectioned && sections.length > 1 && !sectionIdOverride) {
       setAddingToSection(lastSectionUsed || sections[0].id)
@@ -1277,7 +1541,9 @@ export default function FormEditorDetailScreen() {
   // Intenta guardar: corre validación, si hay errores abre modal; si hay warnings
   // pide confirmación (handleSaveConfirmed). Sin problemas, guarda directo.
   const handleSave = () => {
-    const result = validateForm(questions, staticForm, isWizard)
+    // Para validación de huérfanas usamos las secciones EFECTIVAS (sectionsState)
+    const sectionsForValidation = isWizard ? null : { sections: sectionsState }
+    const result = validateForm(questions, sectionsForValidation, isWizard)
     if (result.errors.length || result.warnings.length) {
       setValidationResult(result)
       return
@@ -1291,11 +1557,12 @@ export default function FormEditorDetailScreen() {
       const updatedForm = isWizard
         ? { ...staticForm, questions: arrayToDict(questions) }
         : (() => {
-            const bySection = groupQuestionsBySections(questions, staticForm.sections || [])
+            const bySection = groupQuestionsBySections(questions, sectionsState)
             return {
               ...staticForm,
-              sections: (staticForm.sections || []).map((s) => ({
-                ...s,
+              sections: sectionsState.map((s) => ({
+                id: s.id,
+                title: s.title,
                 questions: bySection.get(s.id) || [],
               })),
             }
@@ -1305,9 +1572,9 @@ export default function FormEditorDetailScreen() {
       const override = isWizard
         ? { questions: arrayToDict(questions.map(stripInternal)) }
         : (() => {
-            const bySection = groupQuestionsBySections(questions, staticForm.sections)
+            const bySection = groupQuestionsBySections(questions, sectionsState)
             return {
-              sections: staticForm.sections.map((s) => ({
+              sections: sectionsState.map((s) => ({
                 id: s.id,
                 title: s.title,
                 questions: (bySection.get(s.id) || []).map(stripInternal),
@@ -1331,8 +1598,62 @@ export default function FormEditorDetailScreen() {
   const handleReset = () => {
     resetFormEdits(formId)
     setQuestions(initQuestions())
+    setSectionsState(initSections())
     setHasChanges(false)
     setShowResetConfirm(false)
+  }
+
+  // ── Operaciones de secciones (CRUD) ────────────────────────────────────
+  const slugifySection = (title) => {
+    const base = String(title || 'seccion').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      .slice(0, 40) || 'seccion'
+    const existing = new Set(sectionsState.map((s) => s.id))
+    let id = base
+    let n = 2
+    while (existing.has(id)) { id = `${base}-${n}`; n++ }
+    return id
+  }
+
+  const addSection = () => {
+    const title = 'NUEVA SECCIÓN'
+    const id = slugifySection(title)
+    setSectionsState([...sectionsState, { id, title }])
+    setHasChanges(true)
+  }
+
+  const renameSection = (id, newTitle) => {
+    setSectionsState(sectionsState.map((s) => s.id === id ? { ...s, title: newTitle } : s))
+    setQuestions(questions.map((q) =>
+      q._section === id ? { ...q, _sectionTitle: newTitle } : q
+    ))
+    setHasChanges(true)
+  }
+
+  const moveSection = (idx, dir) => {
+    const target = idx + dir
+    if (target < 0 || target >= sectionsState.length) return
+    const next = [...sectionsState]
+    ;[next[idx], next[target]] = [next[target], next[idx]]
+    setSectionsState(next)
+    setHasChanges(true)
+  }
+
+  // Elimina una sección. Las preguntas que tenía se reasignan al destino indicado
+  // (o a la primera sección restante si no se indica). Si no quedan secciones,
+  // la operación se cancela (un formulario seccionado debe tener ≥1 sección).
+  const deleteSection = (id, reassignTo = null) => {
+    if (sectionsState.length <= 1) return
+    const remaining = sectionsState.filter((s) => s.id !== id)
+    const target = reassignTo
+      ? remaining.find((s) => s.id === reassignTo) || remaining[0]
+      : remaining[0]
+    setSectionsState(remaining)
+    setQuestions(questions.map((q) =>
+      q._section === id ? { ...q, _section: target.id, _sectionTitle: target.title } : q
+    ))
+    setHasChanges(true)
   }
 
   // Eliminar formulario personalizado
@@ -1464,6 +1785,7 @@ export default function FormEditorDetailScreen() {
       }}>
         {[
           { id: 'lista', label: 'Lista de preguntas', icon: <List size={13} /> },
+          ...(isSectioned ? [{ id: 'secciones', label: 'Secciones', icon: <List size={13} /> }] : []),
           { id: 'flujo', label: 'Vista de flujo', icon: <GitBranch size={13} /> },
         ].map((tab) => (
           <button
@@ -1504,6 +1826,17 @@ export default function FormEditorDetailScreen() {
                 ))}
               </div>
             </motion.div>
+          ) : activeTab === 'secciones' ? (
+            <motion.div key="secciones" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <SectionsManager
+                sections={sectionsState}
+                questions={questions}
+                onRename={renameSection}
+                onMove={moveSection}
+                onDelete={deleteSection}
+                onAdd={addSection}
+              />
+            </motion.div>
           ) : (
             <motion.div key="flujo" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <FlowView questions={questions} />
@@ -1542,7 +1875,7 @@ export default function FormEditorDetailScreen() {
             key={editingQ.id}
             question={editingQ}
             allQuestions={questions}
-            sections={staticForm?.sections || []}
+            sections={sectionsState}
             formId={formId}
             onSave={saveQuestion}
             onClose={() => setEditingQ(null)}
