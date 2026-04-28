@@ -174,3 +174,225 @@ describe('formDefinitions — integridad estructural', () => {
     })
   })
 })
+
+// ── Tests v1.9.15 — Editor 100% fiable + SP list assignment ─────────────────
+
+describe('sharepointLists — catálogo compartido (v1.9.15)', () => {
+  const listsFile = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointLists.js'),
+    'utf-8'
+  )
+  const sharepointData = readFileSync(
+    resolve(import.meta.dirname, '../services/sharepointData.js'),
+    'utf-8'
+  )
+
+  it('exporta SHAREPOINT_LISTS como array (fuente única de GUIDs)', () => {
+    expect(listsFile).toContain('export const SHAREPOINT_LISTS')
+    expect(listsFile).toMatch(/\[[\s\S]*\]/)
+  })
+
+  it('cada entrada tiene key, label y guid', () => {
+    // Verificar presencia de los campos clave en el archivo fuente
+    expect(listsFile).toContain('key:')
+    expect(listsFile).toContain('label:')
+    expect(listsFile).toContain('guid:')
+  })
+
+  it('sharepointData consume SHAREPOINT_LIST_BY_KEY en lugar de GUIDs hardcodeados', () => {
+    expect(sharepointData).toContain('SHAREPOINT_LIST_BY_KEY')
+  })
+
+  it('exporta resolveListConfig para validación externa (FormScreen)', () => {
+    expect(sharepointData).toContain('export function resolveListConfig')
+  })
+
+  it('mapGenericFromOverride usa spColumn declarado por pregunta', () => {
+    expect(sharepointData).toContain('mapGenericFromOverride')
+    expect(sharepointData).toContain('spColumn')
+  })
+
+  it('getListConfig lanza error con código NO_LIST_CONFIGURED si no hay lista', () => {
+    expect(sharepointData).toContain('NO_LIST_CONFIGURED')
+  })
+})
+
+describe('FormEditorListScreen — NewFormModal requiere lista (v1.9.15)', () => {
+  const listScreen = readFileSync(
+    resolve(import.meta.dirname, '../screens/FormEditorListScreen.jsx'),
+    'utf-8'
+  )
+
+  it('importa SHAREPOINT_LISTS para el dropdown', () => {
+    expect(listScreen).toContain('SHAREPOINT_LISTS')
+  })
+
+  it('handleCreate bloquea si no hay listId', () => {
+    expect(listScreen).toContain('listId')
+    // El modal debe mostrar error si falta la lista
+    expect(listScreen).toContain('Lista SharePoint')
+  })
+
+  it('el formDef resultante incluye listId', () => {
+    // listId puede ser shorthand (listId,) o propiedad explícita (listId: ...)
+    expect(listScreen).toMatch(/listId[,:]/)
+  })
+})
+
+describe('FormEditorDetailScreen — Conexión SharePoint + Archive (v1.9.15)', () => {
+  it('tiene sección ConexionSharePointPanel', () => {
+    expect(editorScreen).toContain('ConexionSharePointPanel')
+  })
+
+  it('tiene sección ArchiveFormPanel con botón de archivar', () => {
+    expect(editorScreen).toContain('ArchiveFormPanel')
+    expect(editorScreen).toContain('Archivar formulario')
+  })
+
+  it('pestaña "conexion" está en el array de tabs', () => {
+    expect(editorScreen).toContain("'conexion'")
+  })
+})
+
+describe('formEditorStore — archive helpers (v1.9.15)', () => {
+  const store = readFileSync(
+    resolve(import.meta.dirname, '../store/formEditorStore.js'),
+    'utf-8'
+  )
+
+  it('archiveForm setea archived:true en editedForms', () => {
+    expect(store).toContain('archiveForm')
+    expect(store).toContain('archived: true')
+  })
+
+  it('unarchiveForm elimina el flag archived', () => {
+    expect(store).toContain('unarchiveForm')
+    expect(store).toMatch(/archived: _a[\s\S]*\.\.\.rest/)
+  })
+
+  it('isArchived consulta editedForms y customForms', () => {
+    expect(store).toContain('isArchived')
+    expect(store).toContain('cf?.archived')
+  })
+})
+
+describe('ToolsMenuScreen — filtrado de formularios archivados (v1.9.15)', () => {
+  const toolsScreen = readFileSync(
+    resolve(import.meta.dirname, '../screens/ToolsMenuScreen.jsx'),
+    'utf-8'
+  )
+
+  it('excluye formularios estáticos con archived:true del menú', () => {
+    expect(toolsScreen).toContain('editedForms[t.formType]?.archived')
+  })
+
+  it('excluye custom forms con archived:true del menú', () => {
+    expect(toolsScreen).toContain('if (f.archived) return false')
+  })
+})
+
+describe('FormEditorDetailScreen — F1 herencia visibleCondition (v1.9.15)', () => {
+  it('addQuestion copia visibleCondition de la sección destino a la pregunta nueva', () => {
+    expect(editorScreen).toContain('targetSection?.visibleCondition')
+    expect(editorScreen).toContain('newQ.visibleCondition = { ...targetSection.visibleCondition }')
+  })
+})
+
+describe('FormEditorDetailScreen — F2 modal obligatorio en addSection (v1.9.15)', () => {
+  it('allSectionsGated detecta gating en secciones estáticas y de override', () => {
+    expect(editorScreen).toContain('allSectionsGated')
+    expect(editorScreen).toContain('staticSec?.visibleWhen')
+  })
+
+  it('addSection abre modal de visibilidad si todas las hermanas están gateadas', () => {
+    expect(editorScreen).toContain('shouldForceModal')
+    expect(editorScreen).toContain('setPendingVisibilityFor')
+  })
+
+  it('SectionVisibilityModal acepta prop forced para mostrar aviso obligatorio', () => {
+    expect(editorScreen).toContain('forced = false')
+    expect(editorScreen).toContain('pendingVisibilityFor === conditionFor.id')
+  })
+})
+
+describe('FormEditorDetailScreen — F3 parseVisibleWhen (v1.9.15)', () => {
+  it('parseVisibleWhen está definida como función helper', () => {
+    expect(editorScreen).toContain('function parseVisibleWhen(fn)')
+  })
+
+  it('initSections usa parseVisibleWhen para condiciones estáticas (_staticVisibleCondition)', () => {
+    expect(editorScreen).toContain('_staticVisibleCondition')
+    expect(editorScreen).toContain('parseVisibleWhen(visWhenFn)')
+  })
+
+  it('handleSaveConfirmed no persiste _staticVisibleCondition (es solo display)', () => {
+    // La serialización de sections en handleSaveConfirmed usa solo id/title/visibleCondition
+    expect(editorScreen).toMatch(/sections: sectionsState\.map\(\(s\) => \({/)
+    // No persiste _staticVisibleCondition
+    expect(editorScreen).not.toContain('_staticVisibleCondition: s._staticVisibleCondition')
+  })
+
+  it('renderConditionLabel soporta { questionId }, { all }, { any } y { _complex }', () => {
+    expect(editorScreen).toContain('function renderConditionLabel(vc)')
+    expect(editorScreen).toContain('vc.questionId')
+    expect(editorScreen).toContain('vc.all')
+    expect(editorScreen).toContain('vc.any')
+    expect(editorScreen).toContain('_complex')
+  })
+})
+
+describe('FormEditorDetailScreen — F4 gating inconsistente (v1.9.15)', () => {
+  it('validateForm detecta secciones sin gating cuando >50% hermanas lo tienen', () => {
+    expect(editorScreen).toContain('F4 — gating inconsistente')
+    expect(editorScreen).toContain('gatedSections')
+  })
+
+  it('validateForm acepta originalStatic para comparar visibleWhen estáticos', () => {
+    expect(editorScreen).toMatch(/function validateForm\(questions, staticForm, isWizard, originalStatic/)
+    expect(editorScreen).toContain('originalStatic')
+  })
+})
+
+describe('FormEditorDetailScreen — F5 macro Regla de Oro (v1.9.15)', () => {
+  it('isReglasOroTemplate detecta metadata.template === reglas-oro', () => {
+    expect(editorScreen).toContain("metadata?.template === 'reglas-oro'")
+  })
+
+  it('addReglaOroMacro crea atómicamente: opción Q20/Q21 + sección + radio + checkbox', () => {
+    expect(editorScreen).toContain('addReglaOroMacro')
+    expect(editorScreen).toContain('controllerId')
+    expect(editorScreen).toContain('newOption')
+    // Crea sección con visibleCondition referenciando el controlador
+    expect(editorScreen).toContain('questionId: controllerId, equals: newOption')
+    // Crea preguntas radio y checkbox
+    expect(editorScreen).toContain("type: 'radio'")
+    expect(editorScreen).toContain("type: 'checkbox'")
+  })
+
+  it('SectionsManager muestra botón AGREGAR REGLA DE ORO cuando isReglasOroTemplate', () => {
+    expect(editorScreen).toContain('AGREGAR REGLA DE ORO (TEMPLATE)')
+    expect(editorScreen).toContain('onOpenAddRegla')
+  })
+
+  it('pauta-verificacion-reglas-oro tiene metadata.template = reglas-oro', () => {
+    const form = formDefinitions['pauta-verificacion-reglas-oro']
+    expect(form).toBeDefined()
+    expect(form.metadata?.template).toBe('reglas-oro')
+  })
+})
+
+describe('FormScreen — fail-loud sin lista SharePoint (v1.9.15)', () => {
+  it('importa resolveListConfig de sharepointData', () => {
+    expect(formScreen).toContain('resolveListConfig')
+  })
+
+  it('handleSubmit verifica resolveListConfig antes de encolar', () => {
+    expect(formScreen).toContain('resolveListConfig(formType)')
+    expect(formScreen).toContain('setNoListError(true)')
+  })
+
+  it('muestra modal SIN LISTA SHAREPOINT si no hay config', () => {
+    expect(formScreen).toContain('SIN LISTA SHAREPOINT')
+    expect(formScreen).toContain('noListError')
+  })
+})

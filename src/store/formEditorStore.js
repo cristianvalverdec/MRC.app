@@ -71,6 +71,37 @@ const useFormEditorStore = create(
       getFormEdits: (formId) => get().editedForms[formId] || null,
       hasEdits: (formId) => !!get().editedForms[formId],
 
+      // ── Archivo de formularios ─────────────────────────────────────────
+      // Setea archived:true en el override del formulario. ToolsMenuScreen
+      // filtra por este flag para ocultarlo a usuarios finales sin destruir
+      // el override (puede revertirse desde el editor).
+      archiveForm: (formId) => {
+        const current = get().editedForms[formId] || {}
+        get().saveFormEdits(formId, { ...current, archived: true })
+      },
+      unarchiveForm: (formId) => {
+        const current = get().editedForms[formId] || {}
+        const { archived: _a, ...rest } = current
+        get().saveFormEdits(formId, rest)
+      },
+      isArchived: (formId) => {
+        const ef = get().editedForms[formId]
+        const cf = get().customForms[formId]
+        return ef?.archived === true || cf?.archived === true
+      },
+
+      archiveCustomForm: (formId) => {
+        const current = get().customForms[formId]
+        if (!current) return
+        get().updateCustomForm(formId, { ...current, archived: true })
+      },
+      unarchiveCustomForm: (formId) => {
+        const current = get().customForms[formId]
+        if (!current) return
+        const { archived: _a, ...rest } = current
+        get().updateCustomForm(formId, rest)
+      },
+
       // ── Formularios custom (creados por admin) ─────────────────────────
       addCustomForm: (formDef) => {
         set((state) => ({
@@ -137,7 +168,7 @@ const useFormEditorStore = create(
             const hb = JSON.parse(localStorage.getItem('mrc-editor-hardbackup') || '{}')
             const forms = Object.fromEntries(
               Object.entries(hb).map(([id, v]) => {
-                const { _backupAt, ...form } = v  // eslint-disable-line no-unused-vars
+                const { _backupAt: _ba, ...form } = v
                 return [id, form]
               })
             )

@@ -4,14 +4,57 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Plus, Trash2, ChevronUp, ChevronDown, Save,
   GitBranch, List, AlertTriangle, CheckCircle2,
-  RotateCcw, ArrowRight, Cloud, CloudOff, RefreshCw, Eye,
+  RotateCcw, ArrowRight, Cloud, CloudOff, RefreshCw, Eye, Link2, Archive,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import { formDefinitions } from '../forms/formDefinitions'
-import { SP_COLUMN_CATALOG, fetchListColumns } from '../services/sharepointData'
+import {
+  SP_COLUMN_CATALOG, fetchListColumns,
+  saveConnectionOverride, clearConnectionOverride, getAllConnectionOverrides,
+} from '../services/sharepointData'
+import { SHAREPOINT_LISTS, findListByGuid } from '../services/sharepointLists'
 import useFormEditorStore from '../store/formEditorStore'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+
+// F3: parser regex que intenta convertir una `visibleWhen` estática en una
+// `visibleCondition` serializable equivalente. Cubre los dos patrones que
+// existen actualmente en formDefinitions.js:
+//   (a) => a.Q18 === 'X'
+//   (a) => a.Q18 === 'X' && a.Q20 === 'Y'
+// Si el patrón no encaja, retorna null (la condición se muestra como
+// "compleja — solo editable en código").
+function parseVisibleWhen(fn) {
+  if (typeof fn !== 'function') return null
+  const src = fn.toString()
+  // Normaliza espacios y elimina la firma del arrow
+  const body = src.replace(/\s+/g, ' ').trim()
+  const single = /a\.([A-Za-z_]\w*)\s*===\s*'([^']+)'/g
+  const matches = []
+  let m
+  while ((m = single.exec(body)) !== null) {
+    matches.push({ questionId: m[1], equals: m[2] })
+  }
+  if (matches.length === 0) return null
+  if (matches.length === 1) return matches[0]
+  // Múltiples comparaciones: detectar && (all) vs || (any)
+  if (body.includes('&&') && !body.includes('||')) return { all: matches }
+  if (body.includes('||') && !body.includes('&&')) return { any: matches }
+  return null  // mezcla de operadores → no soportado
+}
+
+// Convierte una visibleCondition serializada en texto legible para badges.
+function renderConditionLabel(vc) {
+  if (!vc) return ''
+  if (vc._complex) return 'condición compleja'
+  if (vc.questionId) {
+    const val = vc.equals ?? (Array.isArray(vc.in) ? vc.in.join(' / ') : '')
+    return `Visible si ${vc.questionId} = "${val}"`
+  }
+  if (vc.all) return `Visible si ${vc.all.map((c) => `${c.questionId}="${c.equals ?? ''}"`).join(' Y ')}`
+  if (vc.any) return `Visible si ${vc.any.map((c) => `${c.questionId}="${c.equals ?? ''}"`).join(' O ')}`
+  return ''
+}
 
 const TYPE_LABELS = {
   radio:    { label: 'Radio',    color: '#1A52B8', bg: 'rgba(26,82,184,0.18)' },
@@ -100,7 +143,7 @@ function formatDestinationLabel(id, questionsById) {
 // ── Validación pre-guardado ────────────────────────────────────────────────
 // Devuelve { errors: string[], warnings: string[] }.
 // errors bloquean el guardado; warnings solo informan.
-function validateForm(questions, staticForm, isWizard) {
+function validateForm(questions, staticForm, isWizard, originalStatic = null) {
   const errors = []
   const warnings = []
   const ids = questions.map((q) => q.id)
@@ -158,6 +201,55 @@ function validateForm(questions, staticForm, isWizard) {
         `Preguntas sin sección asignada: ${orphans.map((q) => q.id).join(', ')} (se asignarán automáticamente a "${staticForm.sections[0]?.title}")`
       )
     }
+  }
+
+  // 6. F4 — gating inconsistente.
+  // Si en un formulario seccionado >50% de las secciones tienen gating
+  // (visibleCondition de override O visibleWhen de estático), una sección
+  // o pregunta SIN gating es warning explícito. Bypass permitido pero
+  // requiere confirmación consciente — convierte el silencio que produjo
+  // Q52/Q53 en una decisión documentada.
+  if (!isWizard && staticForm?.sections && staticForm.sections.length > 1) {
+    const isSectionGated = (s) => {
+      if (s.visibleCondition) return true
+      const orig = originalStatic?.sections?.find((os) => os.id === s.id)
+      return typeof orig?.visibleWhen === 'function'
+    }
+    const gatedSections = staticForm.sections.filter(isSectionGated)
+    const ratio = gatedSections.length / staticForm.sections.length
+    if (ratio > 0.5) {
+      const ungatedSections = staticForm.sections.filter((s) => !isSectionGated(s))
+      ungatedSections.forEach((s) => {
+        warnings.push(
+          `Sección "${s.title}" aparecerá siempre. Otras secciones del formulario son condicionales — ¿es intencional?`
+        )
+      })
+    }
+    // Mismo análisis a nivel pregunta dentro de secciones gateadas
+    const isQuestionGated = (q) => {
+      if (q.visibleCondition) return true
+      // Buscar en estático
+      const origSec = originalStatic?.sections?.find((os) =>
+        os.questions?.some((sq) => sq.id === q.id)
+      )
+      const origQ = origSec?.questions?.find((sq) => sq.id === q.id)
+      return typeof origQ?.visibleWhen === 'function'
+    }
+    questions.forEach((q) => {
+      if (!q._section) return
+      const sec = staticForm.sections.find((s) => s.id === q._section)
+      if (!sec) return
+      const sectionGated = isSectionGated(sec)
+      if (!sectionGated) return
+      const siblings = questions.filter((sq) => sq._section === sec.id && sq.id !== q.id)
+      if (siblings.length === 0) return
+      const gatedSiblings = siblings.filter(isQuestionGated)
+      if (gatedSiblings.length / siblings.length > 0.5 && !isQuestionGated(q)) {
+        warnings.push(
+          `Pregunta ${q.id} ("${String(q.label || '').slice(0, 40)}") en sección "${sec.title}" aparecerá siempre que la sección sea visible. Sus hermanas son condicionales — ¿es intencional?`
+        )
+      }
+    })
   }
 
   return { errors, warnings }
@@ -1135,11 +1227,24 @@ function SyncIndicator({ status, error, onRetry }) {
 }
 
 // ── Gestor de secciones (tab "Secciones") ─────────────────────────────────
-function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAdd, onSetVisibleCondition }) {
+function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAdd, onSetVisibleCondition, pendingVisibilityFor, onClearPending, isReglasOroTemplate = false, onOpenAddRegla }) {
   const [editingId, setEditingId] = useState(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, title, count }
-  const [conditionFor, setConditionFor] = useState(null)   // sección a la que se le edita la condición
+  const [manualConditionFor, setManualConditionFor] = useState(null)
+
+  // F2: si el padre señala pendingVisibilityFor, derivamos conditionFor desde la
+  // lista de secciones SIN usar un useEffect que llame setState (evita cascada de
+  // renders y la regla react-hooks/set-state-in-effect). El admin ve el modal
+  // inmediatamente al crear la sección — no puede ignorar la decisión de gating.
+  const pendingSection = pendingVisibilityFor
+    ? (sections.find((s) => s.id === pendingVisibilityFor) || null)
+    : null
+  const conditionFor  = pendingSection || manualConditionFor
+  const setConditionFor = (v) => {
+    setManualConditionFor(v)
+    if (!v) onClearPending?.()
+  }
 
   // Preguntas con opciones discretas (radio/select) que sirven como controladoras
   // de visibilidad. Se ofrecen como base para la condición.
@@ -1247,14 +1352,30 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
               }}>
                 {qCount} {qCount === 1 ? 'pregunta' : 'preguntas'} · id: <code style={{ fontFamily: 'monospace', fontSize: 10 }}>{s.id}</code>
               </div>
-              {s.visibleCondition?.questionId && (
+              {/* visibleCondition de override (editable) */}
+              {s.visibleCondition && (
                 <div style={{
                   fontFamily: 'var(--font-body)', fontSize: 10,
                   color: '#F2994A', marginTop: 3,
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
                   <Eye size={10} />
-                  Visible si {s.visibleCondition.questionId} = "{String(s.visibleCondition.equals ?? (s.visibleCondition.in || []).join(' / '))}"
+                  {renderConditionLabel(s.visibleCondition)}
+                </div>
+              )}
+              {/* F3: visibleCondition heredada del estático (read-only) */}
+              {!s.visibleCondition && s._staticVisibleCondition && (
+                <div style={{
+                  fontFamily: 'var(--font-body)', fontSize: 10,
+                  color: '#60A5FA', marginTop: 3,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  opacity: 0.8,
+                }}>
+                  <Eye size={10} />
+                  {s._staticVisibleCondition._complex
+                    ? 'condición compleja (solo editable en código)'
+                    : renderConditionLabel(s._staticVisibleCondition)}
+                  &nbsp;<span style={{ opacity: 0.6, fontStyle: 'italic' }}>[estático]</span>
                 </div>
               )}
             </div>
@@ -1263,12 +1384,26 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
               <>
                 <button
                   onClick={() => setConditionFor(s)}
-                  title="Configurar visibilidad condicional"
+                  title={
+                    s.visibleCondition
+                      ? 'Editar visibilidad condicional (override)'
+                      : s._staticVisibleCondition
+                        ? 'Esta sección tiene condición estática — click para sobreescribir con override'
+                        : 'Configurar visibilidad condicional'
+                  }
                   style={{
-                    background: s.visibleCondition ? 'rgba(242,153,74,0.12)' : 'none',
-                    border: `1px solid ${s.visibleCondition ? 'rgba(242,153,74,0.4)' : 'var(--color-border)'}`,
+                    background: s.visibleCondition
+                      ? 'rgba(242,153,74,0.12)'
+                      : s._staticVisibleCondition ? 'rgba(96,165,250,0.08)' : 'none',
+                    border: `1px solid ${
+                      s.visibleCondition
+                        ? 'rgba(242,153,74,0.4)'
+                        : s._staticVisibleCondition ? 'rgba(96,165,250,0.3)' : 'var(--color-border)'
+                    }`,
                     borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
-                    color: s.visibleCondition ? '#F2994A' : 'var(--color-text-muted)',
+                    color: s.visibleCondition
+                      ? '#F2994A'
+                      : s._staticVisibleCondition ? '#60A5FA' : 'var(--color-text-muted)',
                   }}
                 >
                   <Eye size={13} />
@@ -1320,16 +1455,39 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
         AGREGAR SECCIÓN
       </button>
 
+      {/* F5: macro template "Reglas de Oro" — solo en formularios con metadata.template === 'reglas-oro' */}
+      {isReglasOroTemplate && (
+        <button
+          onClick={onOpenAddRegla}
+          style={{
+            marginTop: 4, padding: '10px 12px',
+            background: 'rgba(123,63,228,0.1)',
+            border: '1px solid rgba(123,63,228,0.5)',
+            borderRadius: 10, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            color: '#C084FC',
+            fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.06em',
+          }}
+          title="Agrega opción a Q20/Q21 + sección + radio + checkbox con gating consistente, en una sola operación"
+        >
+          <Plus size={14} />
+          AGREGAR REGLA DE ORO (TEMPLATE)
+        </button>
+      )}
+
       {/* Modal de condición de visibilidad */}
       <AnimatePresence>
         {conditionFor && (
           <SectionVisibilityModal
             section={conditionFor}
             controllers={controllerQuestions.filter((c) => !questions.some((q) => q.id === c.id && q._section === conditionFor.id))}
-            onCancel={() => setConditionFor(null)}
+            forced={pendingVisibilityFor === conditionFor.id}
+            onCancel={() => { setConditionFor(null); onClearPending && onClearPending() }}
             onSave={(condition) => {
               onSetVisibleCondition(conditionFor.id, condition)
               setConditionFor(null)
+              onClearPending && onClearPending()
             }}
           />
         )}
@@ -1353,7 +1511,152 @@ function SectionsManager({ sections, questions, onRename, onMove, onDelete, onAd
   )
 }
 
-function SectionVisibilityModal({ section, controllers, onCancel, onSave }) {
+// ── F5: Modal "Agregar Regla de Oro" ──────────────────────────────────────
+//
+// Recolecta los datos mínimos para construir una regla nueva: número, área,
+// nombre y conductas observables. El handler addReglaOroMacro se encarga de
+// crear opción + sección + radio + checkbox con gating consistente en una
+// transacción atómica.
+function AddReglaOroModal({ onCancel, onCreate }) {
+  const [numero, setNumero] = useState('')
+  const [area, setArea]     = useState('OP')
+  const [nombre, setNombre] = useState('')
+  const [conductasText, setConductasText] = useState('')
+  const [error, setError]   = useState('')
+
+  const handleSubmit = () => {
+    if (!numero.trim() || !/^\d+$/.test(numero.trim())) { setError('Ingresa un número entero (ej: 8)'); return }
+    if (!nombre.trim()) { setError('Ingresa el nombre de la regla'); return }
+    const conductas = conductasText.split('\n').map((s) => s.trim()).filter(Boolean)
+    onCreate({ numero: numero.trim(), area, nombre: nombre.trim(), conductas })
+  }
+
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 8, padding: '9px 12px',
+    fontFamily: 'var(--font-body)', fontSize: 13,
+    color: 'var(--color-text-primary)', outline: 'none',
+  }
+  const labelStyle = {
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+    color: 'var(--color-text-muted)', letterSpacing: '0.06em',
+    textTransform: 'uppercase', marginBottom: 6, display: 'block',
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        style={{
+          background: 'var(--color-navy-mid)', border: '1px solid var(--color-border)',
+          borderRadius: 14, padding: 22, maxWidth: 460, width: '100%',
+          maxHeight: '88dvh', overflowY: 'auto',
+        }}
+      >
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+          AGREGAR REGLA DE ORO
+        </div>
+        <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5, marginBottom: 18 }}>
+          Crea atómicamente: opción en Q20/Q21 + sección con visibilidad condicional + pregunta radio (SIN/CON observaciones) + pregunta checkbox de conductas. Todo cableado y consistente.
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Número de la regla *</label>
+          <input value={numero} onChange={(e) => { setNumero(e.target.value); setError('') }} placeholder="8" style={{ ...inputStyle, width: 100 }} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Área *</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { value: 'OP',  label: 'OPERACIONES (controla Q20)' },
+              { value: 'ADM', label: 'ADMINISTRACIÓN (controla Q21)' },
+            ].map((a) => (
+              <button
+                key={a.value}
+                onClick={() => setArea(a.value)}
+                style={{
+                  flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                  background: area === a.value ? 'rgba(245,124,32,0.15)' : 'rgba(255,255,255,0.04)',
+                  border: `1.5px solid ${area === a.value ? 'rgba(245,124,32,0.5)' : 'var(--color-border)'}`,
+                  color: area === a.value ? 'var(--color-orange)' : 'var(--color-text-muted)',
+                  fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+                }}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Nombre descriptivo *</label>
+          <input value={nombre} onChange={(e) => { setNombre(e.target.value); setError('') }} placeholder="Trabajo en Altura" style={inputStyle} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Conductas observables (una por línea, opcional)</label>
+          <textarea
+            value={conductasText}
+            onChange={(e) => setConductasText(e.target.value)}
+            placeholder={'No utiliza arnés\nNo verifica anclaje\nTrabaja sin línea de vida'}
+            rows={5}
+            style={{ ...inputStyle, fontFamily: 'var(--font-body)', resize: 'vertical' }}
+          />
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+            Cada línea se vuelve un check seleccionable. Puedes editarlas después en el editor de pregunta.
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#EB5757', marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.06)', border: '1px solid var(--color-border)',
+              color: '#fff', fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+            }}
+          >
+            CANCELAR
+          </button>
+          <button
+            onClick={handleSubmit}
+            style={{
+              flex: 2, height: 42, borderRadius: 10, cursor: 'pointer',
+              background: 'var(--color-blue-btn)', border: 'none', color: '#fff',
+              fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            <Plus size={14} /> CREAR REGLA COMPLETA
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function SectionVisibilityModal({ section, controllers, onCancel, onSave, forced = false }) {
   const initial = section.visibleCondition || null
   const [enabled, setEnabled] = useState(!!initial?.questionId)
   const [questionId, setQuestionId] = useState(initial?.questionId || controllers[0]?.id || '')
@@ -1403,6 +1706,20 @@ function SectionVisibilityModal({ section, controllers, onCancel, onSave }) {
           Sección "<strong style={{ color: 'var(--color-text-primary)' }}>{section.title}</strong>" — define cuándo se muestra en el formulario.
           Si está desactivada, la sección y sus preguntas serán siempre visibles.
         </div>
+
+        {forced && (
+          <div style={{
+            background: 'rgba(242,153,74,0.1)',
+            border: '1px solid rgba(242,153,74,0.4)',
+            borderRadius: 8, padding: '10px 12px', marginBottom: 16,
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+          }}>
+            <AlertTriangle size={14} color="#F2994A" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#F2994A', lineHeight: 1.5 }}>
+              <strong>Decisión obligatoria.</strong> Todas las demás secciones de este formulario tienen visibilidad condicional. Define cuándo aparece esta nueva sección, o confirma "Visible siempre" si es intencional.
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-text-primary)' }}>
@@ -1588,6 +1905,313 @@ function SectionDeleteModal({ section, otherSections, onCancel, onConfirm }) {
   )
 }
 
+// ── Panel "Conexión SharePoint" ───────────────────────────────────────────
+//
+// Visible para todos los formularios (estáticos, editados y custom). Muestra
+// la lista SharePoint destino actual, permite cambiarla a otra del catálogo
+// o pegar un GUID custom. Para estáticos guarda en `mrc-sp-connections-override`
+// (saveConnectionOverride). Para customForms actualiza directamente
+// customForms[formId].listId.
+function ConexionSharePointPanel({ formId, isCustom, defaultListId, onChange }) {
+  const [resolvedGuid, setResolvedGuid] = useState(defaultListId || '')
+  const [editing, setEditing]           = useState(false)
+  const [pickerKey, setPickerKey]       = useState('')
+  const [customGuid, setCustomGuid]     = useState('')
+  const [readingCols, setReadingCols]   = useState(false)
+  const [columnsResult, setColumnsResult] = useState(null) // { ok: bool, count, sample, error }
+
+  const knownEntry = findListByGuid(resolvedGuid)
+  const isUnknown  = !!resolvedGuid && !knownEntry
+
+  const startEdit = () => {
+    if (knownEntry) { setPickerKey(knownEntry.key); setCustomGuid('') }
+    else if (resolvedGuid) { setPickerKey('__custom__'); setCustomGuid(resolvedGuid) }
+    else { setPickerKey(''); setCustomGuid('') }
+    setEditing(true)
+  }
+
+  const applyChange = () => {
+    let newGuid = ''
+    if (pickerKey === '__custom__') {
+      const trimmed = customGuid.trim()
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+        alert('GUID inválido. Formato esperado: 8-4-4-4-12 caracteres hex.')
+        return
+      }
+      newGuid = trimmed
+    } else if (pickerKey) {
+      const entry = SHAREPOINT_LISTS.find((l) => l.key === pickerKey)
+      if (!entry?.guid) { alert('La lista seleccionada no tiene GUID configurado.'); return }
+      newGuid = entry.guid
+    } else {
+      alert('Selecciona una lista o pega un GUID personalizado.')
+      return
+    }
+    setResolvedGuid(newGuid)
+    setEditing(false)
+    setColumnsResult(null)
+    onChange(newGuid)
+  }
+
+  const handleReadColumns = async () => {
+    setReadingCols(true)
+    setColumnsResult(null)
+    try {
+      const cols = await fetchListColumns(formId)
+      setColumnsResult({ ok: true, count: cols.length, sample: cols.slice(0, 8) })
+    } catch (e) {
+      setColumnsResult({ ok: false, error: e?.message || 'Error desconocido' })
+    } finally {
+      setReadingCols(false)
+    }
+  }
+
+  const cardStyle = {
+    background: 'rgba(47,128,237,0.06)',
+    border: '1px solid rgba(47,128,237,0.25)',
+    borderRadius: 12, padding: 16,
+    display: 'flex', flexDirection: 'column', gap: 14,
+  }
+
+  const labelStyle = {
+    fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600,
+    color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase',
+  }
+
+  const buttonStyle = {
+    height: 36, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+    fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+    letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6,
+  }
+
+  return (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Link2 size={18} color="#60A5FA" />
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.05em', color: '#fff' }}>
+          LISTA SHAREPOINT DESTINO
+        </span>
+      </div>
+
+      {!editing && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {resolvedGuid ? (
+            <>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#fff', fontWeight: 600 }}>
+                {knownEntry?.label || 'Lista personalizada (no en catálogo)'}
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-muted)', wordBreak: 'break-all' }}>
+                GUID: {resolvedGuid}
+              </div>
+              {isUnknown && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 11, color: '#F2994A' }}>
+                  <AlertTriangle size={12} /> No registrada en el catálogo — se usará tal cual al enviar
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, color: '#EB5757' }}>
+              <AlertTriangle size={14} /> Sin lista asignada — los envíos fallarán hasta configurar
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+            <button onClick={startEdit} style={{ ...buttonStyle, background: 'var(--color-blue-btn)', border: 'none', color: '#fff' }}>
+              <Pencil size={12} /> CAMBIAR LISTA
+            </button>
+            <button
+              onClick={handleReadColumns}
+              disabled={!resolvedGuid || readingCols}
+              style={{
+                ...buttonStyle,
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--color-border)',
+                color: resolvedGuid && !readingCols ? '#fff' : 'var(--color-text-muted)',
+                opacity: resolvedGuid && !readingCols ? 1 : 0.5,
+              }}
+            >
+              <Cloud size={12} /> {readingCols ? 'LEYENDO…' : 'LEER COLUMNAS'}
+            </button>
+          </div>
+          {columnsResult && (
+            <div style={{
+              marginTop: 6, padding: 10, borderRadius: 8,
+              background: columnsResult.ok ? 'rgba(39,174,96,0.1)' : 'rgba(235,87,87,0.1)',
+              border: `1px solid ${columnsResult.ok ? 'rgba(39,174,96,0.35)' : 'rgba(235,87,87,0.35)'}`,
+              fontFamily: 'var(--font-body)', fontSize: 11,
+              color: columnsResult.ok ? '#5FCE85' : '#EB5757',
+            }}>
+              {columnsResult.ok ? (
+                <>
+                  ✓ {columnsResult.count} columnas leídas. Ej: {columnsResult.sample.map((c) => c.label || c.internal).join(', ')}…
+                </>
+              ) : (
+                <>✗ Error al leer columnas: {columnsResult.error}</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {editing && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label style={labelStyle}>Selecciona una lista del catálogo</label>
+          <select
+            value={pickerKey}
+            onChange={(e) => setPickerKey(e.target.value)}
+            style={{
+              height: 38, padding: '0 12px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-body)', fontSize: 13,
+            }}
+          >
+            <option value="">— Seleccionar —</option>
+            {SHAREPOINT_LISTS.filter((l) => l.guid).map((l) => (
+              <option key={l.key} value={l.key}>{l.label}</option>
+            ))}
+            <option value="__custom__">✏ GUID personalizado…</option>
+          </select>
+          {pickerKey === '__custom__' && (
+            <input
+              value={customGuid}
+              onChange={(e) => setCustomGuid(e.target.value)}
+              placeholder="d123a245-0aeb-4f51-9b20-693639c963b6"
+              style={{
+                height: 38, padding: '0 12px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'monospace', fontSize: 11,
+              }}
+            />
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button onClick={applyChange} style={{ ...buttonStyle, background: 'var(--color-blue-btn)', border: 'none', color: '#fff' }}>
+              <CheckCircle2 size={12} /> APLICAR
+            </button>
+            <button onClick={() => setEditing(false)} style={{ ...buttonStyle, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--color-border)', color: '#fff' }}>
+              <X size={12} /> CANCELAR
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+        {isCustom
+          ? 'Este formulario es personalizado. La lista se guarda en su propia definición y se sincroniza a SharePoint.'
+          : 'Cambiar la lista guarda un override local. El estático del código no se modifica — puedes resetear desde el botón Reset.'}
+      </div>
+    </div>
+  )
+}
+
+// ── Panel "Archivar formulario" ───────────────────────────────────────────
+//
+// Acción de ciclo de vida — marca el formulario como archived:true en su
+// override (estático) o en customForms (custom). ToolsMenuScreen filtra por
+// este flag para ocultarlo a usuarios finales. El editor sigue listándolo
+// con badge "ARCHIVADO" para poder rehabilitarlo.
+function ArchiveFormPanel({ isCustom, isArchived, onArchive, onUnarchive }) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  return (
+    <div style={{
+      background: isArchived ? 'rgba(242,153,74,0.06)' : 'rgba(235,87,87,0.04)',
+      border: `1px solid ${isArchived ? 'rgba(242,153,74,0.3)' : 'rgba(235,87,87,0.2)'}`,
+      borderRadius: 12, padding: 16,
+      display: 'flex', flexDirection: 'column', gap: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Archive size={18} color={isArchived ? '#F2994A' : '#EB5757'} />
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.05em', color: '#fff' }}>
+          {isArchived ? 'FORMULARIO ARCHIVADO' : 'ARCHIVAR FORMULARIO'}
+        </span>
+      </div>
+
+      <div style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+        {isArchived
+          ? 'Este formulario está oculto del menú de herramientas para usuarios finales. Sigue editable acá. Los registros históricos en SharePoint no se ven afectados.'
+          : `Oculta el formulario del menú "Herramientas Preventivas" para todos los usuarios. ${isCustom ? 'Esta acción se sincroniza con SharePoint.' : 'El override se persiste localmente y en cloud.'} Reversible.`}
+      </div>
+
+      {!isArchived && !confirmOpen && (
+        <button
+          onClick={() => setConfirmOpen(true)}
+          style={{
+            alignSelf: 'flex-start',
+            height: 36, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+            background: 'rgba(235,87,87,0.15)',
+            border: '1px solid rgba(235,87,87,0.4)',
+            color: '#EB5757',
+            fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.06em',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <Archive size={12} /> ARCHIVAR
+        </button>
+      )}
+
+      {!isArchived && confirmOpen && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => { onArchive(); setConfirmOpen(false) }}
+            style={{
+              height: 36, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+              background: '#EB5757', border: 'none', color: '#fff',
+              fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.06em',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <CheckCircle2 size={12} /> CONFIRMAR ARCHIVO
+          </button>
+          <button
+            onClick={() => setConfirmOpen(false)}
+            style={{
+              height: 36, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--color-border)',
+              color: '#fff',
+              fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.06em',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <X size={12} /> CANCELAR
+          </button>
+        </div>
+      )}
+
+      {isArchived && (
+        <button
+          onClick={onUnarchive}
+          style={{
+            alignSelf: 'flex-start',
+            height: 36, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+            background: 'var(--color-blue-btn)', border: 'none', color: '#fff',
+            fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.06em',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <RotateCcw size={12} /> REACTIVAR
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Helper: Pencil icon — defino un pequeño SVG inline para evitar otro import
+function Pencil({ size = 12, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" />
+    </svg>
+  )
+}
+
 // ── Pantalla principal ────────────────────────────────────────────────────
 export default function FormEditorDetailScreen() {
   const { formId } = useParams()
@@ -1647,11 +2271,29 @@ export default function FormEditorDetailScreen() {
   // panel) leen de este estado — nunca más de staticForm.sections.
   const initSections = useCallback(() => {
     const { editedForms: ef, customForms: cf } = useFormEditorStore.getState()
-    const pick = (s) => ({
-      id: s.id,
-      title: s.title,
-      ...(s.visibleCondition ? { visibleCondition: s.visibleCondition } : {}),
-    })
+
+    // F3: mapa de secciones estáticas por ID — para leer visibleWhen y mostrarlo
+    // como badge read-only cuando no hay visibleCondition de override.
+    const staticSectionMap = (staticForm?.sections || []).reduce((acc, s) => {
+      acc[s.id] = s; return acc
+    }, {})
+
+    const pick = (s) => {
+      const base = { id: s.id, title: s.title }
+      if (s.visibleCondition) {
+        base.visibleCondition = s.visibleCondition
+      } else {
+        // F3: intentar parsear visibleWhen (directo en s o en el estático homólogo)
+        const visWhenFn = s.visibleWhen ?? staticSectionMap[s.id]?.visibleWhen
+        if (visWhenFn) {
+          const parsed = parseVisibleWhen(visWhenFn)
+          // _complex = true indica "condición existe pero no se pudo parsear"
+          base._staticVisibleCondition = parsed ?? { _complex: true }
+        }
+      }
+      return base
+    }
+
     if (isCustom) {
       const f = cf[formId]
       if (f?.sections) return f.sections.map(pick)
@@ -1765,10 +2407,17 @@ export default function FormEditorDetailScreen() {
       return
     }
     const sectionId = sectionIdOverride || (isSectioned ? sections[0]?.id : null)
-    const sectionTitle = sectionId ? sections.find((s) => s.id === sectionId)?.title : null
+    const targetSection = sectionId ? sections.find((s) => s.id === sectionId) : null
+    const sectionTitle = targetSection?.title || null
     const id = newQId(questions, staticForm)
     const order = questions.length + 1
     const newQ = emptyQuestion(id, order, sectionId, sectionTitle)
+    // F1: si la sección destino tiene gating (visibleCondition), la pregunta lo
+    // hereda por defecto. Evita que preguntas nuevas en secciones condicionales
+    // se vuelvan permanentemente visibles por olvido del admin (caso Q52/Q53).
+    if (targetSection?.visibleCondition) {
+      newQ.visibleCondition = { ...targetSection.visibleCondition }
+    }
     markChanged([...questions, newQ])
     setEditingQ(newQ)
     if (sectionId) setLastSectionUsed(sectionId)
@@ -1805,9 +2454,12 @@ export default function FormEditorDetailScreen() {
   // Intenta guardar: corre validación, si hay errores abre modal; si hay warnings
   // pide confirmación (handleSaveConfirmed). Sin problemas, guarda directo.
   const handleSave = () => {
-    // Para validación de huérfanas usamos las secciones EFECTIVAS (sectionsState)
+    // Para validación de huérfanas usamos las secciones EFECTIVAS (sectionsState).
+    // Pasamos también el estático original para que F4 detecte gating heredado
+    // de visibleWhen (no serializable, pero válido como fuente de "está gateada").
     const sectionsForValidation = isWizard ? null : { sections: sectionsState }
-    const result = validateForm(questions, sectionsForValidation, isWizard)
+    const originalStatic = !isCustom ? formDefinitions[formId] : null
+    const result = validateForm(questions, sectionsForValidation, isWizard, originalStatic)
     if (result.errors.length || result.warnings.length) {
       setValidationResult(result)
       return
@@ -1882,11 +2534,105 @@ export default function FormEditorDetailScreen() {
     return id
   }
 
+  // F2: detecta si el formulario tiene gating en TODAS sus secciones existentes,
+  // considerando tanto override.visibleCondition como estático.visibleWhen.
+  // Si lo está, una sección nueva sin gating es casi seguro un descuido — el
+  // editor obliga al admin a tomar una decisión consciente abriendo el modal
+  // de visibilidad apenas se crea la sección.
+  const allSectionsGated = () => {
+    if (sectionsState.length === 0) return false
+    return sectionsState.every((s) => {
+      if (s.visibleCondition) return true
+      const staticSec = staticForm?.sections?.find((ss) => ss.id === s.id)
+      return typeof staticSec?.visibleWhen === 'function'
+    })
+  }
+
+  const [pendingVisibilityFor, setPendingVisibilityFor] = useState(null)
+  const [showAddReglaModal, setShowAddReglaModal] = useState(false)
+
+  // F5: ¿este formulario es del template "reglas-oro"? Si lo es, mostramos
+  // el botón "AGREGAR REGLA DE ORO" en SectionsManager. Solo aplica al
+  // formulario estático original, no a custom forms.
+  const isReglasOroTemplate = !isCustom && staticForm?.metadata?.template === 'reglas-oro'
+
+  // Macro: agrega una Regla de Oro completa (opción Q20/Q21 + sección + radio + checkbox)
+  // de forma atómica. Toda la red de gating se cablea en una sola transacción.
+  const addReglaOroMacro = ({ numero, area, nombre, conductas }) => {
+    const sufijo = area === 'OP' ? '(OP)' : '(ADM)'
+    const controllerId = area === 'OP' ? 'Q20' : 'Q21'
+    const newOption = `N°${numero} ${nombre} ${sufijo}`
+
+    // 1. Agregar opción al controlador (Q20 u Q21) si no existe ya
+    const newQuestions = questions.map((q) => {
+      if (q.id !== controllerId) return q
+      const opts = Array.isArray(q.options) ? [...q.options] : []
+      const exists = opts.some((o) => {
+        const v = typeof o === 'string' ? o : (o.value ?? o.label)
+        return v === newOption
+      })
+      if (!exists) opts.push(newOption)
+      return { ...q, options: opts }
+    })
+
+    // 2. Crear sección con visibleCondition Q?? = newOption
+    const baseId = `regla-${area.toLowerCase()}-${numero}`
+    const existingIds = new Set(sectionsState.map((s) => s.id))
+    let sectionId = baseId
+    let n = 2
+    while (existingIds.has(sectionId)) { sectionId = `${baseId}-${n}`; n++ }
+    const sectionTitle = `VERIFICACIÓN — REGLA N°${numero} ${area}`
+    const visibleCond = { questionId: controllerId, equals: newOption }
+    const newSection = { id: sectionId, title: sectionTitle, visibleCondition: visibleCond }
+
+    // 3. Crear radio + checkbox con IDs frescos
+    const radioId = newQId(newQuestions, staticForm)
+    const radioQ = {
+      id: radioId,
+      order: newQuestions.length + 1,
+      label: `REGLA N°${numero}: ${nombre}`,
+      type: 'radio',
+      required: true,
+      visibleCondition: visibleCond,
+      conductasList: conductas.length ? conductas : ['Conducta a observar'],
+      options: [
+        { value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },
+        { value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' },
+      ],
+      _section: sectionId,
+      _sectionTitle: sectionTitle,
+    }
+    const checkboxId = newQId([...newQuestions, radioQ], staticForm)
+    const checkboxQ = {
+      id: checkboxId,
+      order: newQuestions.length + 2,
+      label: `Conductas observadas — REGLA N°${numero}`,
+      subtitle: 'Marque una o más conductas observadas.',
+      type: 'checkbox',
+      required: true,
+      // Visible cuando la sección está activa Y el radio = CON_OBSERVACIONES
+      visibleCondition: { all: [visibleCond, { questionId: radioId, equals: 'CON_OBSERVACIONES' }] },
+      options: conductas.length
+        ? conductas.map((c, i) => ({ value: `c${i + 1}`, label: c, severity: 'NORMAL' }))
+        : [{ value: 'c1', label: 'Conducta a configurar', severity: 'NORMAL' }],
+      _section: sectionId,
+      _sectionTitle: sectionTitle,
+    }
+
+    // 4. Aplicar todo en una sola transacción
+    setSectionsState([...sectionsState, newSection])
+    markChanged([...newQuestions, radioQ, checkboxQ])
+    setActiveTab('secciones')
+  }
+
   const addSection = () => {
     const title = 'NUEVA SECCIÓN'
     const id = slugifySection(title)
+    const shouldForceModal = allSectionsGated()
     setSectionsState([...sectionsState, { id, title }])
     setHasChanges(true)
+    setActiveTab('secciones')
+    if (shouldForceModal) setPendingVisibilityFor(id)
   }
 
   // Establece (o limpia) la condición de visibilidad serializable de una sección.
@@ -2066,6 +2812,7 @@ export default function FormEditorDetailScreen() {
         {[
           { id: 'lista', label: 'Lista de preguntas', icon: <List size={13} /> },
           ...(isSectioned ? [{ id: 'secciones', label: 'Secciones', icon: <List size={13} /> }] : []),
+          { id: 'conexion', label: 'Conexión SP', icon: <Link2 size={13} /> },
           { id: 'flujo', label: 'Vista de flujo', icon: <GitBranch size={13} /> },
         ].map((tab) => (
           <button
@@ -2116,6 +2863,63 @@ export default function FormEditorDetailScreen() {
                 onDelete={deleteSection}
                 onAdd={addSection}
                 onSetVisibleCondition={setSectionVisibleCondition}
+                pendingVisibilityFor={pendingVisibilityFor}
+                onClearPending={() => setPendingVisibilityFor(null)}
+                isReglasOroTemplate={isReglasOroTemplate}
+                onOpenAddRegla={() => setShowAddReglaModal(true)}
+              />
+              <AnimatePresence>
+                {showAddReglaModal && (
+                  <AddReglaOroModal
+                    onCancel={() => setShowAddReglaModal(false)}
+                    onCreate={(payload) => {
+                      addReglaOroMacro(payload)
+                      setShowAddReglaModal(false)
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ) : activeTab === 'conexion' ? (
+            <motion.div key="conexion" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <ConexionSharePointPanel
+                formId={formId}
+                isCustom={isCustom}
+                defaultListId={
+                  isCustom
+                    ? (customForms[formId]?.listId || '')
+                    : (getAllConnectionOverrides()[formId]?.listId
+                        || (SHAREPOINT_LISTS.find((l) => l.defaultFormType === formId)?.guid || ''))
+                }
+                onChange={(newGuid) => {
+                  if (isCustom) {
+                    updateCustomForm(formId, { ...customForms[formId], listId: newGuid })
+                  } else if (newGuid) {
+                    saveConnectionOverride(formId, newGuid)
+                  } else {
+                    clearConnectionOverride(formId)
+                  }
+                }}
+              />
+
+              <ArchiveFormPanel
+                formId={formId}
+                isCustom={isCustom}
+                isArchived={
+                  isCustom
+                    ? !!customForms[formId]?.archived
+                    : !!useFormEditorStore.getState().editedForms[formId]?.archived
+                }
+                onArchive={() => {
+                  const store = useFormEditorStore.getState()
+                  if (isCustom) store.archiveCustomForm(formId)
+                  else store.archiveForm(formId)
+                }}
+                onUnarchive={() => {
+                  const store = useFormEditorStore.getState()
+                  if (isCustom) store.unarchiveCustomForm(formId)
+                  else store.unarchiveForm(formId)
+                }}
               />
             </motion.div>
           ) : (

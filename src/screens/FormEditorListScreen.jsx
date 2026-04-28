@@ -10,6 +10,7 @@ import {
 import AppHeader from '../components/layout/AppHeader'
 import useFormEditorStore from '../store/formEditorStore'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
+import { SHAREPOINT_LISTS } from '../services/sharepointLists'
 
 // ── Catálogo de formularios estáticos ─────────────────────────────────────
 const FORM_CATALOG = [
@@ -120,6 +121,8 @@ function NewFormModal({ onClose, onCreate }) {
   const [mode, setMode]         = useState('sections')
   const [unit, setUnit]         = useState('Sucursales')
   const [color, setColor]       = useState('#2F80ED')
+  const [listKey, setListKey]   = useState('')      // key del catálogo o '__custom__'
+  const [customGuid, setCustomGuid] = useState('')  // GUID si listKey === '__custom__'
   const [error, setError]       = useState('')
 
   const inputBase = {
@@ -139,6 +142,27 @@ function NewFormModal({ onClose, onCreate }) {
 
   const handleCreate = () => {
     if (!title.trim()) { setError('El título es obligatorio'); return }
+
+    // Resolver GUID destino — obligatorio para que el formulario pueda enviar
+    let listId = ''
+    if (listKey === '__custom__') {
+      const trimmed = customGuid.trim()
+      if (!trimmed) { setError('Pega el GUID de la lista SharePoint o elige una del catálogo'); return }
+      // Validación básica de GUID (8-4-4-4-12 hex)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+        setError('GUID inválido. Formato esperado: 8-4-4-4-12 caracteres hex')
+        return
+      }
+      listId = trimmed
+    } else if (listKey) {
+      const entry = SHAREPOINT_LISTS.find((l) => l.key === listKey)
+      if (!entry?.guid) { setError('La lista seleccionada no tiene GUID configurado'); return }
+      listId = entry.guid
+    } else {
+      setError('Debes seleccionar una lista SharePoint destino')
+      return
+    }
+
     const id = `custom-${slugify(title)}-${Date.now()}`
     const formDef = {
       id,
@@ -147,6 +171,7 @@ function NewFormModal({ onClose, onCreate }) {
       mode,
       unit,
       accentColor: color,
+      listId,
       isCustom: true,
       createdAt: new Date().toISOString(),
       // Estructura base según modo
@@ -328,6 +353,33 @@ function NewFormModal({ onClose, onCreate }) {
                   {u}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Lista SharePoint destino — OBLIGATORIO */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelBase}>Lista SharePoint destino *</label>
+            <select
+              value={listKey}
+              onChange={(e) => { setListKey(e.target.value); setError('') }}
+              style={{ ...inputBase, cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"12\\" height=\\"12\\" viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"%23999\\" stroke-width=\\"2\\"><polyline points=\\"6 9 12 15 18 9\\"/></svg>")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32 }}
+            >
+              <option value="">— Seleccionar —</option>
+              {SHAREPOINT_LISTS.filter((l) => l.guid).map((l) => (
+                <option key={l.key} value={l.key}>{l.label}</option>
+              ))}
+              <option value="__custom__">✏ GUID personalizado…</option>
+            </select>
+            {listKey === '__custom__' && (
+              <input
+                value={customGuid}
+                onChange={(e) => { setCustomGuid(e.target.value); setError('') }}
+                placeholder="Ej: d123a245-0aeb-4f51-9b20-693639c963b6"
+                style={{ ...inputBase, marginTop: 8, fontFamily: 'monospace', fontSize: 11 }}
+              />
+            )}
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+              La lista debe existir en SharePoint antes de crear el formulario. Las respuestas se guardarán como ítems en esta lista.
             </div>
           </div>
 

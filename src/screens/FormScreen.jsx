@@ -17,7 +17,7 @@ import useFormStore from '../store/formStore'
 import useFormEditorStore from '../store/formEditorStore'
 import useUserStore from '../store/userStore'
 import useContratistasStore from '../store/contratistasStore'
-import { IS_DEV_MODE } from '../services/sharepointData'
+import { IS_DEV_MODE, resolveListConfig } from '../services/sharepointData'
 
 // ── Question dispatcher (shared) ──────────────────────────────────────────
 function QuestionRenderer({ question, value, onChange, hasError }) {
@@ -220,6 +220,7 @@ function WizardMode({ form, formType, cphsMode }) {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showRequired, setShowRequired] = useState(false)
+  const [noListError, setNoListError] = useState(false)
 
   const currentQId = history[history.length - 1]
   const question = form.questions[currentQId]
@@ -264,6 +265,15 @@ function WizardMode({ form, formType, cphsMode }) {
   }
 
   const handleSubmit = async () => {
+    // Fail-loud: bloquear envío si el formulario no tiene lista SharePoint asignada.
+    // En dev mode se omite para no interrumpir el flujo de pruebas locales.
+    if (!IS_DEV_MODE) {
+      const cfg = resolveListConfig(formType)
+      if (!cfg?.listId) {
+        setNoListError(true)
+        return
+      }
+    }
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
     // Solo enviar respuestas de las preguntas efectivamente recorridas (history).
@@ -501,6 +511,42 @@ function WizardMode({ form, formType, cphsMode }) {
           )}
         </motion.button>
       </div>
+
+      {/* Fail-loud: formulario sin lista SharePoint asignada */}
+      {noListError && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--color-navy-mid)', border: '1px solid rgba(235,87,87,0.5)',
+            borderRadius: 16, padding: 28, maxWidth: 360, width: '100%',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <AlertCircle size={22} color="#EB5757" />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#EB5757', letterSpacing: '0.04em' }}>
+                SIN LISTA SHAREPOINT
+              </span>
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-text-primary)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              Este formulario no tiene lista SharePoint asignada. Los registros no se podrán guardar.
+              Contacta al administrador para que configure la lista destino desde el Editor de Formularios.
+            </p>
+            <button
+              onClick={() => setNoListError(false)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: 'rgba(235,87,87,0.15)', cursor: 'pointer',
+                fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+                color: '#EB5757', letterSpacing: '0.06em',
+              }}
+            >
+              ENTENDIDO
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -528,6 +574,7 @@ function SectionsMode({ form, formType }) {
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [noListError, setNoListError] = useState(false)
   const firstErrorRef = useRef(null)
 
   useEffect(() => {
@@ -578,6 +625,14 @@ function SectionsMode({ form, formType }) {
         }
       }, 50)
       return
+    }
+    // Fail-loud: bloquear envío si el formulario no tiene lista SharePoint asignada.
+    if (!IS_DEV_MODE) {
+      const cfg = resolveListConfig(formType)
+      if (!cfg?.listId) {
+        setNoListError(true)
+        return
+      }
     }
     setSubmitting(true)
     await new Promise((r) => setTimeout(r, 900))
@@ -741,6 +796,42 @@ function SectionsMode({ form, formType }) {
         </motion.button>
         </div>
       </div>
+
+      {/* Fail-loud: formulario sin lista SharePoint asignada */}
+      {noListError && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--color-navy-mid)', border: '1px solid rgba(235,87,87,0.5)',
+            borderRadius: 16, padding: 28, maxWidth: 360, width: '100%',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <AlertCircle size={22} color="#EB5757" />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#EB5757', letterSpacing: '0.04em' }}>
+                SIN LISTA SHAREPOINT
+              </span>
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-text-primary)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              Este formulario no tiene lista SharePoint asignada. Los registros no se podrán guardar.
+              Contacta al administrador para que configure la lista destino desde el Editor de Formularios.
+            </p>
+            <button
+              onClick={() => setNoListError(false)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: 'rgba(235,87,87,0.15)', cursor: 'pointer',
+                fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+                color: '#EB5757', letterSpacing: '0.06em',
+              }}
+            >
+              ENTENDIDO
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

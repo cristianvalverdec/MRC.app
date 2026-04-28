@@ -105,11 +105,15 @@ export default function ToolsMenuScreen() {
   const nivelEfectivo = IS_DEV_MODE ? 6 : mrcNivel
   const puedeVerDirectorio = nivelEfectivo >= 2
   const customForms = useFormEditorStore((s) => s.customForms)
+  const editedForms = useFormEditorStore((s) => s.editedForms)
 
-  const tools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
+  // Filtrar tools estáticas excluyendo formularios archivados desde el editor
+  const baseTools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
+  const tools = baseTools.filter((t) => !t.formType || !editedForms[t.formType]?.archived)
 
-  // Formularios custom creados por admin, filtrados por unidad
+  // Formularios custom creados por admin, filtrados por unidad y excluyendo archivados
   const customTools = Object.values(customForms).filter((f) => {
+    if (f.archived) return false
     if (!f.unit || f.unit === 'Ambas') return true
     if (unitType === 'sucursales' && f.unit === 'Sucursales') return true
     if (unitType === 'fuerza-de-ventas' && f.unit === 'Fuerza de Ventas') return true

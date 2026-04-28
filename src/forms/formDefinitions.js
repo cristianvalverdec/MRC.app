@@ -260,6 +260,7 @@ export const formDefinitions = {
     id: 'pauta-verificacion-reglas-oro',
     title: 'Reglas de Oro',
     description: 'Verificación cumplimiento Reglas de Oro',
+    metadata: { template: 'reglas-oro' },
     sections: [
 
       // ── S1: DATOS GENERALES ───────────────────────────────────────────────

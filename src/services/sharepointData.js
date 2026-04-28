@@ -12,6 +12,7 @@
 //   Maestro de Cierre Condiciones 00b25970-34f1-4026-9cc8-0df3f59c3383
 
 import { getGraphToken } from '../config/msalInstance'
+import { SHAREPOINT_LIST_BY_KEY } from './sharepointLists'
 
 export const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -53,16 +54,11 @@ export function getAllConnectionOverrides() {
 }
 
 // ── GUIDs de listas ───────────────────────────────────────────────────────
-const LIST_IDS = {
-  reglasOroSucursales:        'd123a245-0aeb-4f51-9b20-693639c963b6',
-  caminataSeguridad:          '04730b19-b235-4eef-b487-0234326fd4ac',
-  inspeccionSimple:           'de766ded-0d14-4e50-8254-710c533a2106',
-  reglasOroVentas:            '5edaee5a-2ee5-4fb4-a5aa-18f8068a1b25',
-  difusionesSso:              '2097a931-5615-472b-afc7-b2d2fc6fe805',
-  cierreCondiciones:          '00b25970-34f1-4026-9cc8-0df3f59c3383',
-  permisoTrabajoContratista:  '', // GUID pendiente — asignar al crear la lista SharePoint
-  cierreTrabajoContratista:   '', // GUID pendiente — asignar al crear la lista SharePoint
-}
+// Fuente de verdad: src/services/sharepointLists.js (SHAREPOINT_LISTS)
+// Aquí solo se mapean por conveniencia para los mappers existentes.
+const LIST_IDS = Object.fromEntries(
+  Object.entries(SHAREPOINT_LIST_BY_KEY).map(([k, v]) => [k, v.guid])
+)
 
 // ── Helpers Graph API ─────────────────────────────────────────────────────
 
@@ -349,6 +345,35 @@ function mapCierreTrabajoContratista(sub) {
   }
 }
 
+// ── Mapper genérico para formularios custom o estáticos sin mapper ───────
+//
+// Construye el payload `fields` exclusivamente a partir de los `spColumn`
+// declarados por el admin en el override de cada pregunta. Si una pregunta
+// no tiene spColumn asignado, se omite (no falla). Es lo que permite a los
+// formularios custom (creados por el admin) escribir a una lista existente
+// sin requerir un mapper hardcodeado.
+function mapGenericFromOverride(sub) {
+  const fields = {
+    Title: sub.userName || sub.userEmail || 'Registro MRC',
+  }
+  // Las columnas se aplican en submitFormToSharePoint vía readEditorSpColumns.
+  // Aquí solo armamos un esqueleto mínimo con identidad del usuario.
+  if (sub.userName)  fields.Nombre = sub.userName
+  if (sub.userEmail) fields.Correo_x0020_Remitente = sub.userEmail
+  if (sub.branch)    fields.Instalaci_x00f3_n = sub.branch
+  return fields
+}
+
+// Lee el listId asignado a un customForm (creado vía NUEVO FORMULARIO en el editor).
+function getCustomFormListId(formType) {
+  try {
+    const raw = localStorage.getItem('mrc-form-editor-store')
+    if (!raw) return null
+    const state = JSON.parse(raw)?.state
+    return state?.customForms?.[formType]?.listId || null
+  } catch { return null }
+}
+
 // ── Router: formType → listId + mapper ───────────────────────────────────
 function getListConfig(formType) {
   const MAP = {
@@ -361,12 +386,27 @@ function getListConfig(formType) {
     'permiso-trabajo-contratista':    { listId: LIST_IDS.permisoTrabajoContratista, mapFields: mapPermisoTrabajoContratista },
     'cierre-trabajo-contratista':     { listId: LIST_IDS.cierreTrabajoContratista,  mapFields: mapCierreTrabajoContratista  },
   }
-  const base = MAP[formType]
-  if (!base) return null
-  // El admin puede sobreescribir el listId desde el panel de conexiones
   const overrideId = getConnectionOverride(formType)
-  if (overrideId) return { ...base, listId: overrideId }
-  return base
+  const base = MAP[formType]
+
+  if (base) {
+    // Estático conocido: respeta override de listId si existe
+    return overrideId ? { ...base, listId: overrideId } : base
+  }
+
+  // Sin mapper estático → puede ser customForm o estático con override de listId.
+  // Resolver listId desde override (panel de conexiones) o desde customForms.
+  const customListId = overrideId || getCustomFormListId(formType)
+  if (!customListId) return null
+  return { listId: customListId, mapFields: mapGenericFromOverride }
+}
+
+// Pública: el editor / FormScreen pueden chequear si un formType tiene destino
+// configurado antes de permitir envío. Devuelve { listId } o null.
+export function resolveListConfig(formType) {
+  const cfg = getListConfig(formType)
+  if (!cfg || !cfg.listId) return null
+  return { listId: cfg.listId }
 }
 
 // ── Catálogo de columnas SP conocidas por formulario ─────────────────────
@@ -512,9 +552,15 @@ export async function submitFormToSharePoint(submission) {
   }
 
   const config = getListConfig(submission.formType)
-  if (!config) {
-    console.warn('[MRC Data] Formulario sin lista mapeada:', submission.formType)
-    return { success: false, error: 'Tipo de formulario no mapeado' }
+  if (!config || !config.listId) {
+    // Fail-loud: antes era console.warn silencioso → respuestas perdidas en silencio.
+    // Ahora lanza para que la cola pendiente reintente y el usuario sea notificado.
+    const err = new Error(
+      `El formulario "${submission.formType}" no tiene lista SharePoint asignada. ` +
+      `El admin debe configurarla desde el editor (sección "Conexión SharePoint").`
+    )
+    err.code = 'NO_LIST_CONFIGURED'
+    throw err
   }
 
   const token   = await getGraphToken()
