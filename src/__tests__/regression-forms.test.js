@@ -175,6 +175,46 @@ describe('formDefinitions — integridad estructural', () => {
   })
 })
 
+describe('pauta-verificacion-reglas-oro — CIERRE genérico (v1.9.15b)', () => {
+  const form = formDefinitions['pauta-verificacion-reglas-oro']
+  const cierre = form?.sections?.find((s) => s.id === 'cierre')
+  const Q46 = cierre?.questions?.find((q) => q.id === 'Q46')
+  const Q48 = cierre?.questions?.find((q) => q.id === 'Q48')
+
+  it('la sección CIERRE usa Object.values() para detectar SIN/CON — no lista fija de IDs', () => {
+    // Verifica que respuestas de CUALQUIER pregunta con valor SIN_OBSERVACIONES activen CIERRE
+    const answerConId = { Q999: 'SIN_OBSERVACIONES' } // ID inventado, no está en la lista estática
+    expect(cierre?.visibleWhen?.(answerConId)).toBe(true)
+    const answerConObs = { Q888: 'CON_OBSERVACIONES' }
+    expect(cierre?.visibleWhen?.(answerConObs)).toBe(true)
+    const answerVacio = { Q22: null }
+    expect(cierre?.visibleWhen?.(answerVacio)).toBe(false)
+  })
+
+  it('Q46 es visible con cualquier pregunta = SIN_OBSERVACIONES', () => {
+    expect(Q46?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(true)
+    expect(Q46?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(false)
+  })
+
+  it('Q48 es visible con cualquier pregunta = CON_OBSERVACIONES', () => {
+    expect(Q48?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(true)
+    expect(Q48?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(false)
+  })
+
+  it('preguntas de cierre NUNCA usan lista hardcodeada de IDs', () => {
+    // Centinela: si alguien revierte al patrón viejo, este test falla
+    const src = readFileSync(
+      resolve(import.meta.dirname, '../forms/formDefinitions.js'), 'utf-8'
+    )
+    // El patrón viejo era: rqs.some(q => a[q] === ...)
+    expect(src).not.toMatch(/rqs\.some\(q => a\[q\] === 'SIN_OBSERVACIONES'\)/)
+    expect(src).not.toMatch(/rqs\.some\(q => a\[q\] === 'CON_OBSERVACIONES'\)/)
+    // El patrón nuevo debe estar presente
+    expect(src).toContain("Object.values(a).some(v => v === 'SIN_OBSERVACIONES'")
+    expect(src).toContain("Object.values(a).some(v => v === 'CON_OBSERVACIONES'")
+  })
+})
+
 // ── Tests v1.9.15 — Editor 100% fiable + SP list assignment ─────────────────
 
 describe('sharepointLists — catálogo compartido (v1.9.15)', () => {

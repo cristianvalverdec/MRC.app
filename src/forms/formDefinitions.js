@@ -390,27 +390,22 @@ export const formDefinitions = {
       },
 
       // ── S15: CIERRE ───────────────────────────────────────────────────────
+      // IMPORTANTE: las condiciones de visibilidad usan Object.values(a) en lugar
+      // de una lista fija de IDs de preguntas. Esto permite que cualquier Regla de
+      // Oro nueva creada con la macro F5 (que genera IDs dinámicos como Q49, Q52…)
+      // active correctamente el CIERRE sin modificar este archivo.
       {
         id: 'cierre', title: 'CIERRE',
-        visibleWhen: (a) => {
-          const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
-          return rqs.some(q => a[q] != null)
-        },
+        visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES' || v === 'CON_OBSERVACIONES'),
         questions: [
           { id: 'Q46', type: 'yesno', required: true,
             label: '¿Se comunicó el resultado de la observación (sin desviaciones) al colaborador?',
-            visibleWhen: (a) => {
-              const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
-              return rqs.some(q => a[q] === 'SIN_OBSERVACIONES')
-            },
+            visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
           },
           { id: 'Q48', type: 'yesno', required: true,
             label: '¿La acción insegura observada amerita una carta de amonestación escrita al colaborador?',
             disableNA: true,
-            visibleWhen: (a) => {
-              const rqs = ['Q22','Q24','Q26','Q28','Q30','Q32','Q34','Q36','Q38','Q40','Q42','Q44']
-              return rqs.some(q => a[q] === 'CON_OBSERVACIONES')
-            },
+            visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
           },
         ],
       },
