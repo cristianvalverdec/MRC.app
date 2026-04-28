@@ -2619,9 +2619,23 @@ export default function FormEditorDetailScreen() {
       _sectionTitle: sectionTitle,
     }
 
-    // 4. Aplicar todo en una sola transacción
+    // 4. Limpiar preguntas huérfanas de la sección CIERRE antes de añadir la nueva Regla.
+    // Una pregunta es huérfana si: pertenece a _section === 'cierre', no existe en el
+    // estático (Q46/Q48) y no tiene visibleCondition. Esto corrige residuos de sesiones de
+    // edición manual anteriores (ej. Q51) que de otro modo aparecerían en rutas incorrectas.
+    const staticCierreIds = new Set(
+      (staticForm?.sections?.find((s) => s.id === 'cierre')?.questions || []).map((q) => q.id)
+    )
+    const cleanedQuestions = newQuestions.filter(
+      (q) =>
+        q._section !== 'cierre' ||
+        staticCierreIds.has(q.id) ||
+        !!q.visibleCondition
+    )
+
+    // 5. Aplicar todo en una sola transacción
     setSectionsState([...sectionsState, newSection])
-    markChanged([...newQuestions, radioQ, checkboxQ])
+    markChanged([...cleanedQuestions, radioQ, checkboxQ])
     setActiveTab('secciones')
   }
 

@@ -888,13 +888,32 @@ export default function FormScreen() {
       const mergedSections = editedOverride.sections.map((overrideSec) => {
         const staticSec = staticForm.sections.find((s) => s.id === overrideSec.id)
         const secVisible = staticSec?.visibleWhen || buildVisibleFn(overrideSec.visibleCondition)
+
+        // Detectar secciones donde TODAS las preguntas estáticas tienen visibleWhen propio
+        // (ej. sección CIERRE: Q46 = SIN, Q48 = CON). En esas secciones, las preguntas
+        // huérfanas del override —sin contraparte estática y sin visibleCondition— se descartan:
+        // son restos de sesiones de edición anteriores que romperían el gating si se mostrasen.
+        // Preguntas creadas por el editor (macro F5 u otras) que tengan visibleCondition
+        // explícita se conservan siempre.
+        const staticQIds = new Set((staticSec?.questions || []).map((q) => q.id))
+        const allStaticGated =
+          (staticSec?.questions?.length ?? 0) > 0 &&
+          staticSec.questions.every((q) => !!q.visibleWhen)
+
         return {
           ...overrideSec,
           visibleWhen: secVisible,
-          questions: (overrideSec.questions || []).map((q) => ({
-            ...q,
-            visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
-          })),
+          questions: (overrideSec.questions || [])
+            .filter((q) => {
+              if (staticQIds.has(q.id)) return true    // pregunta del estático → siempre incluir
+              if (q.visibleCondition) return true      // condición explícita del editor → incluir
+              if (allStaticGated) return false         // huérfana en sección totalmente gateada → descartar
+              return true
+            })
+            .map((q) => ({
+              ...q,
+              visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
+            })),
         }
       })
       return { ...staticForm, ...editedOverride, sections: mergedSections }

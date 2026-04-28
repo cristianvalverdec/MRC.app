@@ -436,3 +436,54 @@ describe('FormScreen — fail-loud sin lista SharePoint (v1.9.15)', () => {
     expect(formScreen).toContain('noListError')
   })
 })
+
+describe('FormScreen — filtrado de preguntas huérfanas en secciones totalmente gateadas (v1.9.15b)', () => {
+  it('detecta secciones donde TODAS las preguntas estáticas tienen visibleWhen (allStaticGated)', () => {
+    expect(formScreen).toContain('allStaticGated')
+    expect(formScreen).toContain('staticSec.questions.every')
+  })
+
+  it('descarta preguntas del override sin visibleCondition y sin contraparte estática en secciones gateadas', () => {
+    // La condición de filtro: si allStaticGated y la pregunta no está en el estático y no tiene
+    // visibleCondition → return false (descartar)
+    expect(formScreen).toContain('if (allStaticGated) return false')
+  })
+
+  it('conserva preguntas estáticas siempre (staticQIds)', () => {
+    expect(formScreen).toContain('staticQIds.has(q.id)')
+  })
+
+  it('conserva preguntas con visibleCondition explícita del editor', () => {
+    // Las preguntas creadas por la macro F5 tienen visibleCondition → se conservan
+    expect(formScreen).toContain('if (q.visibleCondition) return true')
+  })
+
+  it('la sección CIERRE en formDefinitions tiene SOLO Q46 y Q48 con visibleWhen propio', () => {
+    const form = formDefinitions['pauta-verificacion-reglas-oro']
+    const cierre = form.sections.find((s) => s.id === 'cierre')
+    expect(cierre).toBeDefined()
+    const qs = cierre.questions
+    expect(qs).toHaveLength(2)
+    expect(qs.every((q) => typeof q.visibleWhen === 'function')).toBe(true)
+    // Q46 → SIN_OBSERVACIONES, Q48 → CON_OBSERVACIONES
+    expect(qs.map((q) => q.id)).toEqual(expect.arrayContaining(['Q46', 'Q48']))
+  })
+})
+
+describe('FormEditorDetailScreen — macro F5 limpia huérfanas de CIERRE al crear nueva Regla (v1.9.15b)', () => {
+  it('addReglaOroMacro filtra preguntas huérfanas de la sección cierre antes de guardar', () => {
+    // La macro debe remover preguntas de _section === 'cierre' sin visibleCondition y sin
+    // contraparte estática (ej. Q51 de sesiones de edición manual anteriores).
+    expect(editorScreen).toContain('staticCierreIds')
+    expect(editorScreen).toContain('cleanedQuestions')
+    expect(editorScreen).toContain("q._section !== 'cierre'")
+  })
+
+  it('la macro conserva Q46 y Q48 (preguntas estáticas de CIERRE)', () => {
+    expect(editorScreen).toContain('staticCierreIds.has(q.id)')
+  })
+
+  it('la macro conserva preguntas con visibleCondition aunque sean del cierre (creadas por F5)', () => {
+    expect(editorScreen).toContain('!!q.visibleCondition')
+  })
+})
