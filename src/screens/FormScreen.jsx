@@ -889,12 +889,29 @@ export default function FormScreen() {
         const staticSec = staticForm.sections.find((s) => s.id === overrideSec.id)
         const secVisible = staticSec?.visibleWhen || buildVisibleFn(overrideSec.visibleCondition)
 
-        // Detectar secciones donde TODAS las preguntas estáticas tienen visibleWhen propio
-        // (ej. sección CIERRE: Q46 = SIN, Q48 = CON). En esas secciones, las preguntas
-        // huérfanas del override —sin contraparte estática y sin visibleCondition— se descartan:
-        // son restos de sesiones de edición anteriores que romperían el gating si se mostrasen.
-        // Preguntas creadas por el editor (macro F5 u otras) que tengan visibleCondition
-        // explícita se conservan siempre.
+        // CASO ESPECIAL: Sección CIERRE — Q46/Q48 controlan rutas (SIN/CON).
+        // Preguntas adicionales sin visibleCondition (ej. Q51 "retroalimentación positiva")
+        // heredan automáticamente la visibleWhen de Q46 (visible cuando SIN_OBSERVACIONES).
+        // Esto es el default sensato: preguntas en CIERRE sin gating propio probablemente
+        // pertenecen al flujo SIN (el positivo).
+        if (overrideSec.id === 'cierre') {
+          const q46 = overrideSec.questions?.find((q) => q.id === 'Q46')
+          const q46VisWhen = staticVWMap['Q46'] || buildVisibleFn(q46?.visibleCondition)
+          return {
+            ...overrideSec,
+            visibleWhen: secVisible,
+            questions: (overrideSec.questions || []).map((q) => {
+              let visWhen = staticVWMap[q.id] || buildVisibleFn(q.visibleCondition)
+              // Si la pregunta no tiene visibleWhen y no está en el estático, heredar de Q46
+              if (!visWhen && !staticVWMap[q.id] && q.id !== 'Q46' && q.id !== 'Q48') {
+                visWhen = q46VisWhen
+              }
+              return { ...q, visibleWhen: visWhen }
+            }),
+          }
+        }
+
+        // Otras secciones: conservar el comportamiento anterior (filtrar huérfanas en secciones totalmente gateadas)
         const staticQIds = new Set((staticSec?.questions || []).map((q) => q.id))
         const allStaticGated =
           (staticSec?.questions?.length ?? 0) > 0 &&

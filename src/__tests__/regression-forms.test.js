@@ -437,25 +437,26 @@ describe('FormScreen — fail-loud sin lista SharePoint (v1.9.15)', () => {
   })
 })
 
-describe('FormScreen — filtrado de preguntas huérfanas en secciones totalmente gateadas (v1.9.15b)', () => {
-  it('detecta secciones donde TODAS las preguntas estáticas tienen visibleWhen (allStaticGated)', () => {
-    expect(formScreen).toContain('allStaticGated')
-    expect(formScreen).toContain('staticSec.questions.every')
+describe('FormScreen — herencia automática en CIERRE (preguntas huérfanas heredan de Q46) (v1.9.15b)', () => {
+  it('tiene caso especial para sección CIERRE', () => {
+    expect(formScreen).toContain("if (overrideSec.id === 'cierre')")
   })
 
-  it('descarta preguntas del override sin visibleCondition y sin contraparte estática en secciones gateadas', () => {
-    // La condición de filtro: si allStaticGated y la pregunta no está en el estático y no tiene
-    // visibleCondition → return false (descartar)
-    expect(formScreen).toContain('if (allStaticGated) return false')
+  it('busca Q46 para obtener su visibleWhen (SIN_OBSERVACIONES)', () => {
+    expect(formScreen).toContain("q46 = overrideSec.questions?.find((q) => q.id === 'Q46')")
+    expect(formScreen).toContain('q46VisWhen')
   })
 
-  it('conserva preguntas estáticas siempre (staticQIds)', () => {
-    expect(formScreen).toContain('staticQIds.has(q.id)')
+  it('preguntas en CIERRE sin visibleWhen (excepto Q46/Q48) heredan visibleWhen de Q46', () => {
+    // Si una pregunta como Q51 está en CIERRE, no tiene staticVWMap, no tiene visibleCondition,
+    // y no es Q46 o Q48 → heredar de Q46 (SIN_OBSERVACIONES)
+    expect(formScreen).toContain('if (!visWhen && !staticVWMap[q.id]')
+    expect(formScreen).toContain('visWhen = q46VisWhen')
   })
 
-  it('conserva preguntas con visibleCondition explícita del editor', () => {
-    // Las preguntas creadas por la macro F5 tienen visibleCondition → se conservan
-    expect(formScreen).toContain('if (q.visibleCondition) return true')
+  it('Q46 y Q48 mantienen su visibleWhen propio (no heredan)', () => {
+    // Q46 y Q48 tienen visibleWhen en el estático, así que staticVWMap tiene valores para ellas
+    expect(formScreen).toContain("q.id !== 'Q46' && q.id !== 'Q48'")
   })
 
   it('la sección CIERRE en formDefinitions tiene SOLO Q46 y Q48 con visibleWhen propio', () => {
@@ -468,22 +469,31 @@ describe('FormScreen — filtrado de preguntas huérfanas en secciones totalment
     // Q46 → SIN_OBSERVACIONES, Q48 → CON_OBSERVACIONES
     expect(qs.map((q) => q.id)).toEqual(expect.arrayContaining(['Q46', 'Q48']))
   })
+
+  it('otras secciones gateadas aún descartan huérfanas sin visibleCondition (allStaticGated)', () => {
+    // Para secciones que no sean CIERRE pero sean totalmente gateadas: seguir filtrando
+    expect(formScreen).toContain('allStaticGated')
+    expect(formScreen).toContain('if (allStaticGated) return false')
+  })
 })
 
-describe('FormEditorDetailScreen — macro F5 limpia huérfanas de CIERRE al crear nueva Regla (v1.9.15b)', () => {
-  it('addReglaOroMacro filtra preguntas huérfanas de la sección cierre antes de guardar', () => {
-    // La macro debe remover preguntas de _section === 'cierre' sin visibleCondition y sin
-    // contraparte estática (ej. Q51 de sesiones de edición manual anteriores).
-    expect(editorScreen).toContain('staticCierreIds')
-    expect(editorScreen).toContain('cleanedQuestions')
-    expect(editorScreen).toContain("q._section !== 'cierre'")
+describe('FormEditorDetailScreen + FormScreen — Q51 en CIERRE hereda de Q46 (v1.9.15b)', () => {
+  it('FormScreen tiene caso especial para sección CIERRE', () => {
+    expect(formScreen).toContain("if (overrideSec.id === 'cierre')")
   })
 
-  it('la macro conserva Q46 y Q48 (preguntas estáticas de CIERRE)', () => {
-    expect(editorScreen).toContain('staticCierreIds.has(q.id)')
+  it('FormScreen obtiene visibleWhen de Q46 para heredarla a preguntas sin condición', () => {
+    expect(formScreen).toContain('q46VisWhen')
+    expect(formScreen).toContain("q46 = overrideSec.questions?.find((q) => q.id === 'Q46')")
   })
 
-  it('la macro conserva preguntas con visibleCondition aunque sean del cierre (creadas por F5)', () => {
-    expect(editorScreen).toContain('!!q.visibleCondition')
+  it('preguntas como Q51 (sin visibleWhen, no estáticas) heredan visibleWhen de Q46', () => {
+    // Q51 "describir retroalimentación positiva" automáticamente es visible cuando SIN_OBSERVACIONES
+    expect(formScreen).toContain('if (!visWhen && !staticVWMap[q.id]')
+    expect(formScreen).toContain('visWhen = q46VisWhen')
+  })
+
+  it('Q46 y Q48 nunca heredan (mantienen su visibleWhen estático)', () => {
+    expect(formScreen).toContain("q.id !== 'Q46' && q.id !== 'Q48'")
   })
 })
