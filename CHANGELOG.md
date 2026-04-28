@@ -5,6 +5,58 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.15] — 2026-04-27 (segunda entrega)
+
+### Editor 100% fiable + asignación de listas SharePoint a formularios custom
+
+**Problema raíz resuelto:** el editor acumulaba cinco defectos estructurales que, combinados, provocaban que preguntas nuevas (ej. Q52/Q53) aparecieran siempre en el formulario sin importar la selección del usuario, y que los formularios creados desde "NUEVO FORMULARIO" enviaran los registros a ningún lado (lista SharePoint no asignada → pérdida silenciosa de datos).
+
+#### F1 — Herencia automática de condición de visibilidad de sección a pregunta
+`emptyQuestion` ya asignaba `_section`, pero no copiaba la `visibleCondition` de la sección. Ahora `addQuestion` detecta si la sección destino tiene `visibleCondition` y la copia a la pregunta nueva. Efecto: una pregunta creada en "REGLA N°8" nace ya condicional a Q20="N°8 …" — el bug de Q52/Q53 se vuelve estructuralmente imposible.
+
+#### F2 — Modal obligatorio al crear sección en formulario gateado
+`addSection` ahora detecta si todas las secciones existentes tienen gating (`visibleCondition` de override o `visibleWhen` del estático). Si lo están, abre automáticamente el modal "VISIBILIDAD DE SECCIÓN" después de crear la nueva sección. El admin puede elegir "Visible siempre" como decisión consciente, pero no puede ignorar la pregunta.
+
+#### F3 — Condiciones estáticas visibles en el editor
+`parseVisibleWhen(fn)` parsea mediante regex las funciones `visibleWhen` del estático y las convierte a objetos `visibleCondition` serializables. `initSections` llama este parser y expone el resultado como `_staticVisibleCondition` (solo display, nunca persistido). Las secciones estáticas muestran un badge azul **[estático]** en el editor; el botón Eye refleja el estado con color diferenciado (azul = heredado, naranja = override).
+
+#### F4 — `validateForm` detecta gating inconsistente
+Nueva regla: si >50 % de las secciones de un formulario tienen gating, una sección o pregunta sin él genera un *warning* explícito antes de guardar ("Sección X aparecerá siempre — ¿es intencional?"). El admin puede "Guardar igual" como bypass consciente.
+
+#### F5 — Macro "Agregar Regla de Oro" (template atómico)
+Para formularios con `metadata.template === 'reglas-oro'`, el gestor de secciones muestra el botón "AGREGAR REGLA DE ORO (TEMPLATE)". Un modal pide número, área (OP/ADM), nombre y conductas, y crea atómicamente:
+1. Opción nueva en Q20 (OP) o Q21 (ADM)
+2. Sección con `visibleCondition` cableada al nuevo valor
+3. Pregunta radio con misma condición y opciones SIN/CON OBSERVACIONES
+4. Pregunta checkbox con `conductasList` y condición adicional para "CON OBSERVACIONES"
+
+Todo gateado, consistente, en una sola transacción. Imposible generar piezas huérfanas.
+
+#### Catálogo único de listas SharePoint (`sharepointLists.js`)
+`src/services/sharepointLists.js` es ahora la **fuente única de verdad** para los 8 GUIDs de listas SharePoint. Elimina la triple duplicación anterior entre `LIST_IDS`, `CONNECTIONS` y `getListConfig`. Exporta `SHAREPOINT_LISTS`, `SHAREPOINT_LIST_BY_KEY`, `SHAREPOINT_LIST_BY_GUID` y helpers.
+
+#### Formularios custom — lista SharePoint obligatoria al crear
+`NewFormModal` en `FormEditorListScreen` ahora requiere elegir la lista destino antes de crear. Dropdown con las 8 listas conocidas + opción "GUID personalizado" con validación de formato. Si no se elige lista, el botón "Crear" bloquea con error visible.
+
+#### `getListConfig` con fallback para custom forms
+`getListConfig` ahora resuelve también formularios no presentes en el mapa estático: lee `customForms[formType].listId` desde el store y usa `mapGenericFromOverride` para construir el payload a partir de los `spColumn` declarados por pregunta. `resolveListConfig(formType)` es la función pública para validar externamente.
+
+#### Panel "Conexión SharePoint" en el editor
+Nueva pestaña **CONEXIÓN SP** en `FormEditorDetailScreen` con dos secciones:
+- **ConexionSharePointPanel:** muestra la lista asignada actual (nombre + GUID), botón "Cambiar lista", botón "LEER COLUMNAS". Persiste vía `saveConnectionOverride` para estáticos, `updateCustomForm` para custom.
+- **ArchiveFormPanel:** botón rojo "Archivar formulario" con modal de confirmación. Setea `archived: true` en `editedForms[formId]`. El formulario desaparece del menú de usuarios sin destruir el override — reversible desde el editor.
+
+#### Filtrado de archivados en `ToolsMenuScreen`
+`tools` y `customTools` excluyen formularios con `archived: true` en sus respectivos stores. Los usuarios no ven el formulario archivado; el admin sí lo ve en el editor con badge "ARCHIVADO".
+
+#### Fail-loud en `FormScreen`
+Ambos modos (WizardMode y SectionsMode) verifican `resolveListConfig(formType)` antes de `addToPendingQueue`. Si no hay lista asignada y no es dev mode, se bloquea el envío con modal visible: "SIN LISTA SHAREPOINT — contacta al administrador". Convierte la pérdida silenciosa de datos en un error visible.
+
+#### Tests centinela
+34 tests nuevos (176 total, 0 fallos) cubren F1–F5, catálogo de listas, NewFormModal, ConexionSharePointPanel, archive flag, ToolsMenuScreen y fail-loud.
+
+---
+
 ## [1.9.15] — 2026-04-27
 
 ### Editor de formularios — visibilidad condicional configurable

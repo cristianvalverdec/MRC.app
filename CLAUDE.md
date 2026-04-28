@@ -108,7 +108,8 @@ src/
 │
 ├── services/
 │   ├── graphService.js          People picker (Graph API)
-│   ├── sharepointData.js        Envío de formularios a listas SharePoint
+│   ├── sharepointLists.js       Catálogo único de GUIDs de listas SharePoint (fuente de verdad)
+│   ├── sharepointData.js        Envío de formularios a listas SharePoint + mapGenericFromOverride
 │   ├── sharepointSync.js        Sync de config de formularios (mrc-forms-config.json)
 │   ├── lideresService.js        CRUD líderes + historial + reportes
 │   ├── adminService.js          Lista de administradores
@@ -141,10 +142,14 @@ src/
 ### 5.2 Formularios
 - Las definiciones estáticas viven en `formDefinitions.js` como fuente de verdad base.
 - Los overrides del admin se guardan en `formEditorStore.editedForms[formId]` (localStorage + SharePoint).
+- Los formularios creados desde el editor viven en `formEditorStore.customForms[formId]` y deben incluir `listId` (GUID de la lista SharePoint destino).
 - Al cargar un formulario: primero busca override, luego cae al estático.
 - **Formularios seccionados:** override guarda `{ sections: [...] }`. En `initQuestions` hay que leer `override.sections` ANTES de `staticForm.sections`.
 - **Formularios wizard:** override guarda `{ questions: {...} }`.
 - **Opciones select:** pueden ser strings simples (`'Arica'`) o objetos (`{ value, label }`). El editor normaliza strings → objetos al abrir; el renderer (`QuestionSelect`) normaliza en ambas direcciones.
+- **Visibilidad condicional serializable:** las funciones `visibleWhen` no sobreviven JSON. El editor guarda `visibleCondition: { questionId, equals }` (o `{ all }` / `{ any }`). `FormScreen` reconstruye `visibleWhen` con `buildVisibleFn`. El campo `_staticVisibleCondition` en `sectionsState` es solo de display (F3) — nunca se persiste.
+- **Template "reglas-oro":** formularios con `metadata.template === 'reglas-oro'` en `formDefinitions.js` habilitan la macro F5 "Agregar Regla de Oro" en el editor, que crea opción+sección+radio+checkbox gateados en una sola transacción.
+- **Archive:** `editedForms[formId].archived === true` oculta el formulario de `ToolsMenuScreen` sin destruir el override. Reversible desde la pestaña "CONEXIÓN SP" del editor.
 
 ### 5.3 Sync cloud (formEditorStore)
 - **Offline-first:** el guardado local SIEMPRE es exitoso. La sync con SharePoint es fire-and-forget.
@@ -206,8 +211,10 @@ const url = getLink('semana-op')  // null si no configurado
 
 ## 7. Listas SharePoint
 
-→ Mapeo completo en `src/services/sharepointData.js`.
-→ Al agregar formulario nuevo: crear lista en SharePoint Y agregar mapeo en ese archivo.
+→ **Fuente única de GUIDs:** `src/services/sharepointLists.js` exporta `SHAREPOINT_LISTS` (array con `key`, `label`, `guid`, `unit`). `sharepointData.js` y `SharePointConnectionsScreen` consumen este catálogo — no duplicar GUIDs en otro lado.
+→ Al agregar un formulario estático nuevo: agregar entrada en `SHAREPOINT_LISTS` Y el mapper correspondiente en `sharepointData.js`.
+→ Los formularios custom (creados desde el editor) declaran su `listId` al crearse — `getListConfig` tiene fallback automático vía `mapGenericFromOverride` usando los `spColumn` de cada pregunta.
+→ `resolveListConfig(formType)` — función pública en `sharepointData.js` para verificar si un formulario tiene lista asignada antes de encolar el envío. `FormScreen` la llama antes de `addToPendingQueue`; si devuelve null, muestra modal bloqueante.
 
 ---
 
@@ -250,9 +257,13 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 5. **Al editar `initQuestions`** en FormEditorDetailScreen: siempre verificar que lee TANTO `override.questions` como `override.sections`.
 5b. **`visibleWhen` no sobrevive JSON.stringify** — las funciones `visibleWhen` se pierden al persistir el override en localStorage. `FormScreen.jsx` siempre debe restaurar `visibleWhen` desde el estático al hacer merge (sección y pregunta). `FormEditorDetailScreen.jsx` siempre debe usar `stripInternal` en `handleSave` para excluir `visibleWhen`, `_section` y `_sectionTitle` del override guardado.
 5c. **Al crear una pregunta en formularios seccionados**, `emptyQuestion` DEBE recibir `sectionId`/`sectionTitle` y asignar `_section`. La red de seguridad de `handleSave` (`groupQuestionsBySections`) recoge huérfanas y las reasigna a la primera sección con `console.warn` — es una defensa, nunca una vía permitida. Si aparece el warn en consola, arregla el flujo de creación.
-5d. **Antes de persistir un override, correr `validateForm`.** Si hay errores (IDs duplicados, labels vacíos, opciones faltantes, `nextQuestion` rotos), bloquear guardado y mostrar modal con la lista. Warnings permiten "Guardar igual". Ningún bypass en producción.
+5d. **Antes de persistir un override, correr `validateForm`.** Si hay errores (IDs duplicados, labels vacíos, opciones faltantes, `nextQuestion` rotos), bloquear guardado y mostrar modal con la lista. Warnings permiten "Guardar igual". Ningún bypass en producción. `validateForm` también detecta gating inconsistente (F4): si >50 % de secciones/preguntas hermanas tienen `visibleCondition`, una sin ella genera warning.
 5e. **Feedback de sync cloud en dos etapas.** Toast 1 "Guardado localmente" (azul, instantáneo). Toast 2 automático al cambiar `syncStatus`: verde "Sincronizado con SharePoint" o rojo "Error al sincronizar: {detalle}" (6s). Indicador de nube en header muestra el estado real y ofrece "Reintentar" en error (llama a `retryCloudSync()`). El fire-and-forget silencioso está prohibido — produce falso positivo.
-6. **Al agregar un formulario nuevo** en formDefinitions: agregar también su mapeo en `sharepointData.js` y crear la lista en SharePoint.
+5f. **Al crear una pregunta en el editor (F1)**, `addQuestion` copia la `visibleCondition` de la sección destino a la pregunta nueva. Esto es el default seguro; el admin puede borrarla si quiere que la pregunta sea siempre visible dentro de una sección condicional.
+5g. **Al crear una sección en formulario gateado (F2)**, si todas las secciones existentes tienen gating, el editor abre automáticamente el modal de visibilidad. El admin DEBE decidir — no puede saltar el paso. Esto evita que secciones nuevas sin condición "cuelen" preguntas siempre visibles.
+5h. **`_staticVisibleCondition` en `sectionsState`** es un campo de display generado por `parseVisibleWhen` — NO se persiste en el override (ver `handleSaveConfirmed`). Nunca añadir `_staticVisibleCondition` a los campos que se guardan en SharePoint.
+5i. **Antes de encolar un envío (`addToPendingQueue`)**, `FormScreen` verifica `resolveListConfig(formType)`. Si no hay lista asignada y no es dev mode, muestra modal bloqueante y no encola. Nunca suprimir esta verificación — reemplaza la pérdida silenciosa de datos anterior.
+6. **Al agregar un formulario nuevo** en formDefinitions: agregar entrada en `sharepointLists.js` (GUID + key), mapper en `sharepointData.js`, y crear la lista en SharePoint.
 7. **Al modificar el catálogo** (mrcCatalog.js): verificar que `lideresService.js` y `useBootstrap.js` siguen funcionando con los nuevos niveles.
 8. **Super-admin hardcodeado:** `cvalverde@agrosuper.com` no se puede eliminar desde la UI. Es intencional.
 9. **El CHANGELOG.md se actualiza automáticamente** con `deploy.sh`. No editarlo manualmente a menos que sea para corregir una entrada existente.
@@ -260,6 +271,8 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 11. **Antes de hacer commit, ejecutar `npm test`** — los tests centinela validan automáticamente las reglas 1-10. Si un test falla, NO hacer commit.
 12. **Al agregar una regla anti-regresión nueva**, agregar también un test centinela en `src/__tests__/`.
 13. **Nunca leer `import.meta.env.VITE_SP_SEMANA_*` o `import.meta.env.VITE_SP_BIBLIOTECA_URL` directamente en componentes.** Usar siempre `getLink(id)` de `urlLinksService.js` para respetar los overrides configurados por el admin desde la app. Los env vars siguen funcionando como fallback — solo se omite el override si se bypasea el servicio.
+14. **Nunca duplicar GUIDs de listas SharePoint.** La fuente de verdad es `src/services/sharepointLists.js`. Si se necesita un GUID en otro archivo, importar de ahí (`SHAREPOINT_LIST_BY_KEY`, `SHAREPOINT_LIST_BY_GUID`). No pegar el GUID a mano en otro módulo.
+15. **Nunca crear formularios custom sin `listId`.** `NewFormModal` bloquea si no se elige lista. Si se crea un custom form programáticamente (tests, migraciones), incluir siempre el campo `listId` con el GUID correcto.
 
 ---
 
@@ -312,4 +325,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-22 — v1.9.3 — fix editor (preguntas nuevas no se pierden) + validación pre-save + dropdowns con texto + sync cloud honesto*
+*Última actualización: 2026-04-27 — v1.9.15 — editor 100% fiable (F1–F5) + catálogo único SharePoint + fail-loud en envío + archive de formularios + 176 tests centinela*
