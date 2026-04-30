@@ -5,7 +5,7 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
-## [1.9.16] — 2026-04-30
+## [1.9.16] — 2026-04-30 (actualizado)
 
 ### Reglas de Oro 8/9/10 + reestructura de cierre + fix editor
 
@@ -38,6 +38,9 @@ Mecanismo `supersededSections: ['cierre']` en la definición estática para que 
 
 #### Mejora interna: FormScreen hereda tipo y opciones estáticas al hacer merge
 Cuando el estático tiene más opciones que el override (nuevas reglas agregadas después de guardar), las opciones estáticas ganan automáticamente sin necesidad de resetear el override.
+
+#### Fix: columnas SharePoint vacías no recibían el valor configurado en el editor
+El loop que aplica los `spColumn` del editor usaba `fields[col] !== undefined` como condición de salto. El mapper hardcodeado inicializa varios campos como cadena vacía `''` (no `undefined`), lo que impedía que las asignaciones del editor surtieran efecto para `Nombre_x0020_Colaborador`, `Conducta_x0020_Observada` y cualquier otro campo que el mapper dejara vacío. Cambiado a evaluación truthy (`fields[col]`): ahora el editor puede llenar un campo vacío, pero no sobreescribe un campo que el mapper ya completó con un valor real.
 
 ---
 
