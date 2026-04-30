@@ -5,6 +5,37 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.16] — 2026-04-30 (actualizado 2)
+
+### Enriquecimiento automático de correos desde Gestión de Líderes
+
+Al enviar cualquier formulario (Pauta de Verificación, Caminata de Seguridad, Inspección Simple, Observación Conductual, etc.), el servicio `sharepointData.js` consulta automáticamente el módulo **Gestión de Líderes** para la instalación detectada y popula las columnas de correo en SharePoint, activando los flujos de Power Automate de notificación a jefaturas.
+
+#### Mapeo cargo → columna SharePoint
+
+| Columna SharePoint | Cargo MRC |
+|---|---|
+| Correo 1, 2, 3 | Jefe de Despacho (hasta 3 por sucursal) |
+| Correo 4 | Jefe de Frigorífico |
+| Correo 5 | Jefe de Operaciones |
+| Correo 6 | Jefe Administrativo |
+| Correo 7 | Jefe de Zona |
+| Correo 8 | Subgerente de Zona |
+
+#### Implementación técnica
+- **`buildLideresEmailMap(lideres)`** — agrupa los líderes por `cargoMRC` → `{ cargo: [emails] }`.
+- **`fetchLideresEmailMap(branch)`** — consulta `getLideres(branch)` de forma async; si falla (offline, sin permisos), devuelve `{}` sin bloquear el envío.
+- **`applyLideresEmails(fields, lideresMap)`** — escribe Correo 1-8 en el objeto `fields` del POST a SharePoint, siempre sobreescribiendo (los líderes son la fuente de verdad).
+- El enriquecimiento se ejecuta en `submitFormToSharePoint` después del mapper estático y las columnas del editor, aplicando a **todos los formularios** sin modificar ningún mapper individual.
+
+#### Fix: prioridad de instalación
+La instalación se detecta como `submission.answers?.Q1 || submission.branch`. Q1 tiene prioridad porque en la Pauta de Verificación el usuario puede seleccionar una sucursal distinta a la de su perfil. Para formularios sin Q1 (Caminata, Inspección) el fallback a `submission.branch` funciona igual.
+
+#### Tests centinela
+7 tests nuevos (197 total, 0 fallos) validan el mapeo de cargos, la prioridad de detección de instalación y la integración con `submitFormToSharePoint`.
+
+---
+
 ## [1.9.16] — 2026-04-30 (actualizado)
 
 ### Reglas de Oro 8/9/10 + reestructura de cierre + fix editor

@@ -171,6 +171,24 @@ src/
 - **Poll cada 60s** para detectar nuevas versiones.
 - El manifest NO tiene `edge_to_edge_enabled` (no es estándar, Chrome lo ignora).
 
+### 5.6 Enriquecimiento de correos desde Gestión de Líderes
+
+Al enviar cualquier formulario, `submitFormToSharePoint` (en `sharepointData.js`) consulta automáticamente los líderes de la instalación y popula las columnas Correo 1-8 de la lista SharePoint destino. Estas columnas activan los flujos de Power Automate que notifican a cada nivel de jefatura.
+
+**Mapeo cargo → columna:**
+- Correo 1, 2, 3 → Jefe de Despacho (hasta 3)
+- Correo 4 → Jefe de Frigorífico
+- Correo 5 → Jefe de Operaciones
+- Correo 6 → Jefe Administrativo
+- Correo 7 → Jefe de Zona
+- Correo 8 → Subgerente de Zona
+
+**Detección de instalación:** `submission.answers?.Q1 || submission.branch`. Q1 tiene prioridad porque el usuario puede verificar una sucursal distinta a la de su perfil. Para formularios sin Q1 (Caminata, Inspección) se usa `submission.branch`.
+
+**Tolerancia a fallos:** si `getLideres()` falla (offline, sin permisos), Correo 1-8 quedan vacíos pero el envío del formulario continúa sin bloquearse.
+
+**No requiere cambios por formulario nuevo:** el enriquecimiento ocurre después del mapper estático y aplica a todos los `formType` automáticamente.
+
 ### 5.7 URLs Configurables (urlLinksService)
 
 El módulo `urlLinksService.js` permite que el equipo SSO actualice desde la propia app cualquier URL de SharePoint (charlas semanales, biblioteca, documentos, etc.) sin editar código ni hacer redeploy.
@@ -328,4 +346,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-30 — v1.9.16 — Reglas de Oro 8/9/10 + reestructura cierre en 3 secciones + supersededSections + permanentlyRemovedQuestions + fix validateForm opciones string + 190 tests centinela*
+*Última actualización: 2026-04-30 — v1.9.16 — Enriquecimiento Correo 1-8 SharePoint desde Gestión de Líderes + fix prioridad instalación Q1 vs branch + 197 tests centinela*
