@@ -123,8 +123,8 @@ function mapReglasOroSucursales(sub) {
   // Desviación: alguna pregunta de selección de ruta respondida CON_OBSERVACIONES
   const hasDeviation = Object.values(d).some((v) => v === 'CON_OBSERVACIONES')
 
-  // Conductas observadas: checkboxes Q23, Q25, Q27, Q29, Q31, Q33, Q35, Q37, Q39, Q41, Q43, Q45
-  const CBQS = ['Q23','Q25','Q27','Q29','Q31','Q33','Q35','Q37','Q39','Q41','Q43','Q45']
+  // Conductas observadas: checkboxes op1–op10 (Q23,Q25,...,Q45 + Q55,Q57,Q59)
+  const CBQS = ['Q23','Q25','Q27','Q29','Q31','Q33','Q35','Q37','Q39','Q41','Q43','Q45','Q55','Q57','Q59']
   const conductas = CBQS.flatMap((k) => {
     const v = d[k]; if (!v) return []
     return Array.isArray(v) ? v : [String(v)]
@@ -141,7 +141,7 @@ function mapReglasOroSucursales(sub) {
     Regla_x0020_de_x0020_Oro:           d.Q20 || d.Q21 || '',
     Conducta_x0020_Observada:            conductas,
     '_x00bf_Existe_x0020_Desviaci_x00': hasDeviation ? 'Sí' : 'No',
-    Nombre_x0020_Colaborador:            d.Q17 || '',
+    Nombre_x0020_Colaborador:            d.Q49 || d.Q17 || '',
     Observaciones:                       d.Q47 || '',
     Equipo_x0020_de_x0020_Venta_x002:   d.Q9  || '',
     // Correos 1-6: personas Azure AD (Q3-Q8)
@@ -571,7 +571,7 @@ export async function submitFormToSharePoint(submission) {
   // Columnas asignadas dinámicamente desde el editor de formularios
   const editorCols = readEditorSpColumns(submission.formType)
   for (const [qId, col] of Object.entries(editorCols)) {
-    if (!col || fields[col] !== undefined) continue   // vacío o ya mapeado estáticamente
+    if (!col || fields[col]) continue   // vacío o ya mapeado estáticamente con valor
     const val = submission.answers?.[qId]
     if (val === undefined || val === null) continue
     fields[col] = Array.isArray(val) ? val.join(' | ') : String(val)
