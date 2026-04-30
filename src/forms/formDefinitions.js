@@ -261,6 +261,8 @@ export const formDefinitions = {
     title: 'Reglas de Oro',
     description: 'Verificación cumplimiento Reglas de Oro',
     metadata: { template: 'reglas-oro' },
+    // Q16 eliminado permanentemente — también se filtra del override aunque el sync de nube lo traiga de vuelta
+    permanentlyRemovedQuestions: ['Q16'],
     sections: [
 
       // ── S1: DATOS GENERALES ───────────────────────────────────────────────
@@ -268,7 +270,6 @@ export const formDefinitions = {
         id: 'dg', title: 'DATOS GENERALES',
         questions: [
           { id: 'Q1',  type: 'select', label: 'Instalación donde se realizará la Verificación de Reglas Oro', required: true, placeholder: 'Selecciona la instalación', options: ['Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo','Hijuelas','San Antonio','Viña del Mar','Miraflores','Huechuraba','Lo Espejo','Rancagua','Curicó','Talca','Chillán','Los Ángeles','Concepción','Temuco','Valdivia','Osorno','Puerto Montt','Castro','Coyhaique','Punta Arenas','San Felipe','Oficina Central','Oficina Vespucio'] },
-          { id: 'Q16', type: 'text', label: 'Nombre COORDINADOR SIGAS / JEFE DE CALIDAD',  required: true, placeholder: 'Escriba el nombre completo' },
         ],
       },
 

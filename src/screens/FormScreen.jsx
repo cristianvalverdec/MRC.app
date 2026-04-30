@@ -881,6 +881,7 @@ export default function FormScreen() {
     // Si la sección/pregunta no tiene visibleWhen estático pero sí tiene visibleCondition
     // (configurado desde el editor), se construye la función a partir de la condición serializable.
     if (editedOverride.sections && staticForm?.sections) {
+      const removedQIds = new Set(staticForm.permanentlyRemovedQuestions || [])
       const staticVWMap = {}
       staticForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => { if (q.visibleWhen) staticVWMap[q.id] = q.visibleWhen })
@@ -900,14 +901,16 @@ export default function FormScreen() {
           return {
             ...overrideSec,
             visibleWhen: secVisible,
-            questions: (overrideSec.questions || []).map((q) => {
-              let visWhen = staticVWMap[q.id] || buildVisibleFn(q.visibleCondition)
-              // Si la pregunta no tiene visibleWhen y no está en el estático, heredar de Q46
-              if (!visWhen && !staticVWMap[q.id] && q.id !== 'Q46' && q.id !== 'Q48') {
-                visWhen = q46VisWhen
-              }
-              return { ...q, visibleWhen: visWhen }
-            }),
+            questions: (overrideSec.questions || [])
+              .filter((q) => !removedQIds.has(q.id))
+              .map((q) => {
+                let visWhen = staticVWMap[q.id] || buildVisibleFn(q.visibleCondition)
+                // Si la pregunta no tiene visibleWhen y no está en el estático, heredar de Q46
+                if (!visWhen && !staticVWMap[q.id] && q.id !== 'Q46' && q.id !== 'Q48') {
+                  visWhen = q46VisWhen
+                }
+                return { ...q, visibleWhen: visWhen }
+              }),
           }
         }
 
@@ -922,18 +925,38 @@ export default function FormScreen() {
           visibleWhen: secVisible,
           questions: (overrideSec.questions || [])
             .filter((q) => {
-              if (staticQIds.has(q.id)) return true    // pregunta del estático → siempre incluir
-              if (q.visibleCondition) return true      // condición explícita del editor → incluir
-              if (allStaticGated) return false         // huérfana en sección totalmente gateada → descartar
+              if (removedQIds.has(q.id)) return false   // eliminada permanentemente → siempre excluir
+              if (staticQIds.has(q.id)) return true     // pregunta del estático → siempre incluir
+              if (q.visibleCondition) return true       // condición explícita del editor → incluir
+              if (allStaticGated) return false          // huérfana en sección totalmente gateada → descartar
               return true
             })
-            .map((q) => ({
-              ...q,
-              visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
-            })),
+            .map((q) => {
+              // Si el estático tiene MÁS opciones que el override (se agregaron opciones nuevas),
+              // usar las opciones del estático para que las nuevas aparezcan sin resetear el override.
+              const sq = staticSec?.questions?.find((s) => s.id === q.id)
+              const options = (sq?.options?.length ?? 0) > (q.options?.length ?? 0)
+                ? sq.options
+                : q.options
+              return {
+                ...q,
+                ...(options !== undefined ? { options } : {}),
+                visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
+              }
+            }),
         }
       })
-      return { ...staticForm, ...editedOverride, sections: mergedSections }
+      // Incluir secciones del estático que no existen en el override (añadidas después de guardar).
+      // Se ubican respetando el orden del estático: override primero donde coinciden, luego estáticas nuevas.
+      const mergedSectionMap = Object.fromEntries(mergedSections.map((s) => [s.id, s]))
+      const finalSections = staticForm.sections.map(
+        (staticSec) => mergedSectionMap[staticSec.id] || staticSec
+      )
+      // Adjuntar secciones del override que no existen en el estático (creadas por el editor)
+      editedOverride.sections.forEach((s) => {
+        if (!staticForm.sections.find((ss) => ss.id === s.id)) finalSections.push(mergedSectionMap[s.id] || s)
+      })
+      return { ...staticForm, ...editedOverride, sections: finalSections }
     }
 
     // Formularios wizard: restaurar visibleWhen en cada pregunta del dict
