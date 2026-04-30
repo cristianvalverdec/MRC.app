@@ -5,6 +5,42 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.16] — 2026-04-30
+
+### Reglas de Oro 8/9/10 + reestructura de cierre + fix editor
+
+#### Reglas de Oro N°8, N°9 y N°10 — Área Operaciones
+Se agregaron las tres reglas faltantes al formulario "Pauta de Verificación de Reglas de Oro". Cada regla sigue el patrón exacto de op1–op7: sección gateada a Q20, pregunta radio SIN/CON OBSERVACIONES con `conductasList`, y pregunta checkbox de conductas desviadas visible solo al marcar CON OBSERVACIONES.
+
+- **N°8 — Orden y Aseo:** Q54 (radio) + Q55 (checkbox, 6 conductas NORMAL)
+- **N°9 — No Interactuar con Equipos en Movimiento:** Q56 (radio) + Q57 (checkbox, 2 conductas GRAVE)
+- **N°10 — Informar Incidentes y Accidentes:** Q58 (radio) + Q59 (checkbox, 4 conductas GRAVE)
+
+#### Reestructura del cierre en 3 secciones independientes
+La sección monolítica `cierre` fue dividida en tres secciones con visibilidad propia, eliminando la ambigüedad de qué preguntas pertenecían a cada ruta:
+
+| Sección | Visibilidad | Preguntas |
+|---|---|---|
+| `retro_positiva` — RETROALIMENTACIÓN POSITIVA | Cualquier respuesta = SIN_OBSERVACIONES | Q46 (yesno, sin N/A) + Q51 (texto) |
+| `retro_correctiva` — RETROALIMENTACIÓN CORRECTIVA | Cualquier respuesta = CON_OBSERVACIONES | Q48 (yesno, sin N/A) + Q53 (texto) |
+| `cierre_final` — CIERRE | Cualquier respuesta = SIN o CON | Q49 (nombre colaborador) + Q50 (RUT) |
+
+Mecanismo `supersededSections: ['cierre']` en la definición estática para que FormScreen ignore la sección `cierre` guardada en overrides anteriores y use las tres nuevas.
+
+#### Eliminación permanente de Q16
+`permanentlyRemovedQuestions: ['Q16']` impide que la pregunta "Nombre COORDINADOR SIGAS / JEFE DE CALIDAD" reaparezca tras sync con SharePoint.
+
+#### Fix: Q46 sin opción N/A
+`disableNA: true` en Q46 (retroalimentación positiva). El componente `QuestionYesNo` ya soportaba este flag.
+
+#### Fix: editor bloqueaba guardado con formularios sin override
+`validateForm` interpretaba las opciones almacenadas como strings (formato estático) como "opción sin texto", generando errores falsos que bloqueaban el guardado al intentar asignar columnas SharePoint. Ahora normaliza strings y objetos `{value, label}` por igual.
+
+#### Mejora interna: FormScreen hereda tipo y opciones estáticas al hacer merge
+Cuando el estático tiene más opciones que el override (nuevas reglas agregadas después de guardar), las opciones estáticas ganan automáticamente sin necesidad de resetear el override.
+
+---
+
 ## [1.9.15] — 2026-04-27 (segunda entrega)
 
 ### Editor 100% fiable + asignación de listas SharePoint a formularios custom

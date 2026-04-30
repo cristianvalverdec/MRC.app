@@ -273,6 +273,9 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 13. **Nunca leer `import.meta.env.VITE_SP_SEMANA_*` o `import.meta.env.VITE_SP_BIBLIOTECA_URL` directamente en componentes.** Usar siempre `getLink(id)` de `urlLinksService.js` para respetar los overrides configurados por el admin desde la app. Los env vars siguen funcionando como fallback — solo se omite el override si se bypasea el servicio.
 14. **Nunca duplicar GUIDs de listas SharePoint.** La fuente de verdad es `src/services/sharepointLists.js`. Si se necesita un GUID en otro archivo, importar de ahí (`SHAREPOINT_LIST_BY_KEY`, `SHAREPOINT_LIST_BY_GUID`). No pegar el GUID a mano en otro módulo.
 15. **Nunca crear formularios custom sin `listId`.** `NewFormModal` bloquea si no se elige lista. Si se crea un custom form programáticamente (tests, migraciones), incluir siempre el campo `listId` con el GUID correcto.
+16. **`supersededSections`** — cuando una sección estática se divide o renombra, agregar su ID antiguo a `supersededSections: [...]` en la definición del formulario. `FormScreen` filtra esas secciones del override antes del merge, evitando que la versión antigua del override tape las secciones estáticas nuevas. Ejemplo: la sección `cierre` fue dividida en `retro_positiva`, `retro_correctiva` y `cierre_final` en v1.9.16.
+17. **`permanentlyRemovedQuestions`** — para eliminar de forma permanente una pregunta de un formulario estático (ej. Q16), agregarla a `permanentlyRemovedQuestions: [...]` en la definición. `FormScreen` la filtra en el merge aunque la pregunta reaparezca en un override sincronizado desde la nube.
+18. **`validateForm` acepta opciones como strings o como objetos `{value, label}`.** El estático puede almacenar opciones como strings simples; el editor las convierte a objetos al guardar. No asumir que todas las opciones tienen propiedad `.label` — siempre normalizar con `typeof o === 'string' ? o : (o?.label || '')` antes de validar.
 
 ---
 
@@ -325,4 +328,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-27 — v1.9.15 — editor 100% fiable (F1–F5) + catálogo único SharePoint + fail-loud en envío + archive de formularios + 176 tests centinela*
+*Última actualización: 2026-04-30 — v1.9.16 — Reglas de Oro 8/9/10 + reestructura cierre en 3 secciones + supersededSections + permanentlyRemovedQuestions + fix validateForm opciones string + 190 tests centinela*
