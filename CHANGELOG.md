@@ -5,6 +5,40 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.17] — 2026-04-30
+
+### Sistema de Visibilidad de Pantallas (Control de Admin)
+
+El administrador ahora puede habilitar o deshabilitar cualquier pantalla de la app directamente desde su panel de control, sin necesidad de modificar código ni hacer redeploy.
+
+#### Funcionalidad
+
+- **Panel de control:** nueva tarjeta "Visibilidad de Pantallas" (badge ADMIN) en ToolsMenuScreen → ruta `/admin/screen-visibility`.
+- **16 pantallas toggleables** agrupadas en dos secciones: Menú Principal (6) y Herramientas Preventivas (10).
+- **Comportamiento para usuarios regulares:** las pantallas deshabilitadas se muestran en el menú grisáceas con badge "NO DISPONIBLE". Si navegan directamente por URL, ven una página de bloqueo con botón "Volver".
+- **Comportamiento para administradores:** siempre pueden acceder. Si la pantalla está deshabilitada, ven un banner naranja de aviso pero el contenido se muestra íntegro.
+
+#### Arquitectura técnica
+
+- **`src/config/screenRegistry.js`** — registro estático de las 16 pantallas toggleables con `key`, `label` y grupo (`principal` / `herramientas`). Fuente de verdad para el panel y los guards.
+- **`src/store/screenVisibilityStore.js`** — Zustand store con `persist` (clave localStorage: `mrc-screen-visibility`). Métodos: `toggleScreen(key)`, `isScreenDisabled(key)`, `setDisabledScreens(map)`.
+- **`src/components/ui/ScreenGuard.jsx`** — wrapper de rutas que bloquea a usuarios regulares y muestra banner a admins cuando la pantalla está deshabilitada.
+- **`src/screens/ScreenVisibilityAdminScreen.jsx`** — pantalla admin con toggles por grupo, indicador de dot verde/rojo por pantalla y indicador de sync al pie.
+- **Sincronización con SharePoint:** `disabledScreens` se incluye en el payload de `mrc-forms-config.json` (mismo archivo y pipeline de sync que los formularios). Sin archivo nuevo, sin dependencia adicional.
+- **`MenuCard`:** nueva prop `disabled` que aplica opacidad 45%, filtro grayscale, icono gris `#4B5563`, badge en rojo y oculta el chevron.
+
+#### Pantallas toggleables
+
+| Grupo | Pantallas |
+|---|---|
+| Menú Principal | tools, status, analytics, goals, cphs, salud |
+| Herramientas Preventivas | pauta-verificacion-reglas-oro, caminata-seguridad, inspeccion-simple, difusiones-sso, cierre-condiciones, monitor-fatiga, contratistas, observacion-conductual, inspeccion-planificada, lideres |
+
+#### Tests centinela
+23 tests nuevos (220 total, 0 fallos) cubren: screenRegistry, screenVisibilityStore, formEditorStore sync, ScreenGuard, App.jsx rutas, MenuCard prop disabled y ScreenVisibilityAdminScreen.
+
+---
+
 ## [1.9.16] — 2026-04-30 (actualizado 2)
 
 ### Enriquecimiento automático de correos desde Gestión de Líderes

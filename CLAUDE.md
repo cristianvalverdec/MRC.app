@@ -294,6 +294,7 @@ Los logos viven en `public/` y se referencian con `${import.meta.env.BASE_URL}no
 16. **`supersededSections`** — cuando una sección estática se divide o renombra, agregar su ID antiguo a `supersededSections: [...]` en la definición del formulario. `FormScreen` filtra esas secciones del override antes del merge, evitando que la versión antigua del override tape las secciones estáticas nuevas. Ejemplo: la sección `cierre` fue dividida en `retro_positiva`, `retro_correctiva` y `cierre_final` en v1.9.16.
 17. **`permanentlyRemovedQuestions`** — para eliminar de forma permanente una pregunta de un formulario estático (ej. Q16), agregarla a `permanentlyRemovedQuestions: [...]` en la definición. `FormScreen` la filtra en el merge aunque la pregunta reaparezca en un override sincronizado desde la nube.
 18. **`validateForm` acepta opciones como strings o como objetos `{value, label}`.** El estático puede almacenar opciones como strings simples; el editor las convierte a objetos al guardar. No asumir que todas las opciones tienen propiedad `.label` — siempre normalizar con `typeof o === 'string' ? o : (o?.label || '')` antes de validar.
+19. **Al agregar una pantalla nueva al menú:** agregar su entrada en `src/config/screenRegistry.js` con el `screenKey` correcto, y envolver la ruta en `App.jsx` con `<ScreenGuard screenKey="...">`. Sin esto, la pantalla no puede ser deshabilitada desde el panel de admin.
 
 ---
 
@@ -314,7 +315,25 @@ src/__tests__/
 
 ---
 
-## 12. Módulos pendientes / WIP
+## 12. Sistema de Visibilidad de Pantallas (v1.9.17)
+
+El admin puede habilitar/deshabilitar cualquier pantalla desde el panel **Visibilidad de Pantallas** (`/admin/screen-visibility`), accesible desde la tarjeta ADMIN en ToolsMenuScreen.
+
+### Archivos clave
+- `src/config/screenRegistry.js` — registro estático de pantallas toggleables (16 screens)
+- `src/store/screenVisibilityStore.js` — Zustand store con `persist` (clave: `mrc-screen-visibility`)
+- `src/components/ui/ScreenGuard.jsx` — wrapper para rutas: bloquea a usuarios, banner a admins
+- `src/screens/ScreenVisibilityAdminScreen.jsx` — panel de control con toggles
+
+### Comportamiento
+- **Usuarios regulares:** pantallas deshabilitadas aparecen en el menú grisáceas con badge "NO DISPONIBLE". Si navegan directo por URL → pantalla de bloqueo con mensaje.
+- **Admins:** pueden acceder siempre. Ven un banner naranja si la pantalla está deshabilitada.
+- **Sync:** `disabledScreens` viaja dentro de `mrc-forms-config.json` en SharePoint (mismo pipeline que formularios). Sin archivo nuevo, sin pipeline nuevo.
+- **Regla:** al agregar una pantalla nueva al menú, agregar su `screenKey` en `screenRegistry.js` y envolver su ruta en `App.jsx` con `<ScreenGuard screenKey="...">`.
+
+---
+
+## 13. Módulos pendientes / WIP
 
 - **Monitor de Fatiga Operacional:** ruta existe (`/unit/:unitType/monitor-fatiga`), pantalla es stub.
 - **PIN de identificación:** campo preparado en SharePoint, falta integrar en formularios para cuentas grupales.
@@ -346,4 +365,4 @@ src/__tests__/
 
 ---
 
-*Última actualización: 2026-04-30 — v1.9.16 — Enriquecimiento Correo 1-8 SharePoint desde Gestión de Líderes + fix prioridad instalación Q1 vs branch + 197 tests centinela*
+*Última actualización: 2026-04-30 — v1.9.17 — Sistema de Visibilidad de Pantallas: panel admin para habilitar/deshabilitar pantallas + sync SharePoint + ScreenGuard + 220 tests centinela*

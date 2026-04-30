@@ -6,6 +6,7 @@ import { InteractionStatus } from '@azure/msal-browser'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import UpdateBanner from './components/ui/UpdateBanner'
 import InstallPrompt from './components/ui/InstallPrompt'
+import ScreenGuard from './components/ui/ScreenGuard'
 import useFormEditorStore from './store/formEditorStore'
 import useUserStore from './store/userStore'
 import { getGraphToken, msalInstance } from './config/msalInstance'
@@ -43,6 +44,7 @@ const NotificacionesAdminScreen    = lazy(() => import('./screens/Notificaciones
 const ValidacionAdminScreen        = lazy(() => import('./screens/ValidacionAdminScreen'))
 const MisDocumentosScreen          = lazy(() => import('./screens/MisDocumentosScreen'))
 const PermisosSharePointScreen     = lazy(() => import('./screens/PermisosSharePointScreen'))
+const ScreenVisibilityAdminScreen  = lazy(() => import('./screens/ScreenVisibilityAdminScreen'))
 
 // ── Error Boundary — evita blank screen total ante cualquier error de render ──
 class ErrorBoundary extends Component {
@@ -111,31 +113,32 @@ function AnimatedRoutes() {
         <Route path="/"                          element={<SplashScreen />} />
         <Route path="/select-unit"               element={<SelectUnitScreen />} />
         <Route path="/unit/:unitType"            element={<UnitMenuScreen />} />
-        <Route path="/unit/:unitType/tools"      element={<ToolsMenuScreen />} />
-        <Route path="/unit/:unitType/status"     element={<DailyStatusScreen />} />
-        <Route path="/unit/:unitType/analytics"  element={<AnalyticsScreen />} />
-        <Route path="/form/:formType"                element={<FormScreen />} />
-        <Route path="/unit/:unitType/goals"              element={<ProgramGoalsScreen />} />
-        <Route path="/unit/:unitType/cierre-condiciones" element={<CierreCondicionesScreen />} />
-        <Route path="/unit/:unitType/cphs"                       element={<GestionCPHSScreen />} />
-        <Route path="/unit/:unitType/cphs/programa-trabajo"    element={<ProgramaTrabajoScreen />} />
-        <Route path="/unit/:unitType/salud"             element={<GestionSaludScreen />} />
-        <Route path="/unit/:unitType/difusiones-sso"  element={<DifusionesSSOScreen />} />
-        <Route path="/unit/:unitType/monitor-fatiga"  element={<MonitorFatigaScreen />} />
-        <Route path="/unit/:unitType/contratistas"   element={<ContratistasScreen />} />
-        <Route path="/profile"                           element={<ProfileScreen />} />
+        <Route path="/unit/:unitType/tools"      element={<ScreenGuard screenKey="tools"><ToolsMenuScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/status"     element={<ScreenGuard screenKey="status"><DailyStatusScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/analytics"  element={<ScreenGuard screenKey="analytics"><AnalyticsScreen /></ScreenGuard>} />
+        <Route path="/form/:formType"            element={<FormScreen />} />
+        <Route path="/unit/:unitType/goals"              element={<ScreenGuard screenKey="goals"><ProgramGoalsScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/cierre-condiciones" element={<ScreenGuard screenKey="cierre-condiciones"><CierreCondicionesScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/cphs"                    element={<ScreenGuard screenKey="cphs"><GestionCPHSScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/cphs/programa-trabajo"   element={<ProgramaTrabajoScreen />} />
+        <Route path="/unit/:unitType/salud"            element={<ScreenGuard screenKey="salud"><GestionSaludScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/difusiones-sso"   element={<ScreenGuard screenKey="difusiones-sso"><DifusionesSSOScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/monitor-fatiga"   element={<ScreenGuard screenKey="monitor-fatiga"><MonitorFatigaScreen /></ScreenGuard>} />
+        <Route path="/unit/:unitType/contratistas"     element={<ScreenGuard screenKey="contratistas"><ContratistasScreen /></ScreenGuard>} />
+        <Route path="/profile"                         element={<ProfileScreen />} />
         {/* Directorio de líderes (lectura) */}
-        <Route path="/unit/:unitType/lideres"        element={<LideresScreen />} />
+        <Route path="/unit/:unitType/lideres"          element={<ScreenGuard screenKey="lideres"><LideresScreen /></ScreenGuard>} />
         {/* Admin routes */}
-        <Route path="/admin/fa-data"                 element={<FADataEntryScreen />} />
-        <Route path="/admin/form-editor"             element={<FormEditorListScreen />} />
-        <Route path="/admin/form-editor/:formId"     element={<FormEditorDetailScreen />} />
-        <Route path="/admin/lideres"                 element={<LideresAdminScreen />} />
-        <Route path="/admin/lideres/:instalacion"    element={<InstalacionDetailScreen />} />
-        <Route path="/admin/sharepoint-connections" element={<SharePointConnectionsScreen />} />
-        <Route path="/admin/notificaciones"         element={<NotificacionesAdminScreen />} />
-        <Route path="/admin/validaciones"           element={<ValidacionAdminScreen />} />
-        <Route path="/admin/permisos-sharepoint"    element={<PermisosSharePointScreen />} />
+        <Route path="/admin/fa-data"                   element={<FADataEntryScreen />} />
+        <Route path="/admin/form-editor"               element={<FormEditorListScreen />} />
+        <Route path="/admin/form-editor/:formId"       element={<FormEditorDetailScreen />} />
+        <Route path="/admin/lideres"                   element={<LideresAdminScreen />} />
+        <Route path="/admin/lideres/:instalacion"      element={<InstalacionDetailScreen />} />
+        <Route path="/admin/sharepoint-connections"    element={<SharePointConnectionsScreen />} />
+        <Route path="/admin/notificaciones"            element={<NotificacionesAdminScreen />} />
+        <Route path="/admin/validaciones"              element={<ValidacionAdminScreen />} />
+        <Route path="/admin/permisos-sharepoint"       element={<PermisosSharePointScreen />} />
+        <Route path="/admin/screen-visibility"         element={<ScreenVisibilityAdminScreen />} />
         {/* Buzón de notificaciones del usuario */}
         <Route path="/notifications"               element={<NotificationsScreen />} />
         {/* Historial de documentos enviados por el usuario */}

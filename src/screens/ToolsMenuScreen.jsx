@@ -6,6 +6,7 @@ import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import useUserStore from '../store/userStore'
 import useFormEditorStore from '../store/formEditorStore'
+import useScreenVisibilityStore from '../store/screenVisibilityStore'
 
 // En dev mode (sin Azure AD real), siempre se considera admin
 const IS_DEV_MODE =
@@ -19,6 +20,7 @@ const toolsBySucursales = [
     sublabel: 'Reglas de Oro — verificación conductual',
     accentColor: '#1A52B8',
     formType: 'pauta-verificacion-reglas-oro',
+    screenKey: 'pauta-verificacion-reglas-oro',
   },
   {
     icon: <PersonStanding size={22} color="#fff" />,
@@ -26,6 +28,7 @@ const toolsBySucursales = [
     sublabel: 'Recorrido de inspección en terreno',
     accentColor: '#27AE60',
     formType: 'caminata-seguridad',
+    screenKey: 'caminata-seguridad',
   },
   {
     icon: <Search size={22} color="#fff" />,
@@ -33,6 +36,7 @@ const toolsBySucursales = [
     sublabel: 'Revisión de equipos y espacios',
     accentColor: '#F57C20',
     formType: 'inspeccion-simple',
+    screenKey: 'inspeccion-simple',
   },
   {
     icon: <Megaphone size={22} color="#fff" />,
@@ -40,13 +44,15 @@ const toolsBySucursales = [
     sublabel: 'Registro de charlas y capacitaciones',
     accentColor: '#2F80ED',
     route: 'difusiones-sso',
+    screenKey: 'difusiones-sso',
   },
   {
     icon: <ShieldCheck size={22} color="#fff" />,
     label: 'Cierre de Condiciones',
     sublabel: 'Registro de cierre de hallazgos inseguros',
     accentColor: '#27AE60',
-    route: 'cierre-condiciones',   // ruta directa (no form genérico)
+    route: 'cierre-condiciones',
+    screenKey: 'cierre-condiciones',
   },
   {
     icon: <Brain size={22} color="#fff" />,
@@ -54,6 +60,7 @@ const toolsBySucursales = [
     sublabel: 'Test de fatiga para operadores de EQR',
     accentColor: '#0891B2',
     route: 'monitor-fatiga',
+    screenKey: 'monitor-fatiga',
   },
   {
     icon: <HardHat size={22} color="#fff" />,
@@ -61,6 +68,7 @@ const toolsBySucursales = [
     sublabel: 'Verificación de condiciones para empresas contratistas',
     accentColor: '#E85D04',
     route: 'contratistas',
+    screenKey: 'contratistas',
   },
 ]
 
@@ -71,6 +79,7 @@ const toolsByFuerzaVentas = [
     sublabel: 'Registro de comportamientos seguros',
     accentColor: '#1A52B8',
     formType: 'observacion-conductual',
+    screenKey: 'observacion-conductual',
   },
   {
     icon: <CalendarCheck size={22} color="#fff" />,
@@ -78,6 +87,7 @@ const toolsByFuerzaVentas = [
     sublabel: 'Inspección programada de riesgos',
     accentColor: '#27AE60',
     formType: 'inspeccion-planificada',
+    screenKey: 'inspeccion-planificada',
   },
   {
     icon: <Megaphone size={22} color="#fff" />,
@@ -85,6 +95,7 @@ const toolsByFuerzaVentas = [
     sublabel: 'Registro de charlas y capacitaciones',
     accentColor: '#2F80ED',
     route: 'difusiones-sso',
+    screenKey: 'difusiones-sso',
   },
   {
     icon: <Brain size={22} color="#fff" />,
@@ -92,6 +103,7 @@ const toolsByFuerzaVentas = [
     sublabel: 'Test de fatiga para operadores de EQR',
     accentColor: '#0891B2',
     route: 'monitor-fatiga',
+    screenKey: 'monitor-fatiga',
   },
 ]
 
@@ -106,9 +118,11 @@ export default function ToolsMenuScreen() {
   const puedeVerDirectorio = nivelEfectivo >= 2
   const customForms = useFormEditorStore((s) => s.customForms)
   const editedForms = useFormEditorStore((s) => s.editedForms)
+  const isScreenDisabled = useScreenVisibilityStore((s) => s.isScreenDisabled)
+
+  const baseTools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
 
   // Filtrar tools estáticas excluyendo formularios archivados desde el editor
-  const baseTools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
   const tools = baseTools.filter((t) => !t.formType || !editedForms[t.formType]?.archived)
 
   // Formularios custom creados por admin, filtrados por unidad y excluyendo archivados
@@ -119,6 +133,8 @@ export default function ToolsMenuScreen() {
     if (unitType === 'fuerza-de-ventas' && f.unit === 'Fuerza de Ventas') return true
     return false
   })
+
+  const lideresDisabled = !isAdmin && isScreenDisabled('lideres')
 
   return (
     <div
@@ -152,21 +168,26 @@ export default function ToolsMenuScreen() {
           animate="animate"
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
-          {tools.map((tool, i) => (
-            <motion.div key={i} variants={itemVariants}>
-              <MenuCard
-                icon={tool.icon}
-                label={tool.label}
-                sublabel={tool.sublabel}
-                accentColor={tool.accentColor}
-                onClick={() =>
-                  tool.route
-                    ? navigate(`/unit/${unitType}/${tool.route}`)
-                    : navigate(`/form/${tool.formType}`)
-                }
-              />
-            </motion.div>
-          ))}
+          {tools.map((tool, i) => {
+            const disabled = !isAdmin && isScreenDisabled(tool.screenKey)
+            return (
+              <motion.div key={i} variants={itemVariants}>
+                <MenuCard
+                  icon={tool.icon}
+                  label={tool.label}
+                  sublabel={tool.sublabel}
+                  accentColor={tool.accentColor}
+                  onClick={() =>
+                    tool.route
+                      ? navigate(`/unit/${unitType}/${tool.route}`)
+                      : navigate(`/form/${tool.formType}`)
+                  }
+                  disabled={disabled}
+                  badge={disabled ? 'NO DISPONIBLE' : undefined}
+                />
+              </motion.div>
+            )
+          })}
 
           {/* ── Formularios custom creados por admin ──────────────────── */}
           {customTools.length > 0 && (
@@ -225,16 +246,17 @@ export default function ToolsMenuScreen() {
                   sublabel="Directorio de contactos de jefatura"
                   accentColor="#27AE60"
                   onClick={() => navigate(`/unit/${unitType}/lideres`)}
+                  disabled={lideresDisabled}
+                  badge={lideresDisabled ? 'NO DISPONIBLE' : undefined}
                 />
               </motion.div>
             </>
           )}
 
-          {/* ── Card exclusiva para Administrador ─────────────────────── */}
+          {/* ── Cards exclusivas para Administrador ─────────────────────── */}
           {isAdmin && (
             <>
               <motion.div variants={itemVariants}>
-                {/* Separador visual */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -293,6 +315,16 @@ export default function ToolsMenuScreen() {
                   accentColor="#7B3FE4"
                   badge="ADMIN"
                   onClick={() => navigate('/admin/notificaciones')}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <MenuCard
+                  icon={<Eye size={22} color="#fff" />}
+                  label="Visibilidad de Pantallas"
+                  sublabel="Habilitar o deshabilitar secciones de la app"
+                  accentColor="#B45309"
+                  badge="ADMIN"
+                  onClick={() => navigate('/admin/screen-visibility')}
                 />
               </motion.div>
             </>

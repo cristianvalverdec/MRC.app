@@ -11,6 +11,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { syncFormsToSharePoint, loadFormsFromSharePoint } from '../services/sharepointSync'
+import useScreenVisibilityStore from './screenVisibilityStore'
 
 const useFormEditorStore = create(
   persist(
@@ -133,13 +134,14 @@ const useFormEditorStore = create(
       // ── Sincronización con SharePoint ──────────────────────────────────
       _syncToCloud: async () => {
         const { editedForms, customForms } = get()
+        const disabledScreens = useScreenVisibilityStore.getState().disabledScreens
         const savedAt = new Date().toISOString()
         // Grabar lastSyncedAt ANTES del upload: protege los datos locales
         // aunque la subida a SharePoint falle. pullFromCloud compara contra
         // este timestamp y no sobrescribirá datos locales más nuevos.
         set({ syncStatus: 'syncing', lastSyncedAt: savedAt, lastSyncError: null })
         try {
-          await syncFormsToSharePoint({ editedForms, customForms, savedAt })
+          await syncFormsToSharePoint({ editedForms, customForms, disabledScreens, savedAt })
           set({ syncStatus: 'success', lastSyncError: null })
         } catch (err) {
           const message = err?.message || 'Error desconocido al sincronizar'
@@ -205,6 +207,9 @@ const useFormEditorStore = create(
                 lastPullError: null,
                 lastSyncedAt:  cloudSavedAt || nowIso,
               })
+              if (data.disabledScreens) {
+                useScreenVisibilityStore.getState().setDisabledScreens(data.disabledScreens)
+              }
               console.info('[MRC Sync] Store actualizado desde SharePoint ✓')
             } else {
               set({ pullStatus: 'success', lastPullAt: nowIso, lastPullError: null })
