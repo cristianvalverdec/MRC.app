@@ -635,7 +635,7 @@ export async function submitFormToSharePoint(submission) {
   // o desde el branch almacenado en el submission. Los líderes provienen
   // del módulo "Gestión de Líderes" y son la fuente de verdad para el
   // enrutamiento de notificaciones vía Power Automate.
-  const branch = submission.branch || submission.answers?.Q1 || ''
+  const branch = submission.answers?.Q1 || submission.branch || ''
   const lideresMap = await fetchLideresEmailMap(branch)
   applyLideresEmails(fields, lideresMap)
 

@@ -519,7 +519,8 @@ describe('sharepointData — Enriquecimiento Correo 1-8 desde líderes', () => {
     expect(sharepointDataSrc).toContain('applyLideresEmails(fields, lideresMap)')
   })
 
-  it('detecta la instalación desde submission.branch o answers.Q1', () => {
-    expect(sharepointDataSrc).toContain('submission.branch || submission.answers?.Q1')
+  it('prioriza answers.Q1 sobre submission.branch para detectar la instalación', () => {
+    // Q1 es la instalación seleccionada en el formulario (puede diferir del perfil del usuario)
+    expect(sharepointDataSrc).toContain('submission.answers?.Q1 || submission.branch')
   })
 })
