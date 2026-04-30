@@ -134,7 +134,7 @@ export default function ToolsMenuScreen() {
     return false
   })
 
-  const lideresDisabled = !isAdmin && isScreenDisabled('lideres')
+  const lideresDisabled = isScreenDisabled('lideres')
 
   return (
     <div
@@ -169,7 +169,7 @@ export default function ToolsMenuScreen() {
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {tools.map((tool, i) => {
-            const disabled = !isAdmin && isScreenDisabled(tool.screenKey)
+            const disabled = isScreenDisabled(tool.screenKey)
             return (
               <motion.div key={i} variants={itemVariants}>
                 <MenuCard

@@ -98,10 +98,12 @@ describe('ScreenGuard — componente de protección de rutas', () => {
     expect(src).toContain('Pantalla no disponible')
   })
 
-  it('renderiza AdminDisabledBanner cuando el admin accede a pantalla deshabilitada', () => {
+  it('bloquea el acceso a todos los perfiles cuando la pantalla está deshabilitada', () => {
     const src = read('components/ui/ScreenGuard.jsx')
-    expect(src).toContain('AdminDisabledBanner')
-    expect(src).toContain('deshabilitada')
+    // El guard bloquea a todos (admins incluidos): no hay excepción por rol
+    expect(src).toContain('isScreenDisabled(screenKey)')
+    expect(src).not.toContain('isAdmin')
+    expect(src).not.toContain('AdminDisabledBanner')
   })
 })
 

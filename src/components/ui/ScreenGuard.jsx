@@ -1,11 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../layout/AppHeader'
 import useScreenVisibilityStore from '../../store/screenVisibilityStore'
-import useUserStore from '../../store/userStore'
-
-const IS_DEV_MODE =
-  !import.meta.env.VITE_AZURE_CLIENT_ID ||
-  import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
 function NotAvailableScreen() {
   const navigate = useNavigate()
@@ -46,7 +41,7 @@ function NotAvailableScreen() {
           maxWidth: 280,
           marginBottom: 32,
         }}>
-          Esta funcionalidad aún no está habilitada. Contacta al administrador del programa.
+          Esta funcionalidad aún no está habilitada. Puedes habilitarla desde el panel de Visibilidad de Pantallas.
         </div>
         <button
           onClick={() => navigate(-1)}
@@ -71,44 +66,12 @@ function NotAvailableScreen() {
   )
 }
 
-function AdminDisabledBanner() {
-  return (
-    <div style={{
-      background: 'rgba(180,83,9,0.15)',
-      border: '1px solid rgba(180,83,9,0.4)',
-      borderRadius: 0,
-      padding: '10px 16px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-    }}>
-      <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
-      <span style={{
-        fontFamily: 'var(--font-body)',
-        fontSize: 12,
-        color: '#FCD34D',
-        lineHeight: 1.4,
-      }}>
-        Esta pantalla está <strong>deshabilitada</strong> para usuarios regulares. Solo los administradores pueden acceder.
-      </span>
-    </div>
-  )
-}
-
 export default function ScreenGuard({ screenKey, children }) {
   const isScreenDisabled = useScreenVisibilityStore((s) => s.isScreenDisabled)
-  const role = useUserStore((s) => s.role)
-  const isAdmin = role === 'admin' || IS_DEV_MODE
-  const disabled = isScreenDisabled(screenKey)
 
-  if (disabled && !isAdmin) {
+  if (isScreenDisabled(screenKey)) {
     return <NotAvailableScreen />
   }
 
-  return (
-    <>
-      {disabled && isAdmin && <AdminDisabledBanner />}
-      {children}
-    </>
-  )
+  return children
 }

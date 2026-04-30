@@ -6,11 +6,6 @@ import MenuCard from '../components/ui/MenuCard'
 import { containerVariants, itemVariants } from '../components/ui/menuCardVariants'
 import { unitLabels } from '../config/routes'
 import useScreenVisibilityStore from '../store/screenVisibilityStore'
-import useUserStore from '../store/userStore'
-
-const IS_DEV_MODE =
-  !import.meta.env.VITE_AZURE_CLIENT_ID ||
-  import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
 const menuItems = {
   sucursales: [
@@ -97,8 +92,6 @@ export default function UnitMenuScreen() {
   const items = menuItems[unitType] || menuItems.sucursales
   const label = unitLabels[unitType] || unitType
   const isScreenDisabled = useScreenVisibilityStore((s) => s.isScreenDisabled)
-  const role = useUserStore((s) => s.role)
-  const isAdmin = role === 'admin' || IS_DEV_MODE
 
   return (
     <div
@@ -134,7 +127,7 @@ export default function UnitMenuScreen() {
             style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             {items.map((item, i) => {
-              const disabled = !isAdmin && isScreenDisabled(item.screenKey)
+              const disabled = isScreenDisabled(item.screenKey)
               return (
                 <motion.div key={i} variants={itemVariants}>
                   <MenuCard
