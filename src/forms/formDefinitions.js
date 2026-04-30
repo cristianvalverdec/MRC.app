@@ -426,7 +426,7 @@ export const formDefinitions = {
         id: 'retro_positiva', title: 'RETROALIMENTACIÓN POSITIVA',
         visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
         questions: [
-          { id: 'Q46', type: 'yesno', required: true,
+          { id: 'Q46', type: 'yesno', required: true, disableNA: true,
             label: '¿Se comunicó el resultado de la retroalimentación positiva (sin desviaciones) al colaborador?',
           },
           { id: 'Q51', type: 'text', required: true,
