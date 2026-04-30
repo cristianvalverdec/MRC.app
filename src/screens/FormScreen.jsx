@@ -882,11 +882,15 @@ export default function FormScreen() {
     // (configurado desde el editor), se construye la función a partir de la condición serializable.
     if (editedOverride.sections && staticForm?.sections) {
       const removedQIds = new Set(staticForm.permanentlyRemovedQuestions || [])
+      // Secciones del override que fueron divididas/renombradas en el estático: se ignoran
+      // del override y se usan las versiones estáticas nuevas en su lugar.
+      const supersededSecs = new Set(staticForm.supersededSections || [])
       const staticVWMap = {}
       staticForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => { if (q.visibleWhen) staticVWMap[q.id] = q.visibleWhen })
       })
-      const mergedSections = editedOverride.sections.map((overrideSec) => {
+      const mergedSections = editedOverride.sections.filter((s) => !supersededSecs.has(s.id))
+        .map((overrideSec) => {
         const staticSec = staticForm.sections.find((s) => s.id === overrideSec.id)
         const secVisible = staticSec?.visibleWhen || buildVisibleFn(overrideSec.visibleCondition)
 

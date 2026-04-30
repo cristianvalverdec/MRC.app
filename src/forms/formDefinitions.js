@@ -263,6 +263,9 @@ export const formDefinitions = {
     metadata: { template: 'reglas-oro' },
     // Q16 eliminado permanentemente — también se filtra del override aunque el sync de nube lo traiga de vuelta
     permanentlyRemovedQuestions: ['Q16'],
+    // 'cierre' fue dividida en 3 secciones (retro_positiva, retro_correctiva, cierre_final).
+    // El override puede tener la sección antigua 'cierre' (guardada antes del cambio) — se ignora.
+    supersededSections: ['cierre'],
     sections: [
 
       // ── S1: DATOS GENERALES ───────────────────────────────────────────────
@@ -416,34 +419,46 @@ export const formDefinitions = {
         ],
       },
 
-      // ── S15: CIERRE ───────────────────────────────────────────────────────
-      // visibleWhen usa Object.values(a) para cubrir automáticamente cualquier
-      // Regla de Oro nueva (op8–op10 y futuras) sin modificar este bloque.
-      // Las condiciones por pregunta (Q46/Q51 solo si SIN, Q48/Q53 solo si CON)
-      // se definen aquí para que FormScreen las restaure al cargar el override.
+      // ── S15: RETROALIMENTACIÓN POSITIVA ──────────────────────────────────
+      // Visible cuando se marcó SIN OBSERVACIONES en cualquier regla.
+      // visibleWhen usa Object.values(a) para cubrir op1–op10 automáticamente.
       {
-        id: 'cierre', title: 'CIERRE',
-        visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES' || v === 'CON_OBSERVACIONES'),
+        id: 'retro_positiva', title: 'RETROALIMENTACIÓN POSITIVA',
+        visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
         questions: [
           { id: 'Q46', type: 'yesno', required: true,
             label: '¿Se comunicó el resultado de la retroalimentación positiva (sin desviaciones) al colaborador?',
-            visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
           },
           { id: 'Q51', type: 'text', required: true,
             label: 'Describa la retroalimentación POSITIVA realizada al colaborador:',
             placeholder: 'Escriba aquí la retroalimentación positiva entregada',
-            visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
           },
+        ],
+      },
+
+      // ── S16: RETROALIMENTACIÓN CORRECTIVA ────────────────────────────────
+      // Visible cuando se marcó CON OBSERVACIONES en cualquier regla.
+      {
+        id: 'retro_correctiva', title: 'RETROALIMENTACIÓN CORRECTIVA',
+        visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
+        questions: [
           { id: 'Q48', type: 'yesno', required: true,
             label: '¿La acción insegura observada amerita una "CARTA DE AMONESTACIÓN" escrita?',
             disableNA: true,
-            visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
           },
           { id: 'Q53', type: 'text', required: true,
             label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:',
             placeholder: 'Escriba aquí la retroalimentación correctiva entregada',
-            visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
           },
+        ],
+      },
+
+      // ── S17: CIERRE ───────────────────────────────────────────────────────
+      // Siempre visible cuando se completó cualquier regla (SIN o CON).
+      {
+        id: 'cierre_final', title: 'CIERRE',
+        visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES' || v === 'CON_OBSERVACIONES'),
+        questions: [
           { id: 'Q49', type: 'text', required: true,
             label: 'Nombre y Apellido del Colaborador Observado:',
             placeholder: 'Escriba el nombre completo del colaborador',

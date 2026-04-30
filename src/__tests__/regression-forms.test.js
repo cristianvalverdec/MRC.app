@@ -31,9 +31,11 @@ describe('FormEditorDetailScreen — initQuestions (regresión v1.2.6)', () => {
 })
 
 describe('FormScreen — override autoritativo restaura visibleWhen (regresión v1.3.x + v1.9.12)', () => {
-  it('el override del editor es autoritativo: usa editedOverride.sections directamente', () => {
-    // El formulario mostrado usa EXACTAMENTE lo que el admin guardó (no mezcla con estático)
-    expect(formScreen).toContain('editedOverride.sections.map')
+  it('el override del editor es autoritativo: usa editedOverride.sections como fuente base', () => {
+    // El formulario mostrado parte del override del admin.
+    // Solo se filtran secciones declaradas en supersededSections (divididas en el estático).
+    expect(formScreen).toContain('editedOverride.sections.filter')
+    expect(formScreen).toContain('supersededSecs')
   })
 
   it('debe restaurar visibleWhen de sección desde el estático (staticSec?.visibleWhen)', () => {
@@ -177,28 +179,35 @@ describe('formDefinitions — integridad estructural', () => {
 
 describe('pauta-verificacion-reglas-oro — CIERRE genérico (v1.9.15b)', () => {
   const form = formDefinitions['pauta-verificacion-reglas-oro']
-  const cierre = form?.sections?.find((s) => s.id === 'cierre')
-  const Q46 = cierre?.questions?.find((q) => q.id === 'Q46')
-  const Q48 = cierre?.questions?.find((q) => q.id === 'Q48')
+  // La sección 'cierre' fue dividida en 3: retro_positiva, retro_correctiva, cierre_final
+  const cierreFinal = form?.sections?.find((s) => s.id === 'cierre_final')
+  const retroPositiva = form?.sections?.find((s) => s.id === 'retro_positiva')
+  const retroCorrectiva = form?.sections?.find((s) => s.id === 'retro_correctiva')
+  const Q46 = retroPositiva?.questions?.find((q) => q.id === 'Q46')
+  const Q48 = retroCorrectiva?.questions?.find((q) => q.id === 'Q48')
 
   it('la sección CIERRE usa Object.values() para detectar SIN/CON — no lista fija de IDs', () => {
-    // Verifica que respuestas de CUALQUIER pregunta con valor SIN_OBSERVACIONES activen CIERRE
+    // Verifica que respuestas de CUALQUIER pregunta con valor SIN/CON activen cierre_final
     const answerConId = { Q999: 'SIN_OBSERVACIONES' } // ID inventado, no está en la lista estática
-    expect(cierre?.visibleWhen?.(answerConId)).toBe(true)
+    expect(cierreFinal?.visibleWhen?.(answerConId)).toBe(true)
     const answerConObs = { Q888: 'CON_OBSERVACIONES' }
-    expect(cierre?.visibleWhen?.(answerConObs)).toBe(true)
+    expect(cierreFinal?.visibleWhen?.(answerConObs)).toBe(true)
     const answerVacio = { Q22: null }
-    expect(cierre?.visibleWhen?.(answerVacio)).toBe(false)
+    expect(cierreFinal?.visibleWhen?.(answerVacio)).toBe(false)
   })
 
   it('Q46 es visible con cualquier pregunta = SIN_OBSERVACIONES', () => {
-    expect(Q46?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(true)
-    expect(Q46?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(false)
+    // Q46 vive en la sección retro_positiva (visible cuando SIN_OBSERVACIONES)
+    expect(retroPositiva?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(true)
+    expect(retroPositiva?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(false)
+    expect(Q46).toBeDefined()
   })
 
   it('Q48 es visible con cualquier pregunta = CON_OBSERVACIONES', () => {
-    expect(Q48?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(true)
-    expect(Q48?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(false)
+    // Q48 vive en la sección retro_correctiva (visible cuando CON_OBSERVACIONES)
+    expect(retroCorrectiva?.visibleWhen?.({ QX: 'CON_OBSERVACIONES' })).toBe(true)
+    expect(retroCorrectiva?.visibleWhen?.({ QX: 'SIN_OBSERVACIONES' })).toBe(false)
+    expect(Q48).toBeDefined()
   })
 
   it('preguntas de cierre NUNCA usan lista hardcodeada de IDs', () => {
@@ -459,29 +468,39 @@ describe('FormScreen — herencia automática en CIERRE (preguntas huérfanas he
     expect(formScreen).toContain("q.id !== 'Q46' && q.id !== 'Q48'")
   })
 
-  it('la sección CIERRE en formDefinitions tiene Q46, Q51, Q48, Q53, Q49, Q50 con visibleWhen correcto', () => {
+  it('el flujo de cierre tiene 3 secciones: retro_positiva, retro_correctiva, cierre_final', () => {
     const form = formDefinitions['pauta-verificacion-reglas-oro']
-    const cierre = form.sections.find((s) => s.id === 'cierre')
-    expect(cierre).toBeDefined()
-    const qs = cierre.questions
-    expect(qs).toHaveLength(6)
-    // Q46 y Q51 → SIN_OBSERVACIONES; Q48 y Q53 → CON_OBSERVACIONES; Q49 y Q50 → siempre visibles
-    expect(qs.map((q) => q.id)).toEqual(['Q46', 'Q51', 'Q48', 'Q53', 'Q49', 'Q50'])
-    // Las 4 primeras tienen visibleWhen; Q49 y Q50 son siempre visibles dentro de la sección
-    const withCondition = qs.filter((q) => typeof q.visibleWhen === 'function')
-    expect(withCondition.map((q) => q.id)).toEqual(expect.arrayContaining(['Q46', 'Q51', 'Q48', 'Q53']))
-    // Q46 y Q51 se activan con SIN_OBSERVACIONES
     const sinAnswers = { Q22: 'SIN_OBSERVACIONES' }
-    expect(qs.find(q => q.id === 'Q46').visibleWhen(sinAnswers)).toBe(true)
-    expect(qs.find(q => q.id === 'Q51').visibleWhen(sinAnswers)).toBe(true)
-    expect(qs.find(q => q.id === 'Q48').visibleWhen(sinAnswers)).toBe(false)
-    expect(qs.find(q => q.id === 'Q53').visibleWhen(sinAnswers)).toBe(false)
-    // Q48 y Q53 se activan con CON_OBSERVACIONES
     const conAnswers = { Q22: 'CON_OBSERVACIONES' }
-    expect(qs.find(q => q.id === 'Q46').visibleWhen(conAnswers)).toBe(false)
-    expect(qs.find(q => q.id === 'Q51').visibleWhen(conAnswers)).toBe(false)
-    expect(qs.find(q => q.id === 'Q48').visibleWhen(conAnswers)).toBe(true)
-    expect(qs.find(q => q.id === 'Q53').visibleWhen(conAnswers)).toBe(true)
+
+    // retro_positiva: Q46 + Q51, visible solo con SIN_OBSERVACIONES
+    const retroPos = form.sections.find((s) => s.id === 'retro_positiva')
+    expect(retroPos).toBeDefined()
+    expect(retroPos.questions.map(q => q.id)).toEqual(['Q46', 'Q51'])
+    expect(retroPos.visibleWhen(sinAnswers)).toBe(true)
+    expect(retroPos.visibleWhen(conAnswers)).toBe(false)
+    expect(retroPos.visibleWhen({})).toBe(false)
+
+    // retro_correctiva: Q48 + Q53, visible solo con CON_OBSERVACIONES
+    const retroCor = form.sections.find((s) => s.id === 'retro_correctiva')
+    expect(retroCor).toBeDefined()
+    expect(retroCor.questions.map(q => q.id)).toEqual(['Q48', 'Q53'])
+    expect(retroCor.visibleWhen(conAnswers)).toBe(true)
+    expect(retroCor.visibleWhen(sinAnswers)).toBe(false)
+    expect(retroCor.visibleWhen({})).toBe(false)
+
+    // cierre_final: Q49 + Q50, visible con SIN o CON
+    const cierreFinal = form.sections.find((s) => s.id === 'cierre_final')
+    expect(cierreFinal).toBeDefined()
+    expect(cierreFinal.questions.map(q => q.id)).toEqual(['Q49', 'Q50'])
+    expect(cierreFinal.visibleWhen(sinAnswers)).toBe(true)
+    expect(cierreFinal.visibleWhen(conAnswers)).toBe(true)
+    expect(cierreFinal.visibleWhen({})).toBe(false)
+
+    // La vieja sección 'cierre' ya no existe en el estático
+    expect(form.sections.find((s) => s.id === 'cierre')).toBeUndefined()
+    // supersededSections declara 'cierre' para ignorar el override anterior
+    expect(form.supersededSections).toContain('cierre')
   })
 
   it('otras secciones gateadas aún descartan huérfanas sin visibleCondition (allStaticGated)', () => {
@@ -491,20 +510,19 @@ describe('FormScreen — herencia automática en CIERRE (preguntas huérfanas he
   })
 })
 
-describe('FormEditorDetailScreen + FormScreen — Q51 en CIERRE hereda de Q46 (v1.9.15b)', () => {
-  it('FormScreen tiene caso especial para sección CIERRE', () => {
+describe('FormEditorDetailScreen + FormScreen — supersededSections y flujo de cierre (v1.9.16)', () => {
+  it('FormScreen maneja supersededSections para ignorar secciones del override reemplazadas', () => {
+    expect(formScreen).toContain('supersededSecs')
+    expect(formScreen).toContain('supersededSections')
+    expect(formScreen).toContain('supersededSecs.has(s.id)')
+  })
+
+  it('FormScreen conserva caso especial para sección cierre legacy del override', () => {
     expect(formScreen).toContain("if (overrideSec.id === 'cierre')")
   })
 
-  it('FormScreen obtiene visibleWhen de Q46 para heredarla a preguntas sin condición', () => {
-    expect(formScreen).toContain('q46VisWhen')
-    expect(formScreen).toContain("q46 = overrideSec.questions?.find((q) => q.id === 'Q46')")
-  })
-
-  it('preguntas como Q51 (sin visibleWhen, no estáticas) heredan visibleWhen de Q46', () => {
-    // Q51 "describir retroalimentación positiva" automáticamente es visible cuando SIN_OBSERVACIONES
-    expect(formScreen).toContain('if (!visWhen && !staticVWMap[q.id]')
-    expect(formScreen).toContain('visWhen = q46VisWhen')
+  it('FormScreen incluye secciones estáticas no presentes en el override', () => {
+    expect(formScreen).toContain('mergedSectionMap[staticSec.id] || staticSec')
   })
 
   it('Q46 y Q48 nunca heredan (mantienen su visibleWhen estático)', () => {
