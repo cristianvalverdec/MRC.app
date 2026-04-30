@@ -459,15 +459,29 @@ describe('FormScreen — herencia automática en CIERRE (preguntas huérfanas he
     expect(formScreen).toContain("q.id !== 'Q46' && q.id !== 'Q48'")
   })
 
-  it('la sección CIERRE en formDefinitions tiene SOLO Q46 y Q48 con visibleWhen propio', () => {
+  it('la sección CIERRE en formDefinitions tiene Q46, Q51, Q48, Q53, Q49, Q50 con visibleWhen correcto', () => {
     const form = formDefinitions['pauta-verificacion-reglas-oro']
     const cierre = form.sections.find((s) => s.id === 'cierre')
     expect(cierre).toBeDefined()
     const qs = cierre.questions
-    expect(qs).toHaveLength(2)
-    expect(qs.every((q) => typeof q.visibleWhen === 'function')).toBe(true)
-    // Q46 → SIN_OBSERVACIONES, Q48 → CON_OBSERVACIONES
-    expect(qs.map((q) => q.id)).toEqual(expect.arrayContaining(['Q46', 'Q48']))
+    expect(qs).toHaveLength(6)
+    // Q46 y Q51 → SIN_OBSERVACIONES; Q48 y Q53 → CON_OBSERVACIONES; Q49 y Q50 → siempre visibles
+    expect(qs.map((q) => q.id)).toEqual(['Q46', 'Q51', 'Q48', 'Q53', 'Q49', 'Q50'])
+    // Las 4 primeras tienen visibleWhen; Q49 y Q50 son siempre visibles dentro de la sección
+    const withCondition = qs.filter((q) => typeof q.visibleWhen === 'function')
+    expect(withCondition.map((q) => q.id)).toEqual(expect.arrayContaining(['Q46', 'Q51', 'Q48', 'Q53']))
+    // Q46 y Q51 se activan con SIN_OBSERVACIONES
+    const sinAnswers = { Q22: 'SIN_OBSERVACIONES' }
+    expect(qs.find(q => q.id === 'Q46').visibleWhen(sinAnswers)).toBe(true)
+    expect(qs.find(q => q.id === 'Q51').visibleWhen(sinAnswers)).toBe(true)
+    expect(qs.find(q => q.id === 'Q48').visibleWhen(sinAnswers)).toBe(false)
+    expect(qs.find(q => q.id === 'Q53').visibleWhen(sinAnswers)).toBe(false)
+    // Q48 y Q53 se activan con CON_OBSERVACIONES
+    const conAnswers = { Q22: 'CON_OBSERVACIONES' }
+    expect(qs.find(q => q.id === 'Q46').visibleWhen(conAnswers)).toBe(false)
+    expect(qs.find(q => q.id === 'Q51').visibleWhen(conAnswers)).toBe(false)
+    expect(qs.find(q => q.id === 'Q48').visibleWhen(conAnswers)).toBe(true)
+    expect(qs.find(q => q.id === 'Q53').visibleWhen(conAnswers)).toBe(true)
   })
 
   it('otras secciones gateadas aún descartan huérfanas sin visibleCondition (allStaticGated)', () => {

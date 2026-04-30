@@ -281,7 +281,7 @@ export const formDefinitions = {
           { id: 'Q20', type: 'select', label: 'Regla de Oro que Verificará — OPERACIONES', required: true,
             placeholder: 'Selecciona la Regla de Oro',
             visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal',
-            options: ['N°1 Elementos de Protección Personal (OP)','N°2 Transito Interior Frigorífico (OP)','N°3 Operación de Equipo Rodante (OP)','N°4 Almacenamiento en Altura (OP)','N°5 Carga y Descarga de Camiones (OP)','N°6 Manejo Manual de Cargas (OP)','N°7 Trabajo Responsable, sin hacer Bromas o Acciones Inseguras (OP)'] },
+            options: ['N°1 Elementos de Protección Personal (OP)','N°2 Transito Interior Frigorífico (OP)','N°3 Operación de Equipo Rodante (OP)','N°4 Almacenamiento en Altura (OP)','N°5 Carga y Descarga de Camiones (OP)','N°6 Manejo Manual de Cargas (OP)','N°7 Trabajo Responsable, sin hacer Bromas o Acciones Inseguras (OP)','N°8 Mantener un correcto Orden y Aseo en las Instalaciones (OP)','N°9 No interactuar ni intervenir con equipos en movimiento ni automatizados (OP)','N°10 Informar de forma inmediata la ocurrencia de un incidente o accidente (OP)'] },
           { id: 'Q21', type: 'select', label: 'Regla de Oro que Verificará — ADMINISTRACIÓN', required: true,
             placeholder: 'Selecciona la Regla de Oro',
             visibleWhen: (a) => a.Q18 === 'Área Administrativa Sucursal',
@@ -347,7 +347,33 @@ export const formDefinitions = {
         ],
       },
 
-      // ── S10-S14: REGLAS ADMINISTRACIÓN ───────────────────────────────────
+      // ── S10-S12: REGLAS OPERACIONES 8-10 ─────────────────────────────────
+      {
+        id: 'op8', title: 'VERIFICACIÓN — REGLA N°8 OP',
+        visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal' && a.Q20 === 'N°8 Mantener un correcto Orden y Aseo en las Instalaciones (OP)',
+        questions: [
+          { id: 'Q54', type: 'radio', required: true, label: 'REGLA N°8: Mantiene un correcto Orden y Aseo en las Instalaciones', subtitle: 'Observe las conductas y marque el resultado:', conductasList: ['El colaborador observado recoge zunchos que se encuentran en el piso al interior del frigorífico.','El colaborador observado recoge film que se encuentre en el piso del frigorífico.','El colaborador observado recoge restos de pallets que se encuentren en la instalación.','El colaborador observado informa presencia de hielo o líquidos en el piso del frigorífico.','El colaborador observado posiciona equipos y/o herramientas en lugares asignados.','El colaborador observado posiciona pallets respetando el layout definido, sin obstruir pasillos de tránsito.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'Q55', type: 'checkbox', required: true, label: 'Conductas observadas — REGLA N°8', subtitle: 'Marque una o más conductas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.Q54 === 'CON_OBSERVACIONES', options: [{ value: 'no_recoge_zunchos', label: 'No recoge zunchos que se encuentran en el piso al interior del frigorífico', severity: 'NORMAL' },{ value: 'no_recoge_film', label: 'No recoge film que se encuentre en el piso del frigorífico', severity: 'NORMAL' },{ value: 'no_recoge_restos_pallets', label: 'No recoge restos de pallets que se encuentren en la instalación', severity: 'NORMAL' },{ value: 'no_informa_hielo_liquido', label: 'No informa presencia de hielo o líquidos en el piso del frigorífico', severity: 'NORMAL' },{ value: 'equipo_fuera_lugar', label: 'No posiciona equipos y/o herramientas en lugares asignados', severity: 'NORMAL' },{ value: 'pallet_obstruye_pasillo', label: 'Posiciona pallet obstruyendo pasillos de tránsito, no respetando layout definido', severity: 'NORMAL' }] },
+        ],
+      },
+      {
+        id: 'op9', title: 'VERIFICACIÓN — REGLA N°9 OP',
+        visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal' && a.Q20 === 'N°9 No interactuar ni intervenir con equipos en movimiento ni automatizados (OP)',
+        questions: [
+          { id: 'Q56', type: 'radio', required: true, label: 'REGLA N°9: No interactúa ni interviene con equipos en movimiento ni automatizados', subtitle: 'Observe las conductas y marque el resultado:', conductasList: ['El colaborador observado no interviene tocando partes móviles de máquinas o equipos.','El colaborador observado no interviene en equipos automatizados sin asegurar su detención previa.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'Q57', type: 'checkbox', required: true, label: 'Conductas observadas — REGLA N°9', subtitle: 'Marque una o más conductas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.Q56 === 'CON_OBSERVACIONES', options: [{ value: 'toca_partes_moviles', label: 'Interviene tocando partes móviles de máquinas o equipos', severity: 'GRAVE' },{ value: 'interviene_equipo_automatizado', label: 'Interviene equipo automatizado sin asegurar su detención', severity: 'GRAVE' }] },
+        ],
+      },
+      {
+        id: 'op10', title: 'VERIFICACIÓN — REGLA N°10 OP',
+        visibleWhen: (a) => a.Q18 === 'Área Operaciones Sucursal' && a.Q20 === 'N°10 Informar de forma inmediata la ocurrencia de un incidente o accidente (OP)',
+        questions: [
+          { id: 'Q58', type: 'radio', required: true, label: 'REGLA N°10: Informa de forma inmediata la ocurrencia de un incidente o accidente, sin importar su gravedad', subtitle: 'Observe las conductas y marque el resultado:', conductasList: ['El colaborador observado informa de un incidente o accidente ocurrido a su jefatura de forma inmediata.','La jefatura que toma conocimiento del accidente informa de forma inmediata a líderes de sucursal.','Los líderes de sucursal informan de accidente ocurrido de forma inmediata al equipo de Salud y Seguridad.','El colaborador que sufre accidente es derivado a centro de salud (Organismo Administrador o centro en convenio).'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'Q59', type: 'checkbox', required: true, label: 'Conductas observadas — REGLA N°10', subtitle: 'Marque una o más conductas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.Q58 === 'CON_OBSERVACIONES', options: [{ value: 'no_informa_jefatura', label: 'No informa de un incidente o accidente ocurrido a su jefatura', severity: 'GRAVE' },{ value: 'jefatura_no_informa_lideres', label: 'Jefatura que toma conocimiento del accidente no informa de forma inmediata a líderes de sucursal', severity: 'GRAVE' },{ value: 'lideres_no_informan_sso', label: 'Líderes de sucursal no informan de accidente ocurrido de forma inmediata a equipo de Salud y Seguridad', severity: 'GRAVE' },{ value: 'sin_derivacion_centro_salud', label: 'Colaborador que sufre accidente no es derivado a centro de salud (Organismo Administrador o centro en convenio)', severity: 'GRAVE' }] },
+        ],
+      },
+
+      // ── S13-S17: REGLAS ADMINISTRACIÓN ───────────────────────────────────
       {
         id: 'adm1', title: 'VERIFICACIÓN — REGLA N°1 ADM',
         visibleWhen: (a) => a.Q18 === 'Área Administrativa Sucursal' && a.Q21 === 'N°1 Transitar siempre atento a las condiciones del entorno y por zonas habilitadas (ADM)',
@@ -390,22 +416,40 @@ export const formDefinitions = {
       },
 
       // ── S15: CIERRE ───────────────────────────────────────────────────────
-      // IMPORTANTE: las condiciones de visibilidad usan Object.values(a) en lugar
-      // de una lista fija de IDs de preguntas. Esto permite que cualquier Regla de
-      // Oro nueva creada con la macro F5 (que genera IDs dinámicos como Q49, Q52…)
-      // active correctamente el CIERRE sin modificar este archivo.
+      // visibleWhen usa Object.values(a) para cubrir automáticamente cualquier
+      // Regla de Oro nueva (op8–op10 y futuras) sin modificar este bloque.
+      // Las condiciones por pregunta (Q46/Q51 solo si SIN, Q48/Q53 solo si CON)
+      // se definen aquí para que FormScreen las restaure al cargar el override.
       {
         id: 'cierre', title: 'CIERRE',
         visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES' || v === 'CON_OBSERVACIONES'),
         questions: [
           { id: 'Q46', type: 'yesno', required: true,
-            label: '¿Se comunicó el resultado de la observación (sin desviaciones) al colaborador?',
+            label: '¿Se comunicó el resultado de la retroalimentación positiva (sin desviaciones) al colaborador?',
+            visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
+          },
+          { id: 'Q51', type: 'text', required: true,
+            label: 'Describa la retroalimentación POSITIVA realizada al colaborador:',
+            placeholder: 'Escriba aquí la retroalimentación positiva entregada',
             visibleWhen: (a) => Object.values(a).some(v => v === 'SIN_OBSERVACIONES'),
           },
           { id: 'Q48', type: 'yesno', required: true,
-            label: '¿La acción insegura observada amerita una carta de amonestación escrita al colaborador?',
+            label: '¿La acción insegura observada amerita una "CARTA DE AMONESTACIÓN" escrita?',
             disableNA: true,
             visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
+          },
+          { id: 'Q53', type: 'text', required: true,
+            label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:',
+            placeholder: 'Escriba aquí la retroalimentación correctiva entregada',
+            visibleWhen: (a) => Object.values(a).some(v => v === 'CON_OBSERVACIONES'),
+          },
+          { id: 'Q49', type: 'text', required: true,
+            label: 'Nombre y Apellido del Colaborador Observado:',
+            placeholder: 'Escriba el nombre completo del colaborador',
+          },
+          { id: 'Q50', type: 'rut', required: true,
+            label: 'RUT del colaborador observado',
+            placeholder: 'Ej: 12.345.678-9',
           },
         ],
       },
