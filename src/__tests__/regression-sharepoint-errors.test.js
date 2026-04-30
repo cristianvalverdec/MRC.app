@@ -473,3 +473,53 @@ describe('sharepointSiteResolver — Resolver único', () => {
     expect(oldSyncSrc).not.toContain('async function resolveSiteId')
   })
 })
+
+// ── 16. Enriquecimiento de correos desde Gestión de Líderes ─────────────────
+
+describe('sharepointData — Enriquecimiento Correo 1-8 desde líderes', () => {
+  it('importa getLideres desde lideresService', () => {
+    expect(sharepointDataSrc).toContain("from './lideresService'")
+    expect(sharepointDataSrc).toContain('getLideres')
+  })
+
+  it('tiene función buildLideresEmailMap', () => {
+    expect(sharepointDataSrc).toContain('function buildLideresEmailMap')
+    expect(sharepointDataSrc).toContain('lider.cargoMRC')
+    expect(sharepointDataSrc).toContain('lider.email')
+  })
+
+  it('tiene función fetchLideresEmailMap async', () => {
+    expect(sharepointDataSrc).toContain('async function fetchLideresEmailMap')
+    expect(sharepointDataSrc).toContain('getLideres(branch)')
+  })
+
+  it('tiene función applyLideresEmails con el mapeo correcto de cargos a columnas', () => {
+    expect(sharepointDataSrc).toContain('function applyLideresEmails')
+    expect(sharepointDataSrc).toContain("lideresMap['Jefe de Despacho']")
+    expect(sharepointDataSrc).toContain("lideresMap['Jefe de Frigorífico']")
+    expect(sharepointDataSrc).toContain("lideresMap['Jefe de Operaciones']")
+    expect(sharepointDataSrc).toContain("lideresMap['Jefe Administrativo']")
+    expect(sharepointDataSrc).toContain("lideresMap['Jefe de Zona']")
+    expect(sharepointDataSrc).toContain("lideresMap['Subgerente de Zona']")
+  })
+
+  it('mapea Jefes de Despacho a Correo 1-3, resto de cargos a Correo 4-8', () => {
+    expect(sharepointDataSrc).toContain('Correo_x0020_1 = despacho[0]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_2 = despacho[1]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_3 = despacho[2]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_4 = frigorifico[0]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_5 = operaciones[0]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_6 = admin[0]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_7 = zona[0]')
+    expect(sharepointDataSrc).toContain('Correo_x0020_8 = subgerente[0]')
+  })
+
+  it('submitFormToSharePoint llama fetchLideresEmailMap y applyLideresEmails', () => {
+    expect(sharepointDataSrc).toContain('fetchLideresEmailMap(branch)')
+    expect(sharepointDataSrc).toContain('applyLideresEmails(fields, lideresMap)')
+  })
+
+  it('detecta la instalación desde submission.branch o answers.Q1', () => {
+    expect(sharepointDataSrc).toContain('submission.branch || submission.answers?.Q1')
+  })
+})

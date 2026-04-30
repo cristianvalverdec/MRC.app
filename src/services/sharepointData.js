@@ -13,6 +13,7 @@
 
 import { getGraphToken } from '../config/msalInstance'
 import { SHAREPOINT_LIST_BY_KEY } from './sharepointLists'
+import { getLideres } from './lideresService'
 
 export const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -513,6 +514,58 @@ function readEditorSpColumns(formId) {
   } catch { return {} }
 }
 
+// ── Enriquecimiento con correos de líderes ────────────────────────────────
+//
+// Mapeo de cargo MRC → columna(s) SharePoint según estructura definida con
+// el equipo SSO Comercial. Aplica a todos los formularios que comparten
+// esta estructura de columnas (Reglas de Oro, Caminata, Inspección, etc.).
+//
+// Correo 1-3: Jefe de Despacho (hasta 3 personas por turno)
+// Correo 4:   Jefe de Frigorífico
+// Correo 5:   Jefe de Operaciones
+// Correo 6:   Jefe Administrativo
+// Correo 7:   Jefe de Zona
+// Correo 8:   Subgerente de Zona
+
+function buildLideresEmailMap(lideres) {
+  const map = {}
+  for (const lider of lideres) {
+    if (!lider.email) continue
+    if (!map[lider.cargoMRC]) map[lider.cargoMRC] = []
+    map[lider.cargoMRC].push(lider.email)
+  }
+  return map
+}
+
+async function fetchLideresEmailMap(branch) {
+  if (!branch) return {}
+  try {
+    const lideres = await getLideres(branch)
+    return buildLideresEmailMap(lideres)
+  } catch (err) {
+    console.warn('[MRC] fetchLideresEmailMap falló para', branch, ':', err.message)
+    return {}
+  }
+}
+
+function applyLideresEmails(fields, lideresMap) {
+  const despacho    = lideresMap['Jefe de Despacho']    || []
+  const frigorifico = lideresMap['Jefe de Frigorífico']  || []
+  const operaciones = lideresMap['Jefe de Operaciones']  || []
+  const admin       = lideresMap['Jefe Administrativo']  || []
+  const zona        = lideresMap['Jefe de Zona']         || []
+  const subgerente  = lideresMap['Subgerente de Zona']   || []
+
+  fields.Correo_x0020_1 = despacho[0]    || ''
+  fields.Correo_x0020_2 = despacho[1]    || ''
+  fields.Correo_x0020_3 = despacho[2]    || ''
+  fields.Correo_x0020_4 = frigorifico[0] || ''
+  fields.Correo_x0020_5 = operaciones[0] || ''
+  fields.Correo_x0020_6 = admin[0]       || ''
+  fields.Correo_x0020_7 = zona[0]        || ''
+  fields.Correo_x0020_8 = subgerente[0]  || ''
+}
+
 // ── Enviar un registro a SharePoint ──────────────────────────────────────
 // Convierte base64 dataURL a Uint8Array binario
 function base64ToBytes(dataUrl) {
@@ -576,6 +629,15 @@ export async function submitFormToSharePoint(submission) {
     if (val === undefined || val === null) continue
     fields[col] = Array.isArray(val) ? val.join(' | ') : String(val)
   }
+
+  // Enriquecer Correo 1-8 con emails de líderes de la instalación.
+  // La instalación se lee desde la respuesta Q1 (selector de instalación)
+  // o desde el branch almacenado en el submission. Los líderes provienen
+  // del módulo "Gestión de Líderes" y son la fuente de verdad para el
+  // enrutamiento de notificaciones vía Power Automate.
+  const branch = submission.branch || submission.answers?.Q1 || ''
+  const lideresMap = await fetchLideresEmailMap(branch)
+  applyLideresEmails(fields, lideresMap)
 
   console.info('[MRC] POST →', url)
   console.info('[MRC] fields →', fields)
