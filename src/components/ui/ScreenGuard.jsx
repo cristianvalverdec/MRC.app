@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../layout/AppHeader'
 import useScreenVisibilityStore from '../../store/screenVisibilityStore'
+import useUserStore from '../../store/userStore'
+
+const IS_DEV_MODE =
+  !import.meta.env.VITE_AZURE_CLIENT_ID ||
+  import.meta.env.VITE_AZURE_CLIENT_ID === 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 
 function NotAvailableScreen() {
   const navigate = useNavigate()
@@ -66,12 +71,46 @@ function NotAvailableScreen() {
   )
 }
 
-export default function ScreenGuard({ screenKey, children }) {
-  const isScreenDisabled = useScreenVisibilityStore((s) => s.isScreenDisabled)
+function AdminDisabledBanner() {
+  return (
+    <div style={{
+      background: 'rgba(180,83,9,0.15)',
+      border: '1px solid rgba(180,83,9,0.4)',
+      padding: '10px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+    }}>
+      <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
+      <span style={{
+        fontFamily: 'var(--font-body)',
+        fontSize: 12,
+        color: '#FCD34D',
+        lineHeight: 1.4,
+      }}>
+        Esta pantalla está <strong>deshabilitada para usuarios regulares</strong>. Solo administradores pueden acceder.
+      </span>
+    </div>
+  )
+}
 
-  if (isScreenDisabled(screenKey)) {
-    return <NotAvailableScreen />
-  }
+export default function ScreenGuard({ screenKey, children }) {
+  const getScreenMode = useScreenVisibilityStore((s) => s.getScreenMode)
+  const role = useUserStore((s) => s.role)
+  const isAdmin = role === 'admin' || IS_DEV_MODE
+  const mode = getScreenMode(screenKey)
+
+  // 'all' → bloquea a todos sin excepción
+  if (mode === 'all') return <NotAvailableScreen />
+
+  // 'users' → bloquea solo a usuarios regulares; admins acceden con banner
+  if (mode === 'users' && !isAdmin) return <NotAvailableScreen />
+  if (mode === 'users' && isAdmin) return (
+    <>
+      <AdminDisabledBanner />
+      {children}
+    </>
+  )
 
   return children
 }

@@ -56,11 +56,24 @@ describe('screenVisibilityStore — contrato de la interfaz', () => {
     expect(exists('store/screenVisibilityStore.js')).toBe(true)
   })
 
-  it('exporta toggleScreen, isScreenDisabled y setDisabledScreens', () => {
+  it('exporta setScreenMode, getScreenMode, isScreenDisabled y setDisabledScreens', () => {
     const src = read('store/screenVisibilityStore.js')
-    expect(src).toContain('toggleScreen')
+    expect(src).toContain('setScreenMode')
+    expect(src).toContain('getScreenMode')
     expect(src).toContain('isScreenDisabled')
     expect(src).toContain('setDisabledScreens')
+  })
+
+  it('soporta modos users y all', () => {
+    const src = read('store/screenVisibilityStore.js')
+    expect(src).toContain("'users'")
+    expect(src).toContain("'all'")
+  })
+
+  it('tiene compatibilidad con valor true legacy (→ all)', () => {
+    const src = read('store/screenVisibilityStore.js')
+    expect(src).toContain('true')
+    expect(src).toContain("'all'")
   })
 
   it('usa clave localStorage mrc-screen-visibility', () => {
@@ -98,12 +111,17 @@ describe('ScreenGuard — componente de protección de rutas', () => {
     expect(src).toContain('Pantalla no disponible')
   })
 
-  it('bloquea el acceso a todos los perfiles cuando la pantalla está deshabilitada', () => {
+  it('modo all bloquea a todos los perfiles incluyendo admins', () => {
     const src = read('components/ui/ScreenGuard.jsx')
-    // El guard bloquea a todos (admins incluidos): no hay excepción por rol
-    expect(src).toContain('isScreenDisabled(screenKey)')
-    expect(src).not.toContain('isAdmin')
-    expect(src).not.toContain('AdminDisabledBanner')
+    expect(src).toContain("mode === 'all'")
+    expect(src).toContain('NotAvailableScreen')
+  })
+
+  it('modo users bloquea solo a usuarios regulares y muestra banner a admins', () => {
+    const src = read('components/ui/ScreenGuard.jsx')
+    expect(src).toContain("mode === 'users'")
+    expect(src).toContain('AdminDisabledBanner')
+    expect(src).toContain('isAdmin')
   })
 })
 
@@ -158,14 +176,21 @@ describe('ScreenVisibilityAdminScreen — panel de administración', () => {
     expect(src).toContain('SCREEN_REGISTRY')
   })
 
-  it('tiene componente Toggle', () => {
+  it('tiene selector de 3 modos: null, users, all', () => {
     const src = read('screens/ScreenVisibilityAdminScreen.jsx')
-    expect(src).toContain('Toggle')
+    expect(src).toContain('ModeSelector')
+    expect(src).toContain("'users'")
+    expect(src).toContain("'all'")
   })
 
   it('tiene indicador de sync', () => {
     const src = read('screens/ScreenVisibilityAdminScreen.jsx')
     expect(src).toContain('SyncIndicator')
     expect(src).toContain('syncStatus')
+  })
+
+  it('usa setScreenMode al cambiar un modo', () => {
+    const src = read('screens/ScreenVisibilityAdminScreen.jsx')
+    expect(src).toContain('setScreenMode')
   })
 })

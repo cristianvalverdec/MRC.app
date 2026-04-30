@@ -1,23 +1,36 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// Modos de restricción:
+//   null / ausente → habilitada para todos
+//   'users'        → bloqueada solo para usuarios regulares (admins acceden con banner)
+//   'all'          → bloqueada para todos los perfiles incluyendo admins
+
 const useScreenVisibilityStore = create(
   persist(
     (set, get) => ({
       disabledScreens: {},
 
-      // Alterna el estado de una pantalla. El caller es responsable de
-      // disparar _syncToCloud() en formEditorStore para persistir en la nube.
-      toggleScreen: (screenKey) => {
+      // Establece el modo de restricción. mode === null elimina la restricción.
+      setScreenMode: (screenKey, mode) => {
         set((state) => {
           const next = { ...state.disabledScreens }
-          if (next[screenKey]) {
+          if (!mode) {
             delete next[screenKey]
           } else {
-            next[screenKey] = true
+            next[screenKey] = mode
           }
           return { disabledScreens: next }
         })
+      },
+
+      // Devuelve el modo activo: 'users', 'all', o null si está habilitada.
+      // Compatibilidad con datos anteriores donde el valor era true → 'all'.
+      getScreenMode: (screenKey) => {
+        const val = get().disabledScreens[screenKey]
+        if (!val) return null
+        if (val === true) return 'all'
+        return val
       },
 
       isScreenDisabled: (screenKey) => !!get().disabledScreens[screenKey],

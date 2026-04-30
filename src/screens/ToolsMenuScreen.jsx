@@ -118,7 +118,7 @@ export default function ToolsMenuScreen() {
   const puedeVerDirectorio = nivelEfectivo >= 2
   const customForms = useFormEditorStore((s) => s.customForms)
   const editedForms = useFormEditorStore((s) => s.editedForms)
-  const isScreenDisabled = useScreenVisibilityStore((s) => s.isScreenDisabled)
+  const getScreenMode = useScreenVisibilityStore((s) => s.getScreenMode)
 
   const baseTools = unitType === 'fuerza-de-ventas' ? toolsByFuerzaVentas : toolsBySucursales
 
@@ -134,7 +134,8 @@ export default function ToolsMenuScreen() {
     return false
   })
 
-  const lideresDisabled = isScreenDisabled('lideres')
+  const lideresMode = getScreenMode('lideres')
+  const lideresDisabled = lideresMode === 'all' || (lideresMode === 'users' && !isAdmin)
 
   return (
     <div
@@ -169,7 +170,8 @@ export default function ToolsMenuScreen() {
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {tools.map((tool, i) => {
-            const disabled = isScreenDisabled(tool.screenKey)
+            const mode = getScreenMode(tool.screenKey)
+            const disabled = mode === 'all' || (mode === 'users' && !isAdmin)
             return (
               <motion.div key={i} variants={itemVariants}>
                 <MenuCard
