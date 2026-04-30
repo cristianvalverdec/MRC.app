@@ -936,20 +936,14 @@ export default function FormScreen() {
               return true
             })
             .map((q) => {
-              // El estático gana en opciones cuando: (1) tiene más opciones, o (2) migró de
-              // strings a objetos (ej. select→radio). El estático también gana en `type`
-              // cuando el tipo cambió (ej. select→radio para Q20 de reglas-oro).
+              // Si el estático tiene MÁS opciones que el override (se agregaron opciones nuevas),
+              // usar las opciones del estático para que las nuevas aparezcan sin resetear el override.
               const sq = staticSec?.questions?.find((s) => s.id === q.id)
-              const staticIsNewerFormat =
-                sq?.options?.length > 0 && typeof sq.options[0] === 'object' &&
-                (q.options?.length ?? 0) > 0 && typeof q.options[0] === 'string'
-              const options = ((sq?.options?.length ?? 0) > (q.options?.length ?? 0) || staticIsNewerFormat)
+              const options = (sq?.options?.length ?? 0) > (q.options?.length ?? 0)
                 ? sq.options
                 : q.options
-              const type = (sq?.type && sq.type !== q.type) ? sq.type : q.type
               return {
                 ...q,
-                type,
                 ...(options !== undefined ? { options } : {}),
                 visibleWhen: staticVWMap[q.id] || buildVisibleFn(q.visibleCondition),
               }
