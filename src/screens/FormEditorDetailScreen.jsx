@@ -172,7 +172,9 @@ function validateForm(questions, staticForm, isWizard, originalStatic = null) {
       errors.push(`${q.id}: tipo ${q.type} sin opciones`)
     }
     opts.forEach((o, i) => {
-      if (!o || !String(o.label || '').trim()) {
+      // Las opciones pueden ser strings simples o {value,label,...}
+      const label = typeof o === 'string' ? o : (o?.label || '')
+      if (!o || !String(label).trim()) {
         errors.push(`${q.id}: opción ${i + 1} sin texto`)
       }
     })
