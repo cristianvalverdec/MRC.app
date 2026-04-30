@@ -14,6 +14,12 @@ const STYLES = {
     activeBorder: '#EB5757',
     Icon: AlertTriangle,
   },
+  neutral: {
+    activeColor: '#F57C20',
+    activeBg: 'rgba(245,124,32,0.10)',
+    activeBorder: '#F57C20',
+    Icon: CheckCircle2,
+  },
 }
 
 export default function QuestionRadio({ question, value, onChange }) {
