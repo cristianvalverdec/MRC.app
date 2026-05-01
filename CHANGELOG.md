@@ -7,35 +7,45 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ## [1.9.17] — 2026-04-30
 
-### Sistema de Visibilidad de Pantallas (Control de Admin)
+### Sistema de Visibilidad de Pantallas — 3 niveles de restricción (Control de Admin)
 
-El administrador ahora puede habilitar o deshabilitar cualquier pantalla de la app directamente desde su panel de control, sin necesidad de modificar código ni hacer redeploy.
+El administrador puede controlar el acceso a cada pantalla de la app con tres niveles de restricción, sin necesidad de modificar código ni hacer redeploy.
+
+#### Los tres modos
+
+| Modo | Valor interno | Comportamiento |
+|---|---|---|
+| **HABILITADA** | `null` | Todos los perfiles acceden normalmente |
+| **SOLO USUARIOS** | `'users'` | Usuarios regulares bloqueados; administradores acceden con banner naranja de aviso |
+| **TODOS** | `'all'` | Bloqueada para todos los perfiles sin excepción, incluyendo administradores |
 
 #### Funcionalidad
 
-- **Panel de control:** nueva tarjeta "Visibilidad de Pantallas" (badge ADMIN) en ToolsMenuScreen → ruta `/admin/screen-visibility`.
-- **16 pantallas toggleables** agrupadas en dos secciones: Menú Principal (6) y Herramientas Preventivas (10).
-- **Comportamiento para usuarios regulares:** las pantallas deshabilitadas se muestran en el menú grisáceas con badge "NO DISPONIBLE". Si navegan directamente por URL, ven una página de bloqueo con botón "Volver".
-- **Comportamiento para administradores:** siempre pueden acceder. Si la pantalla está deshabilitada, ven un banner naranja de aviso pero el contenido se muestra íntegro.
+- **Panel de control:** nueva tarjeta "Visibilidad de Pantallas" (badge ADMIN, icono Eye) en ToolsMenuScreen → ruta `/admin/screen-visibility`.
+- **16 pantallas configurables** agrupadas en dos secciones: Menú Principal (6) y Herramientas Preventivas (10).
+- **Selector segmentado de 3 botones** por pantalla: HABILITADA (verde) / SOLO USUARIOS (naranja) / TODOS (rojo).
+- **Indicador de dot** por pantalla refleja el modo activo con el color correspondiente.
+- **Menús:** pantallas bloqueadas aparecen grisáceas con badge "NO DISPONIBLE" (`opacity: 0.45`, `grayscale`). Admins ven el badge pero pueden hacer click si el modo es `'users'`.
+- **Acceso directo por URL:** `ScreenGuard` intercepta la ruta y muestra página de bloqueo (🔒) o banner naranja según el modo y el perfil.
 
 #### Arquitectura técnica
 
-- **`src/config/screenRegistry.js`** — registro estático de las 16 pantallas toggleables con `key`, `label` y grupo (`principal` / `herramientas`). Fuente de verdad para el panel y los guards.
-- **`src/store/screenVisibilityStore.js`** — Zustand store con `persist` (clave localStorage: `mrc-screen-visibility`). Métodos: `toggleScreen(key)`, `isScreenDisabled(key)`, `setDisabledScreens(map)`.
-- **`src/components/ui/ScreenGuard.jsx`** — wrapper de rutas que bloquea a usuarios regulares y muestra banner a admins cuando la pantalla está deshabilitada.
-- **`src/screens/ScreenVisibilityAdminScreen.jsx`** — pantalla admin con toggles por grupo, indicador de dot verde/rojo por pantalla y indicador de sync al pie.
-- **Sincronización con SharePoint:** `disabledScreens` se incluye en el payload de `mrc-forms-config.json` (mismo archivo y pipeline de sync que los formularios). Sin archivo nuevo, sin dependencia adicional.
-- **`MenuCard`:** nueva prop `disabled` que aplica opacidad 45%, filtro grayscale, icono gris `#4B5563`, badge en rojo y oculta el chevron.
+- **`src/config/screenRegistry.js`** — registro estático de las 16 pantallas con `key`, `label` y `menu` (`principal` / `herramientas`). Fuente de verdad.
+- **`src/store/screenVisibilityStore.js`** — Zustand store con `persist` (clave localStorage: `mrc-screen-visibility`). API: `setScreenMode(key, mode)`, `getScreenMode(key)` → `null | 'users' | 'all'`, `isScreenDisabled(key)` (compat), `setDisabledScreens(map)` (bulk, usado por pullFromCloud). Retrocompatibilidad: valor `true` legacy se interpreta como `'all'`.
+- **`src/components/ui/ScreenGuard.jsx`** — wrapper de rutas con lógica tres vías: `all` → bloqueo total, `users` + !isAdmin → bloqueo, `users` + isAdmin → banner naranja + contenido, `null` → pass-through.
+- **`src/screens/ScreenVisibilityAdminScreen.jsx`** — panel admin con `ModeSelector` (3 botones), dot indicador por fila, sublabel descriptivo del modo activo e indicador de sync al pie.
+- **Sincronización con SharePoint:** `disabledScreens` viaja dentro de `mrc-forms-config.json` (mismo pipeline y archivo que formularios). Sin archivo nuevo, sin dependencia adicional.
+- **`MenuCard`:** prop `disabled` aplica opacidad 45%, filtro grayscale, icono gris `#4B5563`, badge en rojo (`rgba(239,68,68,0.15)`) y oculta el chevron.
 
-#### Pantallas toggleables
+#### Pantallas configurables
 
-| Grupo | Pantallas |
+| Grupo | Keys |
 |---|---|
-| Menú Principal | tools, status, analytics, goals, cphs, salud |
-| Herramientas Preventivas | pauta-verificacion-reglas-oro, caminata-seguridad, inspeccion-simple, difusiones-sso, cierre-condiciones, monitor-fatiga, contratistas, observacion-conductual, inspeccion-planificada, lideres |
+| Menú Principal | `tools`, `status`, `analytics`, `goals`, `cphs`, `salud` |
+| Herramientas Preventivas | `pauta-verificacion-reglas-oro`, `caminata-seguridad`, `inspeccion-simple`, `difusiones-sso`, `cierre-condiciones`, `monitor-fatiga`, `contratistas`, `observacion-conductual`, `inspeccion-planificada`, `lideres` |
 
 #### Tests centinela
-23 tests nuevos (220 total, 0 fallos) cubren: screenRegistry, screenVisibilityStore, formEditorStore sync, ScreenGuard, App.jsx rutas, MenuCard prop disabled y ScreenVisibilityAdminScreen.
+224 tests (0 fallos) cubren: screenRegistry keys, screenVisibilityStore API (`setScreenMode`/`getScreenMode`/3 modos/compat legacy), formEditorStore sync (`disabledScreens` en payload, `setDisabledScreens` en pull), ScreenGuard tres vías, App.jsx rutas + ScreenGuard wrappers, MenuCard prop disabled, ScreenVisibilityAdminScreen panel.
 
 ---
 

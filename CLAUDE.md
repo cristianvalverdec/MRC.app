@@ -317,19 +317,33 @@ src/__tests__/
 
 ## 12. Sistema de Visibilidad de Pantallas (v1.9.17)
 
-El admin puede habilitar/deshabilitar cualquier pantalla desde el panel **Visibilidad de Pantallas** (`/admin/screen-visibility`), accesible desde la tarjeta ADMIN en ToolsMenuScreen.
+El admin controla el acceso a cada pantalla desde el panel **Visibilidad de Pantallas** (`/admin/screen-visibility`), accesible desde la tarjeta ADMIN en ToolsMenuScreen.
+
+### Los tres modos (valores internos en `disabledScreens`)
+
+| Modo | Valor | Quién puede acceder |
+|---|---|---|
+| HABILITADA | `null` (clave ausente) | Todos |
+| SOLO USUARIOS | `'users'` | Solo admins (con banner naranja de aviso) |
+| TODOS | `'all'` | Nadie |
+
+Retrocompatibilidad: valor `true` legacy (v1 binaria) se interpreta como `'all'`.
 
 ### Archivos clave
-- `src/config/screenRegistry.js` — registro estático de pantallas toggleables (16 screens)
-- `src/store/screenVisibilityStore.js` — Zustand store con `persist` (clave: `mrc-screen-visibility`)
-- `src/components/ui/ScreenGuard.jsx` — wrapper para rutas: bloquea a usuarios, banner a admins
-- `src/screens/ScreenVisibilityAdminScreen.jsx` — panel de control con toggles
+- `src/config/screenRegistry.js` — registro estático (16 screens) con `key`, `label`, `menu`
+- `src/store/screenVisibilityStore.js` — Zustand + `persist` (clave localStorage: `mrc-screen-visibility`). API pública: `setScreenMode(key, mode)`, `getScreenMode(key)` → `null | 'users' | 'all'`, `isScreenDisabled(key)` (compat), `setDisabledScreens(map)` (bulk pull)
+- `src/components/ui/ScreenGuard.jsx` — wrapper de rutas: `all` → bloqueo total, `users` + !admin → bloqueo, `users` + admin → banner naranja + contenido, `null` → pass-through
+- `src/screens/ScreenVisibilityAdminScreen.jsx` — panel con `ModeSelector` de 3 botones por pantalla
 
-### Comportamiento
-- **Usuarios regulares:** pantallas deshabilitadas aparecen en el menú grisáceas con badge "NO DISPONIBLE". Si navegan directo por URL → pantalla de bloqueo con mensaje.
-- **Admins:** pueden acceder siempre. Ven un banner naranja si la pantalla está deshabilitada.
-- **Sync:** `disabledScreens` viaja dentro de `mrc-forms-config.json` en SharePoint (mismo pipeline que formularios). Sin archivo nuevo, sin pipeline nuevo.
-- **Regla:** al agregar una pantalla nueva al menú, agregar su `screenKey` en `screenRegistry.js` y envolver su ruta en `App.jsx` con `<ScreenGuard screenKey="...">`.
+### Comportamiento en menús
+- `getScreenMode(key)` devuelve el modo activo. `disabled = mode === 'all' || (mode === 'users' && !isAdmin)`.
+- MenuCard recibe `disabled` y `badge="NO DISPONIBLE"` cuando corresponde.
+
+### Sync con SharePoint
+`disabledScreens` viaja dentro de `mrc-forms-config.json` (mismo pipeline que formularios). `_syncToCloud` lo lee desde `screenVisibilityStore.getState()`. `pullFromCloud` llama a `setDisabledScreens(data.disabledScreens)`.
+
+### Regla obligatoria
+Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.js` con `key`, `label` y `menu`, (2) envolver su ruta en `App.jsx` con `<ScreenGuard screenKey="...">`. Sin esto la pantalla no es controlable desde el panel de admin.
 
 ---
 
@@ -365,4 +379,4 @@ El admin puede habilitar/deshabilitar cualquier pantalla desde el panel **Visibi
 
 ---
 
-*Última actualización: 2026-04-30 — v1.9.17 — Sistema de Visibilidad de Pantallas: panel admin para habilitar/deshabilitar pantallas + sync SharePoint + ScreenGuard + 220 tests centinela*
+*Última actualización: 2026-04-30 — v1.9.17 — Sistema de Visibilidad de Pantallas: 3 modos (HABILITADA / SOLO USUARIOS / TODOS) + ModeSelector + ScreenGuard + sync SharePoint + 224 tests centinela*
