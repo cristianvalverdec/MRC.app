@@ -150,6 +150,7 @@ src/
 - **Visibilidad condicional serializable:** las funciones `visibleWhen` no sobreviven JSON. El editor guarda `visibleCondition: { questionId, equals }` (o `{ all }` / `{ any }`). `FormScreen` reconstruye `visibleWhen` con `buildVisibleFn`. El campo `_staticVisibleCondition` en `sectionsState` es solo de display (F3) — nunca se persiste.
 - **Template "reglas-oro":** formularios con `metadata.template === 'reglas-oro'` en `formDefinitions.js` habilitan la macro F5 "Agregar Regla de Oro" en el editor, que crea opción+sección+radio+checkbox gateados en una sola transacción.
 - **Archive:** `editedForms[formId].archived === true` oculta el formulario de `ToolsMenuScreen` sin destruir el override. Reversible desde la pestaña "CONEXIÓN SP" del editor.
+- **Caminata de Seguridad (`caminata-seguridad`):** formulario reconstruido en v1.9.18. 26 secciones, 94 preguntas. Ramificación área → temática → conducta → condiciones. Mapper dinámico en `sharepointData.js`: usa pattern matching sobre sufijos de clave (`_p1`, `_desvio`, `_carta`, `_nombre`, `_rut`, `_obs`, `_p2`, `_reporte`) — funciona automáticamente con temáticas nuevas creadas desde el Editor sin cambiar código.
 
 ### 5.3 Sync cloud (formEditorStore)
 - **Offline-first:** el guardado local SIEMPRE es exitoso. La sync con SharePoint es fire-and-forget.
@@ -183,7 +184,7 @@ Al enviar cualquier formulario, `submitFormToSharePoint` (en `sharepointData.js`
 - Correo 7 → Jefe de Zona
 - Correo 8 → Subgerente de Zona
 
-**Detección de instalación:** `submission.answers?.Q1 || submission.branch`. Q1 tiene prioridad porque el usuario puede verificar una sucursal distinta a la de su perfil. Para formularios sin Q1 (Caminata, Inspección) se usa `submission.branch`.
+**Detección de instalación:** `submission.answers?.Q1 || submission.branch`. Q1 tiene prioridad porque el usuario puede verificar una sucursal distinta a la de su perfil. Para Inspección Simple (sin pregunta de instalación) se usa `submission.branch`. Caminata de Seguridad usa `d.cs_instalacion || sub.branch` (tiene su propia pregunta de instalación desde v1.9.18).
 
 **Tolerancia a fallos:** si `getLideres()` falla (offline, sin permisos), Correo 1-8 quedan vacíos pero el envío del formulario continúa sin bloquearse.
 
@@ -379,4 +380,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-04-30 — v1.9.17 — Sistema de Visibilidad de Pantallas: 3 modos (HABILITADA / SOLO USUARIOS / TODOS) + ModeSelector + ScreenGuard + sync SharePoint + 224 tests centinela*
+*Última actualización: 2026-05-01 — v1.9.18 — Caminata de Seguridad reconstruida (26 secciones, 94 preguntas, mapper dinámico, ramificación área→temática→conducta→condiciones)*

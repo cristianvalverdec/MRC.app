@@ -208,23 +208,50 @@ function mapReglasOroVentas(sub) {
 function mapCaminataSeguridad(sub) {
   const d = sub.answers || sub.data || {}
 
-  const hayDesviacionConductual  = d.cs_3 === 'Si' || d.cs_4 === 'Si'
-  const hayDesviacionCondiciones = d.cs_3 === 'Si'
-  const realizoReporte           = d.cs_8 === 'Si' ? 'Sí' : 'No'
+  const area     = d.cs_area    || ''
+  const temaFri  = d.cs_fri_tema || ''
+  const temaOfi  = d.cs_ofi_tema || ''
+  // Para áreas sin selección de temática (Sala de Máquinas, Baterías, Comunes) el área es la temática
+  const tematica = temaFri || temaOfi || area
+
+  // Pattern matching dinámico: funciona con cualquier área/temática, incluyendo
+  // nuevas que se agreguen desde el Editor de Formularios
+  const keys      = Object.keys(d).filter(k =>
+    k.startsWith('cs_') &&
+    !['cs_instalacion','cs_area','cs_fri_tema','cs_ofi_tema'].includes(k)
+  )
+  const keyP1      = keys.find(k => k.endsWith('_p1'))
+  const keyDesvio  = keys.find(k => k.endsWith('_desvio'))
+  const keyCarta   = keys.find(k => k.endsWith('_carta'))
+  const keyNombre  = keys.find(k => k.endsWith('_nombre'))
+  const keyRut     = keys.find(k => k.endsWith('_rut'))
+  const keyObs     = keys.find(k => k.endsWith('_obs'))
+  const keyP2      = keys.find(k => k.endsWith('_p2'))
+  const keyReporte = keys.find(k => k.endsWith('_reporte'))
+
+  const hayDesvioConducta    = keyP1 ? d[keyP1] === 'CON_OBSERVACIONES' : false
+  const hayDesvioCondiciones = keyP2 ? d[keyP2] === 'CON_OBSERVACIONES' : false
+
+  const desvioRaw   = keyDesvio ? d[keyDesvio] : null
+  const conductaObs = desvioRaw
+    ? (Array.isArray(desvioRaw) ? desvioRaw : [String(desvioRaw)]).filter(Boolean).join(' | ')
+    : ''
 
   return {
-    Title:                               sub.userName || '',
-    Instalaci_x00f3_n:                   sub.branch   || '',
-    Nombre:                              sub.userName  || '',
-    _x00c1_rea:                          d.cs_1 || '',
-    Turno:                               d.cs_2 || '',
-    Tem_x00e1_tica:                      d.cs_1 || '',
-    '_x00bf_Existe_x0020_Desviaci_x00': hayDesviacionConductual  ? 'Sí' : 'No',
-    Desviaci_x00f3_n_x0020_de_x0020_:  d.cs_7 || '',
-    '_x00bf_Existe_x0020_Desviaci_x000': hayDesviacionCondiciones ? 'Sí' : 'No',
-    '_x00bf_Realiz_x00f3__x0020_el_x0': realizoReporte,
-    Observaciones:                       d.cs_11 || d.cs_9 || '',
-    Correo_x0020_Remitente:              sub.userEmail || '',
+    Title:                                sub.userName || '',
+    Instalaci_x00f3_n:                    d.cs_instalacion || sub.branch || '',
+    Nombre:                               sub.userName  || '',
+    _x00c1_rea:                           area,
+    Tem_x00e1_tica:                       tematica,
+    '_x00bf_Existe_x0020_Desviaci_x00':   hayDesvioConducta    ? 'Sí' : 'No',
+    Conducta_x0020_Observada:             conductaObs,
+    Carta_x0020_Amonestaci_x00f3_n:       keyCarta  ? (d[keyCarta]  === 'SI' ? 'Sí' : 'No') : '',
+    Nombre_x0020_Colaborador:             keyNombre ? d[keyNombre] || '' : '',
+    RUT_x0020_Colaborador:                keyRut    ? d[keyRut]    || '' : '',
+    '_x00bf_Existe_x0020_Desviaci_x000':  hayDesvioCondiciones ? 'Sí' : 'No',
+    '_x00bf_Realiz_x00f3__x0020_el_x0':   keyReporte ? (d[keyReporte] === 'REPORTE_REALIZADO' ? 'Sí' : 'No') : '',
+    Observaciones:                         keyObs ? d[keyObs] || '' : '',
+    Correo_x0020_Remitente:               sub.userEmail || '',
   }
 }
 
@@ -442,14 +469,19 @@ export const SP_COLUMN_CATALOG = {
     { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
   ],
   'caminata-seguridad': [
-    { internal: '_x00c1_rea',                          label: 'Área' },
-    { internal: 'Turno',                               label: 'Turno' },
-    { internal: 'Tem_x00e1_tica',                      label: 'Temática' },
-    { internal: 'Desviaci_x00f3_n_x0020_de_x0020_',   label: 'Desviación detectada' },
-    { internal: 'Observaciones',                       label: 'Observaciones' },
-    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
-    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
-    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+    { internal: 'Instalaci_x00f3_n',                         label: 'Instalación' },
+    { internal: '_x00c1_rea',                                 label: 'Área' },
+    { internal: 'Tem_x00e1_tica',                             label: 'Temática' },
+    { internal: "'x00bf_Existe_x0020_Desviaci_x00'",          label: '¿Desviación de conducta?' },
+    { internal: 'Conducta_x0020_Observada',                   label: 'Conducta Observada' },
+    { internal: 'Carta_x0020_Amonestaci_x00f3_n',             label: 'Carta de Amonestación' },
+    { internal: 'Nombre_x0020_Colaborador',                   label: 'Nombre Colaborador' },
+    { internal: 'RUT_x0020_Colaborador',                      label: 'RUT Colaborador' },
+    { internal: "'x00bf_Existe_x0020_Desviaci_x000'",         label: '¿Desviación de condiciones?' },
+    { internal: "'x00bf_Realiz_x00f3__x0020_el_x0'",          label: '¿Realizó reporte inspección?' },
+    { internal: 'Observaciones',                              label: 'Observaciones' },
+    { internal: 'Nombre',                                     label: 'Nombre (responsable)' },
+    { internal: 'Correo_x0020_Remitente',                     label: 'Correo Remitente' },
   ],
   'inspeccion-simple': [
     { internal: 'Categor_x00ed_a',                     label: 'Categoría' },

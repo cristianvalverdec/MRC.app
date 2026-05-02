@@ -5,6 +5,30 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.18] — 2026-05-01
+
+### Formulario Caminata de Seguridad — Reconstrucción completa
+
+El formulario "Caminata de Seguridad" fue reconstruido desde cero para reflejar el formulario oficial SSO Agrosuper (PDF de 33 páginas, ~109 preguntas con ramificación compleja).
+
+#### Estructura (26 secciones, 94 preguntas)
+
+- **Identificación:** pregunta de instalación (28 sucursales) + selección de área (5 áreas)
+- **Frigorífico:** 6 temáticas → bloque conducta (radio p1 + checkbox desviaciones con severidad GRAVE + radio carta amonestación + campos nombre/RUT/observaciones) + bloque condiciones (radio p2 + radio reporte)
+- **Oficinas Administrativas:** 3 temáticas → mismo patrón conducta + condiciones
+- **Sala de Máquinas:** solo condiciones (10 ítems), sin temática ni verificación conductual
+- **Sala de Baterías y Áreas Comunes:** conducta + condiciones sin selección de temática
+
+#### Mapper dinámico SharePoint
+
+`mapCaminataSeguridad()` reescrito con pattern matching sobre sufijos de clave (`_p1`, `_desvio`, `_carta`, `_nombre`, `_rut`, `_obs`, `_p2`, `_reporte`). Compatible automáticamente con temáticas nuevas agregadas desde el Editor de Formularios.
+
+#### Compatibilidad hacia atrás
+
+`supersededSections: ['s1','s2','s3','s4']` invalida overrides con la estructura genérica anterior.
+
+---
+
 ## [1.9.17] — 2026-04-30
 
 ### Sistema de Visibilidad de Pantallas — 3 niveles de restricción (Control de Admin)

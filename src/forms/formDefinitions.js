@@ -60,43 +60,313 @@ export const formDefinitions = {
   'caminata-seguridad': {
     id: 'caminata-seguridad',
     title: 'Caminata de Seguridad',
-    description: 'Recorrido de inspección en terreno',
+    description: 'Caminata de Seguridad SSO (Líderes)',
+    supersededSections: ['s1', 's2', 's3', 's4'],
     sections: [
+
+      // ── IDENTIFICACIÓN ───────────────────────────────────────────────────
       {
-        id: 's1',
-        title: 'Identificación del Recorrido',
+        id: 'ident', title: 'IDENTIFICACIÓN',
         questions: [
-          { id: 'cs_1', type: 'select', label: 'Área recorrida', required: true, options: ['Bodega', 'Andén de despacho', 'Área de carga', 'Oficinas', 'Estacionamiento', 'Patio de maniobras'] },
-          { id: 'cs_2', type: 'select', label: 'Turno', required: true, options: ['Mañana', 'Tarde', 'Noche'] },
+          { id: 'cs_instalacion', type: 'select', label: 'Instalación donde se realizará la Caminata', required: true, placeholder: 'Selecciona la instalación', options: ['Oficina Central','Sucursal Coquimbo','Oficina Vespucio','Sucursal Arica','Sucursal Iquique','Sucursal Calama','Sucursal Antofagasta','Sucursal Copiapó','Sucursal San Felipe','Sucursal Hijuelas','Sucursal Viña del Mar','Sucursal San Antonio','Sucursal Miraflores','Sucursal Huechuraba','Sucursal Lo Espejo','Sucursal Rancagua','Sucursal Curicó','Sucursal Talca','Sucursal Chillán','Sucursal Los Ángeles','Sucursal Concepción','Sucursal Valdivia','Sucursal Temuco','Sucursal Osorno','Sucursal Puerto Montt','Sucursal Castro','Sucursal Coyhaique','Sucursal Punta Arenas'] },
+          { id: 'cs_area', type: 'select', label: '¿En qué área realizará la Caminata de Seguridad?', required: true, options: ['Frigorífico','Sala de Máquinas','Sala de Baterías','Áreas Comunes','Oficinas Administrativas'] },
+        ],
+      },
+
+      // ── TEMÁTICA — FRIGORÍFICO ────────────────────────────────────────────
+      {
+        id: 'fri_tema', title: 'TEMÁTICA — FRIGORÍFICO',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico',
+        questions: [
+          { id: 'cs_fri_tema', type: 'select', label: 'Temática que se verificará en Frigorífico', required: true, options: ['Almacenaje en Altura','Elementos de Protección Personal (EPP)','Manejo Manual de Carga','Tránsito Interior Frigorífico','Carga y Descarga de Camiones Rampla','Operación de Equipos Rodantes'] },
+        ],
+      },
+
+      // ── TEMÁTICA — OFICINAS ───────────────────────────────────────────────
+      {
+        id: 'ofi_tema', title: 'TEMÁTICA — OFICINAS',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas',
+        questions: [
+          { id: 'cs_ofi_tema', type: 'select', label: 'Temática que se verificará en oficinas', required: true, options: ['Tránsito de Personas','Utilización de Equipos o Instalaciones Eléctricas','Postura de Trabajo Adecuada y Reporte de Riesgo en Puesto de Trabajo'] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — ALMACENAJE EN ALTURA
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_alm_cond', title: 'CONDUCTA — ALMACENAJE EN ALTURA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Almacenaje en Altura',
+        questions: [
+          { id: 'cs_fri_alm_p1', type: 'radio', required: true, label: 'REGLA N°4 (OP): Almacena productos en altura cumpliendo con las medidas de seguridad establecidas', subtitle: 'Observe que los operadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Almacena pallets con productos en altura que se encuentren sin film de sujeción.','No informa de inmediato daños en la estructura del Rack.','Almacena en Altura productos que se encuentren con su pallet roto.','No da aviso inmediato a su jefatura cuando observa un pallet roto en altura.','Se posiciona bajo carga que se encuentra almacenada en altura mientras equipo rodante (Apilador o Grúa) opera en posiciones contiguas o bajo carga con riesgo de caídas.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_alm_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Almacenaje en Altura', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_alm_p1 === 'CON_OBSERVACIONES', options: [{ value: 'sin_film', label: 'Almacena pallets con productos en altura, que se encuentran sin film de sujeción', severity: 'NORMAL' },{ value: 'no_informa_rack', label: 'No informa daño provocado a la estructura de rack', severity: 'NORMAL' },{ value: 'pallets_rotos', label: 'Almacena en altura pallets rotos con productos', severity: 'GRAVE' },{ value: 'pallets_rotos_apilados', label: 'Presencia de pallets rotos apilados en altura (No deben existir Pallets rotos en altura)', severity: 'NORMAL' },{ value: 'no_cumple_poev', label: 'No cumple con indicaciones de POEV y LUP asociados', severity: 'NORMAL' }] },
+          { id: 'cs_fri_alm_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_alm_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_alm_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_alm_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_alm_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_alm_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_alm_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_alm_p1 === 'CON_OBSERVACIONES' },
         ],
       },
       {
-        id: 's2',
-        title: 'Condiciones Observadas',
+        id: 'fri_alm_insp', title: 'CONDICIONES — ALMACENAJE EN ALTURA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Almacenaje en Altura',
         questions: [
-          { id: 'cs_3', type: 'yesno', label: 'Se observaron condiciones inseguras en el área', required: true },
-          { id: 'cs_4', type: 'yesno', label: 'Se observaron actos inseguros por parte de trabajadores', required: true },
-          { id: 'cs_5', type: 'yesno', label: 'Los trabajadores utilizan correctamente el EPP', required: true },
-          { id: 'cs_6', type: 'yesno', label: 'Se observa cumplimiento de los procedimientos de trabajo', required: true },
+          { id: 'cs_fri_alm_p2', type: 'radio', required: true, label: 'Verificación de condiciones en el ALMACENAJE EN ALTURA', subtitle: 'Inspeccione que los equipos cumplan con los siguientes estándares y marque el resultado de su inspección:', conductasList: ['Todos los pallets almacenados en altura están en buen estado (sin pallets rotos; si existen rotos, deben contar con doble pallet).','Todos los productos almacenados en altura cuentan con film de sujeción.','La estructura de los racks se encuentra en buen estado: sin deformaciones, sin piezas sueltas, con todos sus pernos de sujeción.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_alm_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en el ALMACENAJE EN ALTURA', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_alm_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — EPP
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_epp_cond', title: 'CONDUCTA — ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Elementos de Protección Personal (EPP)',
+        questions: [
+          { id: 'cs_fri_epp_p1', type: 'radio', required: true, label: 'REGLA N°1 (OP): Revisa y utiliza correctamente todos los elementos de protección personal (EPP)', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Utilizan todos los EPP asignados a su trabajo y los autorizados por la sucursal.','Utilizan sus EPP de forma correcta (bien posicionados).','Informan cuando sus EPP se encuentran en mal estado.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_epp_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — EPP', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES', options: [{ value: 'no_utiliza_epp', label: 'No utiliza EPP', severity: 'GRAVE' },{ value: 'epp_incorrecto', label: 'Utiliza su EPP de forma incorrecta', severity: 'NORMAL' },{ value: 'no_informa_deterioro', label: 'No informa cuando EPP está en malas condiciones o cuando no lo posee para trabajar', severity: 'NORMAL' },{ value: 'epp_no_autorizado', label: 'Utiliza EPP que no corresponde o no está autorizado', severity: 'NORMAL' }] },
+          { id: 'cs_fri_epp_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_epp_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_epp_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_epp_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES' },
         ],
       },
       {
-        id: 's3',
-        title: 'Hallazgos y Acciones',
+        id: 'fri_epp_insp', title: 'CONDICIONES — EPP',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Elementos de Protección Personal (EPP)',
         questions: [
-          { id: 'cs_7', type: 'text',   label: 'Descripción de hallazgos observados', required: true, placeholder: 'Describe las condiciones o actos observados…' },
-          { id: 'cs_8', type: 'yesno',  label: 'Se tomaron acciones inmediatas en terreno', required: true },
-          { id: 'cs_9', type: 'text',   label: 'Acciones tomadas o compromisos establecidos', required: false, placeholder: 'Describe las acciones inmediatas o correctivas acordadas…' },
+          { id: 'cs_fri_epp_p2', type: 'radio', required: true, label: 'Verificación de condiciones en el USO DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)', subtitle: 'Inspeccione los EPP cumplan con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Los EPP se encuentran disponibles y en buen estado.','Los EPP fueron entregados según programa de entrega.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_epp_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en el USO DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_epp_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — MANEJO MANUAL DE CARGA
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_mmc_cond', title: 'CONDUCTA — MANEJO MANUAL DE CARGA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Manejo Manual de Carga',
+        questions: [
+          { id: 'cs_fri_mmc_p1', type: 'radio', required: true, label: 'REGLA N°6 (OP): Aplica técnicas seguras de manejo manual carga y utiliza ayudas mecánicas', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Realiza técnica correcta de manejo manual de carga en productos, objetos, cajas y/o herramientas.','Utiliza ayuda mecánica (transpaleta manual o eléctrica) para el transporte de carga.','Levanta caja con productos desde los extremos (NO desde los zunchos).','Deposita productos, objetos o herramientas utilizando la fuerza de sus piernas, sin flexionar tu espalda.','No lanza cajas con producto al pallet o pallet al suelo.','Transporta Pallets arrastrándolo por el suelo, no sobre sus hombros.','Transporta solo un producto de forma manual.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_mmc_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Manejo Manual de Carga', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES', options: [{ value: 'tecnica_incorrecta', label: 'No aplica técnica correcta de manejo manual de carga en productos, objetos, cajas y/o herramientas', severity: 'NORMAL' },{ value: 'sin_ayuda_mecanica', label: 'No utiliza ayuda mecánica para la manipulación de carga', severity: 'NORMAL' },{ value: 'toma_por_zunchos', label: 'Toma caja con productos desde los zunchos', severity: 'NORMAL' },{ value: 'deposita_inadecuado', label: 'Deposita productos, objetos o herramientas de forma inadecuada', severity: 'NORMAL' },{ value: 'lanza_caja_pallet', label: 'Lanza caja con producto al pallet o lanza pallet al suelo', severity: 'GRAVE' },{ value: 'transporta_hombros', label: 'Transporta pallets sobre los hombros y no arrastrando', severity: 'GRAVE' },{ value: 'transporta_mas_uno', label: 'Transporta más de un producto de forma manual', severity: 'NORMAL' }] },
+          { id: 'cs_fri_mmc_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_mmc_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_mmc_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_mmc_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES' },
         ],
       },
       {
-        id: 's4',
-        title: 'Evaluación General',
+        id: 'fri_mmc_insp', title: 'CONDICIONES — MANEJO MANUAL DE CARGA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Manejo Manual de Carga',
         questions: [
-          { id: 'cs_10', type: 'rating', label: 'Calificación general de las condiciones observadas', required: true },
-          { id: 'cs_11', type: 'text',   label: 'Observaciones adicionales', required: false, placeholder: 'Información complementaria del recorrido…' },
+          { id: 'cs_fri_mmc_p2', type: 'radio', required: true, label: 'Verificación de condiciones en el MANEJO MANUAL DE CARGA', subtitle: 'Inspeccione que la carga cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Las transpaletas manuales y eléctricas se encuentran operativas y en buen estado.','Se mantienen los espacios despejados y suficientes para poder realizar una correcta técnica de manejo manual de carga.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_mmc_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en el MANEJO MANUAL DE CARGA', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_mmc_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
         ],
       },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — TRÁNSITO INTERIOR FRIGORÍFICO
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_tran_cond', title: 'CONDUCTA — TRÁNSITO INTERIOR FRIGORÍFICO',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Tránsito Interior Frigorífico',
+        questions: [
+          { id: 'cs_fri_tran_p1', type: 'radio', required: true, label: 'REGLA N°2 (OP): Transita alerta a las condiciones del entorno y por zonas habilitadas', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['No corren ni caminan apresurados por el área.','Transitan por los lugares demarcados y autorizados.','Utilizan pasamanos al subir o bajar escaleras o peldaños.','Transita por superficies con presencia de hielo o líquido.','Transita o trabaja bajo carga que se encuentra almacenada en altura.','No mantiene distancia con operación de equipos rodantes.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_tran_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Tránsito Interior Frigorífico', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES', options: [{ value: 'zona_no_habilitada', label: 'Transita por zona no habilitada y/o demarcada', severity: 'NORMAL' },{ value: 'transita_corriendo', label: 'Transita corriendo o apresurado por el área', severity: 'NORMAL' },{ value: 'hielo_liquido', label: 'Transita por superficies con presencia de hielo o líquido', severity: 'NORMAL' },{ value: 'bajo_carga_altura', label: 'Transita o trabaja bajo carga que se encuentra almacenada en altura (Aplica cuando no es posible asegurar la estabilidad del pallet, Ej: si han sufrido evento de caída de productos)', severity: 'GRAVE' },{ value: 'sin_distancia_equipos', label: 'No mantiene distancia con operación de equipos rodantes', severity: 'NORMAL' },{ value: 'sobre_pallets_piso', label: 'Transita o trabaja encima de pallets que se encuentran en el piso', severity: 'NORMAL' }] },
+          { id: 'cs_fri_tran_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_tran_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_tran_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_tran_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'fri_tran_insp', title: 'CONDICIONES — TRÁNSITO INTERIOR FRIGORÍFICO',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Tránsito Interior Frigorífico',
+        questions: [
+          { id: 'cs_fri_tran_p2', type: 'radio', required: true, label: 'Verificación de condiciones en el TRÁNSITO INTERIOR FRIGORÍFICO', subtitle: 'Inspeccione que el área de trabajo cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Los pasillos y vías de tránsito se encuentran despejadas y limpias (Sin presencia de hielo o líquido, restos de pallets, film u otros elementos).','Los pisos se encuentran en buen estado.','Las escaleras o escalones están señalizados.','Las vías de tránsito se encuentran bien iluminadas.','Las puertas de acceso a cámaras funcionan correctamente.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_tran_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en el TRÁNSITO INTERIOR FRIGORÍFICO', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_tran_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — CARGA Y DESCARGA DE CAMIONES RAMPLA
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_cdc_cond', title: 'CONDUCTA — CARGA Y DESCARGA DE CAMIONES RAMPLA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Carga y Descarga de Camiones Rampla',
+        questions: [
+          { id: 'cs_fri_cdc_p1', type: 'radio', required: true, label: 'REGLA N°5 (OP): Realizar carga y descarga de camiones cumpliendo con medidas de seguridad establecidas', subtitle: 'Observe que los operadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['No ingresa a descargar o cargar, mientras otro equipo se encuentra al interior de camión realizando operaciones.','No abre cortina de Andén previo a la finalización del posicionamiento de camión.','Informar desperfectos o daños en cortina o plataforma de andén.','Verifica el correcto acople Camión/Andén, antes de comenzar la operación.','Prioriza la utilización de equipo rodante eléctrico sobre el manual.','Cuando utiliza transpaleta manual para la descarga de camión Rampla, solicita apoyo de un compañero.','Cuando realiza la descarga de un camión, controla la velocidad, espacio y ruta de desplazamiento con anticipación.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_cdc_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Carga y Descarga de Camiones Rampla', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES', options: [{ value: 'ingresa_con_otro', label: 'Ingresa a descargar o cargar, mientras otro equipo se encuentra al interior de camión realizando operaciones', severity: 'GRAVE' },{ value: 'abre_cortina_antes', label: 'Abre cortina de andén previo a la finalización del posicionamiento de camión', severity: 'NORMAL' },{ value: 'no_informa_dano', label: 'No informa desperfectos o daños en cortina o plataforma de andén', severity: 'NORMAL' },{ value: 'no_verifica_acople', label: 'No verifica el correcto acople camión/andén, antes de comenzar la operación', severity: 'NORMAL' },{ value: 'no_prioriza_electrico', label: 'No prioriza la utilización de equipo rodante eléctrico sobre el manual', severity: 'NORMAL' },{ value: 'descarga_manual_sin_ayuda', label: 'Realiza descarga de productos de camión rampla utilizando transpaleta manual, sin la ayuda de otro colaborador', severity: 'NORMAL' },{ value: 'descarga_sin_control', label: 'Realizar descarga de camión sin controlar la velocidad, espacio y ruta de desplazamiento.', severity: 'NORMAL' }] },
+          { id: 'cs_fri_cdc_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_cdc_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_cdc_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_cdc_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'fri_cdc_insp', title: 'CONDICIONES — CARGA Y DESCARGA DE CAMIONES RAMPLA',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Carga y Descarga de Camiones Rampla',
+        questions: [
+          { id: 'cs_fri_cdc_p2', type: 'radio', required: true, label: 'Verificación de condiciones en la CARGA-DESCARGA DE CAMIÓN RAMPLA', subtitle: 'Inspeccione que los equipos cumplan con los siguientes estándares y marque el resultado de su inspección:', conductasList: ['Las puertas de andén se encuentran en buen estado (Sistema retráctil), fácil apertura y cierre con sistema de agarre.','Las puertas de camión se encuentran en buen estado.','La transpaleta eléctrica (Casos donde aplica) se encuentra disponible para realizar la tarea.','La plataforma de conexión entre el andén y camión se encuentra en buen estado.','Los pallets con productos, ingresan con facilidad por el andén.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_cdc_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en la CARGA-DESCARGA DE CAMIÓN RAMPLA', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_cdc_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // FRIGORÍFICO — OPERACIÓN DE EQUIPOS RODANTES
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'fri_eqr_cond', title: 'CONDUCTA — OPERACIÓN DE EQUIPOS RODANTES',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Operación de Equipos Rodantes',
+        questions: [
+          { id: 'cs_fri_eqr_p1', type: 'radio', required: true, label: 'REGLA N°3 (OP): Opera máquina o equipo cumpliendo con medidas seguridad establecidas', subtitle: 'Observe que los operadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Realizan la Lista de verificación del equipo rodante (Solicitar lista).','Están concentrados y atentos a las condiciones.','Miran en la dirección de la marcha y siempre con visibilidad.','Reducen la velocidad y utilizan bocina en las esquinas, puertas o cerca de personas.','Respetan señalización de tránsito y utilizan espejos panorámicos.','Utilizan cinturón de seguridad (Grúas horquilla).'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_eqr_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Operación de Equipos Rodantes', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES', options: [{ value: 'no_revisa_preuso', label: 'No revisa equipo, antes de utilizar o no informa fallas (Lista de pre uso equipos rodantes)', severity: 'NORMAL' },{ value: 'opera_sin_autorizacion', label: 'Opera sin estar calificado y autorizado', severity: 'GRAVE' },{ value: 'opera_sin_atencion', label: 'Opera equipo sin prestar atención al trabajo o entorno', severity: 'NORMAL' },{ value: 'no_cumple_instructivo', label: 'No cumple instructivo seguro de equipo rodante', severity: 'NORMAL' },{ value: 'golpea_estructuras', label: 'Golpea pallet contra otra estructura al momento de transportar o almacenar productos', severity: 'NORMAL' },{ value: 'no_cumple_bateria', label: 'No cumple instructivo seguro de cambio de batería', severity: 'NORMAL' },{ value: 'no_avisa_intersecciones', label: 'No advierte su presencia en intersecciones, ingreso o salidas de cámara', severity: 'NORMAL' },{ value: 'sin_gorro_naranja', label: 'No utiliza distintivo asignado a operadores calificados de equipo rodante (Gorro Naranja)', severity: 'NORMAL' }] },
+          { id: 'cs_fri_eqr_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_fri_eqr_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_eqr_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_fri_eqr_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'fri_eqr_insp', title: 'CONDICIONES — EQUIPOS RODANTES',
+        visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Operación de Equipos Rodantes',
+        questions: [
+          { id: 'cs_fri_eqr_p2', type: 'radio', required: true, label: 'Verificación de condiciones en los EQUIPOS RODANTES', subtitle: 'Inspeccione que los equipos cumplan con los siguientes estándares y marque el resultado de su inspección:', conductasList: ['Funcionan correctamente.','Tienen las paradas de emergencia, frenos y bocina en buen estado.','Tienen las ruedas y gomas antideslizante en buen estado.','Tienen las luces (Grúas horquilla) y cableado eléctrico en buenas condiciones.','No se observan filtraciones de aceite en sistema Hidráulico.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_fri_eqr_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en los EQUIPOS RODANTES', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_fri_eqr_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // OFICINAS ADMINISTRATIVAS — TRÁNSITO DE PERSONAS
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'ofi_tp_cond', title: 'CONDUCTA — TRÁNSITO DE PERSONAS',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Tránsito de Personas',
+        questions: [
+          { id: 'cs_ofi_tp_p1', type: 'radio', required: true, label: 'REGLA N°1 (ADM): Transitar siempre atento a las condiciones del entorno y por zonas habilitadas', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Transitar SIEMPRE por zona habilitada y/o demarcada.','Transita SIEMPRE calmadamente y sin correr por el área.','NUNCA transites por superficies con presencia de agua.','Baja escaleras SIEMPRE utilizando el pasa manos.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_tp_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Tránsito de Personas', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES', options: [{ value: 'zona_no_habilitada', label: 'Transita por zona no habilitada y/o demarcada.', severity: 'NORMAL' },{ value: 'transita_corriendo', label: 'Transita corriendo o apresurado por el área.', severity: 'GRAVE' },{ value: 'agua_superficie', label: 'Transita por superficies con presencia de agua.', severity: 'NORMAL' },{ value: 'sin_pasamanos', label: 'Baja o sube escaleras no utilizando el pasa manos.', severity: 'NORMAL' },{ value: 'zonas_no_habilitadas_comunes', label: 'Baja y sube a áreas comunes por zonas no habilitadas', severity: 'NORMAL' }] },
+          { id: 'cs_ofi_tp_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_ofi_tp_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_tp_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_tp_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'ofi_tp_insp', title: 'CONDICIONES — TRÁNSITO DE PERSONAS',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Tránsito de Personas',
+        questions: [
+          { id: 'cs_ofi_tp_p2', type: 'radio', required: true, label: 'Verificación de condiciones en el TRÁNSITO DE PERSONAS', subtitle: 'Inspeccione que el área de trabajo cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Los pasillos y vías de tránsito se encuentran despejadas y limpias, sin presencia de agua.','Las estructuras, objetos, materiales o pisos se encuentran en buen estado.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_tp_reporte', type: 'radio', required: true, label: 'Gestión de Condiciones en el TRÁNSITO DE PERSONAS', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_ofi_tp_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // OFICINAS — EQUIPOS O INSTALACIONES ELÉCTRICAS
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'ofi_elec_cond', title: 'CONDUCTA — EQUIPOS O INSTALACIONES ELÉCTRICAS',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Utilización de Equipos o Instalaciones Eléctricas',
+        questions: [
+          { id: 'cs_ofi_elec_p1', type: 'radio', required: true, label: 'REGLA N°2-3 (ADM): Utilizar siempre equipos eléctricos que se encuentren en buen estado y nunca intervenir instalaciones eléctricas', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['NUNCA sobre cargar circuitos eléctricos (Ladrones) u otros elementos generando el sobre consumo.','NUNCA Utilizar equipos eléctricos que se encuentran en mal estado (Cables rotos, equipos no certificados).','NUNCA intervenir instalaciones eléctricas.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_elec_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Equipos o Instalaciones Eléctricas', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES', options: [{ value: 'sobrecarga_circuitos', label: 'Sobre carga circuitos eléctricos (Ladrones) u otros elementos generando el sobre consumo.', severity: 'GRAVE' },{ value: 'equipos_mal_estado', label: 'Utiliza equipos eléctricos que se encuentran en mal estado (Cables rotos, equipos no certificados)', severity: 'GRAVE' },{ value: 'interviene_instalaciones', label: 'Interviene instalaciones eléctricas.', severity: 'GRAVE' }] },
+          { id: 'cs_ofi_elec_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_ofi_elec_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_elec_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_elec_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'ofi_elec_insp', title: 'CONDICIONES — EQUIPOS O INSTALACIONES ELÉCTRICAS',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Utilización de Equipos o Instalaciones Eléctricas',
+        questions: [
+          { id: 'cs_ofi_elec_p2', type: 'radio', required: true, label: 'Verificación de condiciones DE EQUIPOS O INSTALACIONES ELÉCTRICAS', subtitle: 'Inspeccione que el área de trabajo cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Las instalaciones eléctricas se encuentran en buen estado (cables canalizados y sin daños, enchufes empotrados correctamente).'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_elec_reporte', type: 'radio', required: true, label: 'Gestión de Condiciones de EQUIPOS O INSTALACIONES ELÉCTRICAS', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_ofi_elec_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // OFICINAS — POSTURA DE TRABAJO
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'ofi_post_cond', title: 'CONDUCTA — POSTURA DE TRABAJO ADECUADA',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Postura de Trabajo Adecuada y Reporte de Riesgo en Puesto de Trabajo',
+        questions: [
+          { id: 'cs_ofi_post_p1', type: 'radio', required: true, label: 'REGLA N°4-5 (ADM): Reportar siempre que se observen condiciones inseguras en el puesto de trabajo y Mantener una postura de trabajo adecuada (Espalda derecha, codos y brazos apoyados)', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Regular SIEMPRE tu asiento al iniciar tu jornada de trabajo (ALTURA, APOYA ANTEBRAZOS).','Ordenar su puesto de trabajo antes de comenzar su jornada.','Posicionar el borde superior de su pantalla a la altura de sus ojos.','Reporta condiciones de riesgo en su puesto de trabajo.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_post_desvio', type: 'checkbox', required: true, label: 'Conductas observadas — Postura de Trabajo', subtitle: 'Marque una o más conductas observadas. Las desviaciones en rojo son GRAVES.', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES', options: [{ value: 'no_reporta_riesgo', label: 'No reporta condiciones de riesgo en su puesto de trabajo o instalaciones.', severity: 'NORMAL' },{ value: 'no_regula_asiento', label: 'No regula su asiento al iniciar su jornada de trabajo (ALTURA, APOYA ANTEBRAZOS)', severity: 'NORMAL' },{ value: 'pantalla_incorrecta', label: 'No posiciona el borde superior de su pantalla a la altura de sus ojos.', severity: 'NORMAL' },{ value: 'no_ordena_puesto', label: 'No ordena su puesto de trabajo antes de comenzar su jornada.', severity: 'NORMAL' }] },
+          { id: 'cs_ofi_post_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_ofi_post_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_post_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_ofi_post_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'ofi_post_insp', title: 'CONDICIONES — POSTURA DE TRABAJO ADECUADA',
+        visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Postura de Trabajo Adecuada y Reporte de Riesgo en Puesto de Trabajo',
+        questions: [
+          { id: 'cs_ofi_post_p2', type: 'radio', required: true, label: 'Verificación de condiciones en la POSTURA DE TRABAJO ADECUADA', subtitle: 'Inspeccione que el área de trabajo cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Las instalaciones cumplen con el mobiliario adecuado para que los trabajadores puedan tener una postura adecuada: Silla regulable en altura y apoya brazos, Pantalla regulable en altura (de ser necesario), Espacio suficiente para todos los artículos que utiliza.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_ofi_post_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en la POSTURA DE TRABAJO ADECUADA', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_ofi_post_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'Se realizó la Reporte simple de inspección de Seguridad para gestionar la desviación.' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // SALA DE MÁQUINAS — Solo condiciones
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'maq_insp', title: 'CONDICIONES — SALAS DE MÁQUINAS',
+        visibleWhen: (a) => a.cs_area === 'Sala de Máquinas',
+        questions: [
+          { id: 'cs_maq_p2', type: 'radio', required: true, label: 'Verificación de condiciones en SALAS DE MÁQUINAS', subtitle: 'Inspeccione que la sala cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Está cerrado con candado u otro sistema.','Está señalizado como área restringida.','Están los tableros cerrados.','Están los tableros señalizados con peligro de electricidad.','Están los cables canalizados y en buen estado.','Está libre de objetos que no deben estar (basura, trapos, papeles, objetos, material POP, archivos, cajas, entre otros).','Existe casilla con EPP correspondientes (Guantes dieléctricos, Lentes de seguridad, Fonos o tapones auditivos, Casco de seguridad).','Existe bitácora de ingreso, con recomendaciones de seguridad.','Existen hojas de datos de seguridad y procedimiento en caso de fuga.','Existe extintor operativo y señalizado en el área.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_maq_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en SALAS DE MÁQUINAS', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_maq_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'SE REALIZÓ REPORTE DE INSPECCIÓN SIMPLE PARA GESTIONAR LA DESVIACIÓN' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // SALA DE BATERÍAS — Conducta + Condiciones
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'bat_cond', title: 'CONDUCTA — SALA CARGA DE BATERÍAS',
+        visibleWhen: (a) => a.cs_area === 'Sala de Baterías',
+        questions: [
+          { id: 'cs_bat_p1', type: 'radio', required: true, label: 'Verificación de conductas en SALA CARGA DE BATERÍAS', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Operador de equipo rodante cumple con Instructivo de Seguridad para cambio de batería.','Operador utiliza todos sus EPP al momento de realizar el cambio de batería.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_bat_desvio', type: 'checkbox', required: true, label: 'Conductas observadas en SALA CARGA DE BATERÍAS', subtitle: 'Marque una o más conductas observadas.', visibleWhen: (a) => a.cs_bat_p1 === 'CON_OBSERVACIONES', options: [{ value: 'no_cumple_instructivo', label: 'Operador de equipo rodante no cumple con Instructivo de Seguridad para cambio de batería', severity: 'NORMAL' },{ value: 'no_utiliza_epp', label: 'Operador no utiliza todos sus EPP al momento de realizar el cambio de batería.', severity: 'NORMAL' }] },
+          { id: 'cs_bat_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_bat_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_bat_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_bat_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_bat_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_bat_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_bat_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_bat_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'bat_insp', title: 'CONDICIONES — SALA CARGA DE BATERÍAS',
+        visibleWhen: (a) => a.cs_area === 'Sala de Baterías',
+        questions: [
+          { id: 'cs_bat_p2', type: 'radio', required: true, label: 'Verificación de condiciones en SALA CARGA DE BATERÍAS', subtitle: 'Inspeccione que la sala cumpla con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Está cerrado con candado u otro sistema.','Está señalizado como área restringida.','Existen señaléticas con alusión a peligros de electricidad y corrosivo.','Existe EPP para cambios de baterías y señalética que obligue su uso (Guantes de protección mecánica (SECOS), lentes de seguridad).','Están todas las conexiones eléctricas canalizadas y en buen estado.','Está libre de objetos que no deben estar (Basura, trapos, material POP, archivos, cajas, entre otros).','Existe instructivo de carga de batería, en buen estado y en español.','Existen ganchos para colgar las conexiones de los cargadores.','Los carros y rodillos para el cambio de batería están en buen estado.','Cuenta con sistema de contención en caso de derrame.','Existe extintor operativo y señalizado en el área.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_bat_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en SALA CARGA DE BATERÍAS', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_bat_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'SE REALIZÓ REPORTE DE INSPECCIÓN SIMPLE PARA GESTIONAR LA DESVIACIÓN' }] },
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════════════
+      // ÁREAS COMUNES — Conducta + Condiciones
+      // ══════════════════════════════════════════════════════════════════════
+      {
+        id: 'com_cond', title: 'CONDUCTA — ÁREAS COMUNES',
+        visibleWhen: (a) => a.cs_area === 'Áreas Comunes',
+        questions: [
+          { id: 'cs_com_p1', type: 'radio', required: true, label: 'Verificación de conductas en ÁREAS COMUNES', subtitle: 'Observe que los trabajadores cumplan con las siguientes conductas y marque el resultado de su observación:', conductasList: ['Conducción dentro del límite de velocidad dentro de las instalaciones (10km/h).','Transita por áreas demarcadas y señalizadas.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_com_desvio', type: 'checkbox', required: true, label: 'Conductas observadas en ÁREAS COMUNES', subtitle: 'Marque una o más conductas observadas.', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES', options: [{ value: 'exceso_velocidad', label: 'Conducción sobre el límite de velocidad dentro de las instalaciones (10 km/h).', severity: 'NORMAL' },{ value: 'no_transita_demarcada', label: 'No transita por áreas demarcadas y señalizadas.', severity: 'NORMAL' }] },
+          { id: 'cs_com_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
+          { id: 'cs_com_nombre', type: 'text', required: true, label: 'Nombre y apellido trabajador observado', placeholder: 'Ej: Juan Pérez González', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_com_rut', type: 'text', required: true, label: 'RUT trabajador observado (sin puntos ni dígito verificador)', placeholder: 'Ej: 15523645', inputType: 'number', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES' },
+          { id: 'cs_com_obs', type: 'text', required: true, label: 'Observaciones', placeholder: 'Escribir brevemente información extra de la observación y/o retroalimentación', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES' },
+        ],
+      },
+      {
+        id: 'com_insp', title: 'CONDICIONES — ÁREAS COMUNES',
+        visibleWhen: (a) => a.cs_area === 'Áreas Comunes',
+        questions: [
+          { id: 'cs_com_p2', type: 'radio', required: true, label: 'Verificación de condiciones en ÁREAS COMUNES', subtitle: 'Inspeccione que las áreas cumplan con los siguientes estándares y marque el resultado de su observación:', conductasList: ['Las Zonas de seguridad se encuentran demarcadas, señaladas y son de conocimiento de todo el personal.','Se encuentran señalizado el límite máximo de velocidad (10km/h).','Se encuentran demarcadas y visibles las vías de tránsito peatonal.','Se encuentran señalizadas y visibles las vías de evacuación.','Las zonas de tránsito peatonal se encuentran en buen estado (Sin desniveles o imperfecciones).','Los camarines del personal, se encuentran limpios y con pisos antideslizantes.','Todas las escaleras o desniveles poseen pasa manos o barandas.','La zona de almacenamiento de pallets se encuentra ordenada y con la altura de apilamiento que corresponde.'], options: [{ value: 'SIN_OBSERVACIONES', label: 'SIN OBSERVACIONES', style: 'positive' },{ value: 'CON_OBSERVACIONES', label: 'CON OBSERVACIONES', style: 'negative' }] },
+          { id: 'cs_com_reporte', type: 'radio', required: true, label: 'Gestión de condiciones en ÁREAS COMUNES', subtitle: '¡ATENCIÓN! Deberá realizar el reporte simple de inspección de seguridad para la desviación(es).', visibleWhen: (a) => a.cs_com_p2 === 'CON_OBSERVACIONES', options: [{ value: 'REPORTE_REALIZADO', label: 'SE REALIZÓ REPORTE DE INSPECCIÓN SIMPLE PARA GESTIONAR LA DESVIACIÓN' }] },
+        ],
+      },
+
     ],
   },
 
