@@ -4,7 +4,7 @@
 // onChange: (string[]) => void
 
 import { useRef } from 'react'
-import { Camera, FolderOpen, X, ImagePlus } from 'lucide-react'
+import { Camera, FolderOpen, X, CheckCircle2, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const MAX_PHOTOS   = 3
@@ -42,8 +42,8 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
   const canAdd     = photos.length < maxPhotos
 
   async function handleFiles(files) {
-    const remaining = maxPhotos - photos.length
-    const selected  = Array.from(files).slice(0, remaining)
+    const remaining  = maxPhotos - photos.length
+    const selected   = Array.from(files).slice(0, remaining)
     const compressed = await Promise.all(selected.map(compressImage))
     const valid = compressed.filter(Boolean)
     if (valid.length) onChange([...photos, ...valid])
@@ -78,62 +78,61 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
         </p>
       )}
 
-      {/* Thumbnails */}
+      {/* Previsualizaciones grandes — feedback principal */}
       <AnimatePresence>
-        {photos.length > 0 && (
+        {photos.map((src, idx) => (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}
+            key={idx}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            style={{ position: 'relative', marginBottom: 10, borderRadius: 12, overflow: 'hidden', border: '2px solid #27AE60' }}
           >
-            {photos.map((src, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                style={{ position: 'relative', width: 88, height: 88 }}
-              >
-                <img
-                  src={src}
-                  alt={`Foto ${idx + 1}`}
-                  style={{
-                    width: '100%', height: '100%',
-                    objectFit: 'cover', borderRadius: 10,
-                    border: '2px solid var(--color-border)',
-                  }}
-                />
-                <button
-                  onClick={() => removePhoto(idx)}
-                  style={{
-                    position: 'absolute', top: -6, right: -6,
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: '#EB5757', border: '2px solid var(--color-navy)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', padding: 0,
-                  }}
-                >
-                  <X size={11} color="#fff" strokeWidth={3} />
-                </button>
-                <div style={{
-                  position: 'absolute', bottom: 4, left: 4,
-                  background: 'rgba(0,0,0,0.55)', borderRadius: 4,
-                  fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700,
-                  color: '#fff', padding: '1px 4px',
-                }}>
-                  {idx + 1}/{maxPhotos}
-                </div>
-              </motion.div>
-            ))}
+            <img
+              src={src}
+              alt={`Evidencia ${idx + 1}`}
+              style={{ width: '100%', maxHeight: 220, objectFit: 'cover', display: 'block' }}
+            />
+
+            {/* Badge de éxito */}
+            <div style={{
+              position: 'absolute', top: 10, left: 10,
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'rgba(27,42,74,0.82)', backdropFilter: 'blur(4px)',
+              borderRadius: 8, padding: '4px 10px',
+              border: '1px solid #27AE60',
+            }}>
+              <CheckCircle2 size={13} color="#27AE60" />
+              <span style={{
+                fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+                color: '#27AE60', letterSpacing: '0.04em',
+              }}>
+                {maxPhotos > 1 ? `Foto ${idx + 1}/${maxPhotos} adjuntada` : 'Foto adjuntada'}
+              </span>
+            </div>
+
+            {/* Botón eliminar */}
+            <button
+              onClick={() => removePhoto(idx)}
+              style={{
+                position: 'absolute', top: 10, right: 10,
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'rgba(235,87,87,0.88)', backdropFilter: 'blur(4px)',
+                border: '1.5px solid rgba(255,255,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', padding: 0,
+              }}
+            >
+              <X size={14} color="#fff" strokeWidth={3} />
+            </button>
           </motion.div>
-        )}
+        ))}
       </AnimatePresence>
 
       {/* Botones de acción */}
       {canAdd && (
         <div style={{ display: 'flex', gap: 10 }}>
-          {/* Cámara */}
           <button
             onClick={() => cameraRef.current?.click()}
             style={{
@@ -150,7 +149,6 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
             Cámara
           </button>
 
-          {/* Galería / archivos */}
           <button
             onClick={() => galleryRef.current?.click()}
             style={{
@@ -169,28 +167,23 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
         </div>
       )}
 
-      {/* Slots vacíos visuales cuando ya hay fotos */}
+      {/* Cuando ya se llenaron los slots: botón Cambiar foto */}
       {!canAdd && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 12px', borderRadius: 8,
-          background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.2)',
-        }}>
-          <ImagePlus size={13} color="#27AE60" />
-          <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#27AE60' }}>
-            Máximo {maxPhotos} foto{maxPhotos !== 1 ? 's' : ''} adjuntadas
-          </span>
-        </div>
-      )}
-
-      {/* Indicador de contador si hay fotos pero puede agregar más */}
-      {canAdd && photos.length > 0 && (
-        <div style={{
-          marginTop: 8, fontFamily: 'var(--font-body)', fontSize: 11,
-          color: 'var(--color-text-muted)', textAlign: 'right',
-        }}>
-          {photos.length} de {maxPhotos} foto{maxPhotos !== 1 ? 's' : ''}
-        </div>
+        <button
+          onClick={() => galleryRef.current?.click()}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            padding: '9px 14px', borderRadius: 10,
+            background: 'rgba(39,174,96,0.08)',
+            border: '1.5px solid rgba(39,174,96,0.35)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600,
+            color: '#27AE60',
+          }}
+        >
+          <RefreshCw size={13} />
+          Cambiar foto
+        </button>
       )}
 
       {/* Inputs ocultos */}

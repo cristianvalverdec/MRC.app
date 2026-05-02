@@ -5,6 +5,24 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.23] — 2026-05-02
+
+### Caminata de Seguridad — Correcciones de CIERRE, etiquetas y colores de carta
+
+- **Fix CIERRE de conducta:** la sección "CIERRE DE OBSERVACIÓN DE CONDUCTA" ahora aparece correctamente tras SIN OBSERVACIONES + retro positiva comunicada, y también tras CON OBSERVACIONES + retro correctiva. Cada temática tiene su propio bloque `_cierre` ubicado inmediatamente después de su sección de conducta (no al final del formulario).
+- **Fix etiqueta carta de amonestación:** la pregunta "¿Amerita carta de amonestación?" ahora muestra su título correctamente (antes solo aparecían los botones sin contexto).
+- **Fix colores carta:** opción NO en verde, opción SÍ en rojo.
+- **Fix CIERRE con retro NO comunicada:** si se responde "NO" a *¿Se comunicó el resultado de la retroalimentación POSITIVA?*, el bloque CIERRE ya no se despliega.
+
+### Evidencia fotográfica — Rediseño de feedback visual
+
+- Las fotos adjuntadas ahora se muestran como previsualizaciones a ancho completo (antes eran miniaturas 88×88 px difíciles de notar en móvil).
+- Badge verde "Foto adjuntada" con ícono `CheckCircle2` superpuesto sobre la imagen.
+- Botón rojo X de 30 px para eliminar la foto.
+- Botón "Cambiar foto" cuando se alcanzó el límite de fotos permitido.
+
+---
+
 ## [1.9.20] — 2026-05-01
 
 ### Caminata de Seguridad — Retroalimentación positiva/correctiva + mejoras de UX

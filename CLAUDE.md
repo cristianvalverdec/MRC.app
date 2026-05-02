@@ -382,4 +382,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-01 — v1.9.20 — Caminata: retroalimentación positiva/correctiva bifurcada, cierre compartido, foto obligatoria en posición 3, fecha nativa, fix label checkbox incidentes*
+*Última actualización: 2026-05-02 — v1.9.23 — Caminata: fix CIERRE conducta por temática, fix label carta de amonestación, colores carta NO=verde/SÍ=rojo, fix CIERRE no aparece si retro no comunicada; QuestionPhoto: rediseño con preview full-width y badge verde*

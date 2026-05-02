@@ -1,7 +1,7 @@
 {
   "name": "mision-riesgo-cero",
   "private": true,
-  "version": "1.9.20",
+  "version": "1.9.23",
   "type": "module",
   "scripts": {
     "dev": "vite",
