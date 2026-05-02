@@ -46,11 +46,11 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
     const selected   = Array.from(files).slice(0, remaining)
     const compressed = await Promise.all(selected.map(compressImage))
     const valid = compressed.filter(Boolean)
-    if (valid.length) onChange([...photos, ...valid])
+    if (valid.length) onChange(question.id, [...photos, ...valid])
   }
 
   function removePhoto(idx) {
-    onChange(photos.filter((_, i) => i !== idx))
+    onChange(question.id, photos.filter((_, i) => i !== idx))
   }
 
   return (
