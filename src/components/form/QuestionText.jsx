@@ -25,7 +25,29 @@ export default function QuestionText({ question, value, onChange }) {
         </p>
       )}
 
-      {question.inputType === 'single-line' ? (
+      {question.inputType === 'date' ? (
+        <input
+          type="date"
+          value={text}
+          onChange={(e) => onChange(question.id, e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%',
+            background: 'rgba(255,255,255,0.05)',
+            border: `1.5px solid ${focused ? 'var(--color-orange)' : 'var(--color-border)'}`,
+            borderRadius: 8,
+            padding: '13px 14px',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            outline: 'none',
+            transition: 'border-color 0.15s ease',
+            boxSizing: 'border-box',
+            colorScheme: 'dark',
+          }}
+        />
+      ) : question.inputType === 'single-line' ? (
         <input
           type="text"
           value={text}

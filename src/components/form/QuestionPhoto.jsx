@@ -58,7 +58,7 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
       {/* Label */}
       <div style={{
         fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-        color: 'var(--color-text-secondary)', marginBottom: 10,
+        color: 'var(--color-text-secondary)', marginBottom: question.subtitle ? 4 : 10,
       }}>
         {question.label}
         {!question.required && (
@@ -67,6 +67,16 @@ export default function QuestionPhoto({ question, value = [], onChange }) {
           </span>
         )}
       </div>
+
+      {question.subtitle && (
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 12,
+          color: 'var(--color-text-muted)',
+          margin: '0 0 10px', lineHeight: 1.4,
+        }}>
+          {question.subtitle}
+        </p>
+      )}
 
       {/* Thumbnails */}
       <AnimatePresence>

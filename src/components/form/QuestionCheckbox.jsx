@@ -18,6 +18,24 @@ export default function QuestionCheckbox({ question, value, onChange }) {
 
   return (
     <div>
+      {/* Label */}
+      {!question._noLabel && question.label && (
+        <p
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--color-text-secondary)',
+            lineHeight: 1.45,
+            margin: '0 0 8px',
+          }}
+        >
+          {question.label}
+          {question.required && (
+            <span style={{ color: 'var(--color-orange)', marginLeft: 4 }}>*</span>
+          )}
+        </p>
+      )}
       {/* Subtitle */}
       {question.subtitle && (
         <p

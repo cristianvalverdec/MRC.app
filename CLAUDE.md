@@ -382,4 +382,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-01 — v1.9.19 — Caminata: bloque condiciones enriquecido (9 campos), doble cola SharePoint (Option C), fix secciones antiguas en mobile*
+*Última actualización: 2026-05-01 — v1.9.20 — Caminata: retroalimentación positiva/correctiva bifurcada, cierre compartido, foto obligatoria en posición 3, fecha nativa, fix label checkbox incidentes*

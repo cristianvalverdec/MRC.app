@@ -5,6 +5,36 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.20] — 2026-05-01
+
+### Caminata de Seguridad — Retroalimentación positiva/correctiva + mejoras de UX
+
+#### Conductas: flujo bifurcado según resultado de observación
+
+Cada sección de conducta ahora distingue dos caminos tras la evaluación:
+
+- **SIN OBSERVACIONES** → aparece bloque "RETROALIMENTACIÓN POSITIVA": radio *¿Se comunicó la retroalimentación al colaborador?* + texto *Describa la retroalimentación positiva realizada*
+- **CON OBSERVACIONES** → aparece bloque "RETROALIMENTACIÓN CORRECTIVA": radio *¿Amerita carta de amonestación?* + texto *Describa la retroalimentación correctiva realizada*
+
+En ambos casos, al finalizar la observación se muestra la sección compartida **CIERRE DE OBSERVACIÓN DE CONDUCTA** con Nombre y RUT del colaborador observado (los campos individuales de nombre/RUT por sección fueron eliminados y consolidados aquí).
+
+#### Foto de condición insegura — ahora obligatoria y más visible
+
+- `_cond_foto` movida a la 3ª posición de cada bloque de condiciones (antes de la pregunta de incidentes)
+- Marcada como **requerida** en todas las temáticas
+- Label destacado con emoji de cámara: *📷 FOTOGRAFÍA DE LA CONDICIÓN INSEGURA*
+- Subtítulo de advertencia: *Evite fotografiar directamente el rostro de personal Agrosuper*
+
+#### Selector de fecha nativo
+
+El campo *Fecha de compromiso de ejecución* (`_cond_fecha`) ahora usa un `<input type="date">` con calendario nativo del sistema operativo (antes era un textarea libre).
+
+#### Título en checkbox de incidentes
+
+El bloque de checkbox de incidentes posibles ahora muestra correctamente su label como encabezado (regresión en `QuestionCheckbox` donde solo se renderizaba el `subtitle` pero no el `label`).
+
+---
+
 ## [1.9.19] — 2026-05-01
 
 ### Caminata de Seguridad — Condición Insegura enriquecida + doble cola SharePoint
