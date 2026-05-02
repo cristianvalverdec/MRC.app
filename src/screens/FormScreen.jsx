@@ -641,7 +641,20 @@ function SectionsMode({ form, formType }) {
     // cambio de área previo que no disparó handleChange (ej. área ya seleccionada al cargar).
     const visibleQIds = new Set(allQuestions.map((q) => q.id))
     const cleanedAnswers = Object.fromEntries(Object.entries(answers).filter(([qid]) => visibleQIds.has(qid)))
-    addToPendingQueue({ formType, answers: cleanedAnswers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
+    const firstId = addToPendingQueue({ formType, answers: cleanedAnswers, formTitle: form.title, userName, userEmail, userJobTitle, branch })
+    // Doble cola para Caminata de Seguridad: si hay condición insegura detectada,
+    // depositar el detalle en la lista Inspección Simple (Option C).
+    if (formType === 'caminata-seguridad' &&
+        Object.entries(cleanedAnswers).some(([k, v]) => k.endsWith('_p2') && v === 'CON_OBSERVACIONES')) {
+      addToPendingQueue({
+        formType: 'caminata-seguridad-condicion',
+        answers: cleanedAnswers,
+        formTitle: `${form.title} — Condición Insegura`,
+        userName, userEmail, userJobTitle,
+        branch: cleanedAnswers.cs_instalacion || branch,
+        linkedTo: firstId,
+      })
+    }
     clearDraft(formType)
     setSubmitted(true)
     setSubmitting(false)
@@ -958,7 +971,8 @@ export default function FormScreen() {
       )
       // Adjuntar secciones del override que no existen en el estático (creadas por el editor)
       editedOverride.sections.forEach((s) => {
-        if (!staticForm.sections.find((ss) => ss.id === s.id)) finalSections.push(mergedSectionMap[s.id] || s)
+        if (!staticForm.sections.find((ss) => ss.id === s.id) && !supersededSecs.has(s.id))
+          finalSections.push(mergedSectionMap[s.id] || s)
       })
       return { ...staticForm, ...editedOverride, sections: finalSections }
     }

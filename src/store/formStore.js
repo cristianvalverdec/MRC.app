@@ -29,13 +29,16 @@ const useFormStore = create(
           return { drafts: rest }
         }),
 
-      addToPendingQueue: (submission) =>
+      addToPendingQueue: (submission) => {
+        const id = submission.id ?? Date.now()
         set((state) => ({
           pendingQueue: [
             ...state.pendingQueue,
-            { ...submission, id: Date.now(), createdAt: new Date().toISOString(), synced: false },
+            { ...submission, id, createdAt: new Date().toISOString(), synced: false },
           ],
-        })),
+        }))
+        return id
+      },
 
       removeFromQueue: (id) =>
         set((state) => ({

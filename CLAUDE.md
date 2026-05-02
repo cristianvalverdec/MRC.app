@@ -150,7 +150,9 @@ src/
 - **Visibilidad condicional serializable:** las funciones `visibleWhen` no sobreviven JSON. El editor guarda `visibleCondition: { questionId, equals }` (o `{ all }` / `{ any }`). `FormScreen` reconstruye `visibleWhen` con `buildVisibleFn`. El campo `_staticVisibleCondition` en `sectionsState` es solo de display (F3) — nunca se persiste.
 - **Template "reglas-oro":** formularios con `metadata.template === 'reglas-oro'` en `formDefinitions.js` habilitan la macro F5 "Agregar Regla de Oro" en el editor, que crea opción+sección+radio+checkbox gateados en una sola transacción.
 - **Archive:** `editedForms[formId].archived === true` oculta el formulario de `ToolsMenuScreen` sin destruir el override. Reversible desde la pestaña "CONEXIÓN SP" del editor.
-- **Caminata de Seguridad (`caminata-seguridad`):** formulario reconstruido en v1.9.18. 26 secciones, 94 preguntas. Ramificación área → temática → conducta → condiciones. Mapper dinámico en `sharepointData.js`: usa pattern matching sobre sufijos de clave (`_p1`, `_desvio`, `_carta`, `_nombre`, `_rut`, `_obs`, `_p2`, `_reporte`) — funciona automáticamente con temáticas nuevas creadas desde el Editor sin cambiar código.
+- **Caminata de Seguridad (`caminata-seguridad`):** formulario reconstruido en v1.9.18. 26 secciones, preguntas en expansión. Ramificación área → temática → conducta → condiciones. Mapper dinámico en `sharepointData.js`: usa pattern matching sobre sufijos de clave (`_p1`, `_desvio`, `_carta`, `_nombre`, `_rut`, `_obs`, `_p2`) — funciona automáticamente con temáticas nuevas creadas desde el Editor sin cambiar código.
+- **Doble cola Caminata (v1.9.19, Option C):** al enviar con condición insegura detectada (`_p2 === 'CON_OBSERVACIONES'`), `FormScreen` encola DOS ítems independientes. El primero (`formType: 'caminata-seguridad'`) va a la lista Caminata. El segundo (`formType: 'caminata-seguridad-condicion'`) va a la lista Inspección Simple vía `mapCondicionDesdeCaminata`, con `linkedTo: firstId` para agrupación. Cada ítem tiene reintento offline independiente. El segundo item solo existe si hay condición insegura.
+- **`supersededSections`:** el bloque de append en `FormScreen` verifica `!supersededSecs.has(s.id)` ANTES del fallback `|| s`. Sin esto, secciones del override antiguo (s1–s4) reaparecen como secciones independientes aunque no existan en `mergedSectionMap`.
 
 ### 5.3 Sync cloud (formEditorStore)
 - **Offline-first:** el guardado local SIEMPRE es exitoso. La sync con SharePoint es fire-and-forget.
@@ -380,4 +382,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-01 — v1.9.18 — Caminata de Seguridad reconstruida (26 secciones, 94 preguntas, mapper dinámico, ramificación área→temática→conducta→condiciones)*
+*Última actualización: 2026-05-01 — v1.9.19 — Caminata: bloque condiciones enriquecido (9 campos), doble cola SharePoint (Option C), fix secciones antiguas en mobile*

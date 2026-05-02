@@ -5,6 +5,38 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.19] — 2026-05-01
+
+### Caminata de Seguridad — Condición Insegura enriquecida + doble cola SharePoint
+
+#### Bloque de condiciones rediseñado (9 campos por temática)
+
+Cuando el usuario marca **CON OBSERVACIONES** en la fase de condiciones, ahora se despliegan 9 preguntas detalladas (antes era solo un radio "¿realizó reporte?"):
+- Lugar específico donde se detectó la condición
+- Descripción de la condición insegura
+- Incidentes posibles (checkbox con 14 opciones estándar SSO)
+- Foto adjunta (opcional)
+- Medida de control a implementar
+- Área responsable de la medida
+- Nombre y correo del responsable
+- Fecha de compromiso de ejecución
+
+#### Doble cola SharePoint (Option C)
+
+Al enviar un formulario de Caminata con condición insegura detectada, la app encola **dos ítems independientes**:
+1. Resumen completo → lista **Caminata de Seguridad** (comportamiento existente, sin reporte obsoleto)
+2. Detalle de la condición → lista **Inspección Simple** (`formType: 'caminata-seguridad-condicion'`)
+
+Cada ítem tiene reintentos independientes offline. El segundo ítem incluye `linkedTo` para agrupación visual futura.
+
+#### Correcciones incluidas
+
+- **Bug secciones antiguas (mobile):** Las secciones s1–s4 del override cloud ya no aparecen acopladas al final del formulario nuevo. Causa raíz: el bloque de append en FormScreen no verificaba `supersededSecs` antes del fallback `|| s`.
+- **`mapCaminataSeguridad`:** eliminada columna obsoleta "¿Realizó reporte inspección?"; el mapper ya no busca `_reporte` keys.
+- **Fotos en `caminata-seguridad-condicion`:** `submitFormToSharePoint` detecta y adjunta fotos de `_cond_foto` automáticamente.
+
+---
+
 ## [1.9.18] — 2026-05-01
 
 ### Formulario Caminata de Seguridad — Reconstrucción completa

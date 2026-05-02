@@ -227,7 +227,6 @@ function mapCaminataSeguridad(sub) {
   const keyRut     = keys.find(k => k.endsWith('_rut'))
   const keyObs     = keys.find(k => k.endsWith('_obs'))
   const keyP2      = keys.find(k => k.endsWith('_p2'))
-  const keyReporte = keys.find(k => k.endsWith('_reporte'))
 
   const hayDesvioConducta    = keyP1 ? d[keyP1] === 'CON_OBSERVACIONES' : false
   const hayDesvioCondiciones = keyP2 ? d[keyP2] === 'CON_OBSERVACIONES' : false
@@ -249,9 +248,52 @@ function mapCaminataSeguridad(sub) {
     Nombre_x0020_Colaborador:             keyNombre ? d[keyNombre] || '' : '',
     RUT_x0020_Colaborador:                keyRut    ? d[keyRut]    || '' : '',
     '_x00bf_Existe_x0020_Desviaci_x000':  hayDesvioCondiciones ? 'Sí' : 'No',
-    '_x00bf_Realiz_x00f3__x0020_el_x0':   keyReporte ? (d[keyReporte] === 'REPORTE_REALIZADO' ? 'Sí' : 'No') : '',
     Observaciones:                         keyObs ? d[keyObs] || '' : '',
     Correo_x0020_Remitente:               sub.userEmail || '',
+  }
+}
+
+// ── 3b. Condición Insegura desde Caminata de Seguridad ────────────────────
+// Segundo ítem de cola (Option C): deposita el detalle de la condición
+// detectada en la lista Inspección Simple. Solo se encola cuando el
+// formulario tiene al menos un _p2 === 'CON_OBSERVACIONES'.
+function mapCondicionDesdeCaminata(sub) {
+  const d = sub.answers || sub.data || {}
+
+  const prefix = (d.cs_instalacion || sub.branch || 'XX').replace(/\s+/g, '').substring(0, 3).toUpperCase()
+  const ts     = Date.now().toString().slice(-6)
+  const codigo = `CS-${prefix}-${ts}`
+
+  const keys = Object.keys(d).filter(k => k.startsWith('cs_'))
+  const keyCondLugar      = keys.find(k => k.endsWith('_cond_lugar'))
+  const keyCondDesc       = keys.find(k => k.endsWith('_cond_desc'))
+  const keyCondIncidentes = keys.find(k => k.endsWith('_cond_incidentes'))
+  const keyCondMedida     = keys.find(k => k.endsWith('_cond_medida'))
+  const keyCondAreaResp   = keys.find(k => k.endsWith('_cond_area_resp'))
+  const keyCondNombreResp = keys.find(k => k.endsWith('_cond_nombre_resp'))
+  const keyCondCorreoResp = keys.find(k => k.endsWith('_cond_correo_resp'))
+  const keyCondFecha      = keys.find(k => k.endsWith('_cond_fecha'))
+
+  const incidentesRaw = keyCondIncidentes ? d[keyCondIncidentes] : null
+  const incidentesStr = incidentesRaw
+    ? (Array.isArray(incidentesRaw) ? incidentesRaw : [String(incidentesRaw)]).filter(Boolean).join(' | ')
+    : ''
+
+  return {
+    Title:                               codigo,
+    Instalaci_x00f3_n:                   d.cs_instalacion || sub.branch || '',
+    Nombre:                              sub.userName   || '',
+    Categor_x00ed_a:                     `Caminata — ${d.cs_area || ''}`,
+    Lugar_x0020_Especifico:              keyCondLugar      ? d[keyCondLugar]      || '' : '',
+    Condici_x00f3_n_x0020_Insegura:      keyCondDesc       ? d[keyCondDesc]       || '' : '',
+    Incidentes_x0020_Posibles:           incidentesStr,
+    Medida_x0020_de_x0020_Control:       keyCondMedida     ? d[keyCondMedida]     || '' : '',
+    _x00c1_rea_x0020_Responsable:        keyCondAreaResp   ? d[keyCondAreaResp]   || '' : '',
+    Nombre_x0020_Responsable:            keyCondNombreResp ? d[keyCondNombreResp] || '' : '',
+    Correo_x0020_Responsable:            keyCondCorreoResp ? d[keyCondCorreoResp] || '' : '',
+    Fecha_x0020_Compromiso:              keyCondFecha      ? d[keyCondFecha]      || '' : '',
+    C_x00f3_digo_x0020_de_x0020_Repo:    codigo,
+    Correo_x0020_Remitente:              sub.userEmail || '',
   }
 }
 
@@ -408,6 +450,7 @@ function getListConfig(formType) {
     'pauta-verificacion-reglas-oro':  { listId: LIST_IDS.reglasOroSucursales,       mapFields: mapReglasOroSucursales       },
     'observacion-conductual':         { listId: LIST_IDS.reglasOroVentas,           mapFields: mapReglasOroVentas           },
     'caminata-seguridad':             { listId: LIST_IDS.caminataSeguridad,         mapFields: mapCaminataSeguridad         },
+    'caminata-seguridad-condicion':   { listId: LIST_IDS.inspeccionSimple,          mapFields: mapCondicionDesdeCaminata    },
     'inspeccion-simple':              { listId: LIST_IDS.inspeccionSimple,          mapFields: mapInspeccionSimple          },
     'difusiones-sso':                 { listId: LIST_IDS.difusionesSso,             mapFields: mapDifusiones                },
     'cierre-condiciones':             { listId: LIST_IDS.cierreCondiciones,         mapFields: mapCierreCondiciones         },
@@ -478,7 +521,6 @@ export const SP_COLUMN_CATALOG = {
     { internal: 'Nombre_x0020_Colaborador',                   label: 'Nombre Colaborador' },
     { internal: 'RUT_x0020_Colaborador',                      label: 'RUT Colaborador' },
     { internal: "'x00bf_Existe_x0020_Desviaci_x000'",         label: '¿Desviación de condiciones?' },
-    { internal: "'x00bf_Realiz_x00f3__x0020_el_x0'",          label: '¿Realizó reporte inspección?' },
     { internal: 'Observaciones',                              label: 'Observaciones' },
     { internal: 'Nombre',                                     label: 'Nombre (responsable)' },
     { internal: 'Correo_x0020_Remitente',                     label: 'Correo Remitente' },
@@ -698,8 +740,12 @@ export async function submitFormToSharePoint(submission) {
   const result = await res.json().catch(() => ({}))
   console.info('[MRC] Registro creado OK →', result?.id)
 
-  // Subir fotos adjuntas si las hay (ej. Inspección Simple)
-  const photos = submission.answers?.is_photo
+  // Subir fotos adjuntas si las hay (Inspección Simple o condición desde Caminata)
+  let photos = submission.answers?.is_photo
+  if (!photos?.length) {
+    const condFotoKey = Object.keys(submission.answers || {}).find(k => k.endsWith('_cond_foto'))
+    if (condFotoKey) photos = submission.answers[condFotoKey]
+  }
   if (Array.isArray(photos) && photos.length > 0 && result?.id) {
     await Promise.allSettled(
       photos.map((photoBase64, idx) =>
