@@ -61,7 +61,7 @@ export const formDefinitions = {
     id: 'caminata-seguridad',
     title: 'Caminata de Seguridad',
     description: 'Caminata de Seguridad SSO (Líderes)',
-    supersededSections: ['s1', 's2', 's3', 's4'],
+    supersededSections: ['s1', 's2', 's3', 's4', 'cierre_cond'],
     permanentlyRemovedQuestions: ['cs_fri_alm_nombre','cs_fri_alm_rut','cs_fri_epp_nombre','cs_fri_epp_rut','cs_fri_mmc_nombre','cs_fri_mmc_rut','cs_fri_tran_nombre','cs_fri_tran_rut','cs_fri_cdc_nombre','cs_fri_cdc_rut','cs_fri_eqr_nombre','cs_fri_eqr_rut','cs_ofi_tp_nombre','cs_ofi_tp_rut','cs_ofi_elec_nombre','cs_ofi_elec_rut','cs_ofi_post_nombre','cs_ofi_post_rut','cs_bat_nombre','cs_bat_rut','cs_com_nombre','cs_com_rut'],
     sections: [
 
@@ -107,6 +107,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'fri_alm_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_alm_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_alm_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_alm_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_alm_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'fri_alm_insp', title: 'CONDICIONES — ALMACENAJE EN ALTURA',
         visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Almacenaje en Altura',
         questions: [
@@ -135,6 +144,15 @@ export const formDefinitions = {
           { id: 'cs_fri_epp_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
           { id: 'cs_fri_epp_obs', type: 'text', required: true, label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación correctiva entregada', visibleWhen: (a) => a.cs_fri_epp_p1 === 'CON_OBSERVACIONES' },          { id: 'cs_fri_epp_retro_pos_com', type: 'yesno', required: true, disableNA: true, label: '¿Se comunicó el resultado de la retroalimentación positiva al colaborador?', visibleWhen: (a) => a.cs_fri_epp_p1 === 'SIN_OBSERVACIONES' },
           { id: 'cs_fri_epp_retro_pos_desc', type: 'text', required: true, label: 'Describa la retroalimentación POSITIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación positiva entregada', visibleWhen: (a) => a.cs_fri_epp_retro_pos_com === 'si' },
+        ],
+      },
+      {
+        id: 'fri_epp_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_epp_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_epp_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_epp_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_epp_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
         ],
       },
       {
@@ -169,6 +187,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'fri_mmc_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_mmc_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_mmc_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_mmc_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_mmc_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'fri_mmc_insp', title: 'CONDICIONES — MANEJO MANUAL DE CARGA',
         visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Manejo Manual de Carga',
         questions: [
@@ -197,6 +224,15 @@ export const formDefinitions = {
           { id: 'cs_fri_tran_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
           { id: 'cs_fri_tran_obs', type: 'text', required: true, label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación correctiva entregada', visibleWhen: (a) => a.cs_fri_tran_p1 === 'CON_OBSERVACIONES' },          { id: 'cs_fri_tran_retro_pos_com', type: 'yesno', required: true, disableNA: true, label: '¿Se comunicó el resultado de la retroalimentación positiva al colaborador?', visibleWhen: (a) => a.cs_fri_tran_p1 === 'SIN_OBSERVACIONES' },
           { id: 'cs_fri_tran_retro_pos_desc', type: 'text', required: true, label: 'Describa la retroalimentación POSITIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación positiva entregada', visibleWhen: (a) => a.cs_fri_tran_retro_pos_com === 'si' },
+        ],
+      },
+      {
+        id: 'fri_tran_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_tran_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_tran_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_tran_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_tran_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
         ],
       },
       {
@@ -231,6 +267,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'fri_cdc_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_cdc_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_cdc_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_cdc_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_cdc_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'fri_cdc_insp', title: 'CONDICIONES — CARGA Y DESCARGA DE CAMIONES RAMPLA',
         visibleWhen: (a) => a.cs_area === 'Frigorífico' && a.cs_fri_tema === 'Carga y Descarga de Camiones Rampla',
         questions: [
@@ -259,6 +304,15 @@ export const formDefinitions = {
           { id: 'cs_fri_eqr_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
           { id: 'cs_fri_eqr_obs', type: 'text', required: true, label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación correctiva entregada', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES' },          { id: 'cs_fri_eqr_retro_pos_com', type: 'yesno', required: true, disableNA: true, label: '¿Se comunicó el resultado de la retroalimentación positiva al colaborador?', visibleWhen: (a) => a.cs_fri_eqr_p1 === 'SIN_OBSERVACIONES' },
           { id: 'cs_fri_eqr_retro_pos_desc', type: 'text', required: true, label: 'Describa la retroalimentación POSITIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación positiva entregada', visibleWhen: (a) => a.cs_fri_eqr_retro_pos_com === 'si' },
+        ],
+      },
+      {
+        id: 'fri_eqr_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_fri_eqr_p1 === 'SIN_OBSERVACIONES' || a.cs_fri_eqr_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_fri_eqr_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_fri_eqr_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
         ],
       },
       {
@@ -293,6 +347,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'ofi_tp_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_ofi_tp_p1 === 'SIN_OBSERVACIONES' || a.cs_ofi_tp_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_ofi_tp_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_ofi_tp_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'ofi_tp_insp', title: 'CONDICIONES — TRÁNSITO DE PERSONAS',
         visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Tránsito de Personas',
         questions: [
@@ -324,6 +387,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'ofi_elec_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_ofi_elec_p1 === 'SIN_OBSERVACIONES' || a.cs_ofi_elec_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_ofi_elec_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_ofi_elec_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'ofi_elec_insp', title: 'CONDICIONES — EQUIPOS O INSTALACIONES ELÉCTRICAS',
         visibleWhen: (a) => a.cs_area === 'Oficinas Administrativas' && a.cs_ofi_tema === 'Utilización de Equipos o Instalaciones Eléctricas',
         questions: [
@@ -352,6 +424,15 @@ export const formDefinitions = {
           { id: 'cs_ofi_post_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
           { id: 'cs_ofi_post_obs', type: 'text', required: true, label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación correctiva entregada', visibleWhen: (a) => a.cs_ofi_post_p1 === 'CON_OBSERVACIONES' },          { id: 'cs_ofi_post_retro_pos_com', type: 'yesno', required: true, disableNA: true, label: '¿Se comunicó el resultado de la retroalimentación positiva al colaborador?', visibleWhen: (a) => a.cs_ofi_post_p1 === 'SIN_OBSERVACIONES' },
           { id: 'cs_ofi_post_retro_pos_desc', type: 'text', required: true, label: 'Describa la retroalimentación POSITIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación positiva entregada', visibleWhen: (a) => a.cs_ofi_post_retro_pos_com === 'si' },
+        ],
+      },
+      {
+        id: 'ofi_post_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_ofi_post_p1 === 'SIN_OBSERVACIONES' || a.cs_ofi_post_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_ofi_post_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_ofi_post_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
         ],
       },
       {
@@ -406,6 +487,15 @@ export const formDefinitions = {
         ],
       },
       {
+        id: 'bat_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_bat_p1 === 'SIN_OBSERVACIONES' || a.cs_bat_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_bat_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_bat_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
+        ],
+      },
+      {
         id: 'bat_insp', title: 'CONDICIONES — SALA CARGA DE BATERÍAS',
         visibleWhen: (a) => a.cs_area === 'Sala de Baterías',
         questions: [
@@ -434,6 +524,15 @@ export const formDefinitions = {
           { id: 'cs_com_carta', type: 'radio', required: true, label: '¿La conducta insegura observada amerita una Carta de Amonestación escrita?', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES', options: [{ value: 'NO', label: 'NO' },{ value: 'SI', label: 'SI' }] },
           { id: 'cs_com_obs', type: 'text', required: true, label: 'Describa la retroalimentación CORRECTIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación correctiva entregada', visibleWhen: (a) => a.cs_com_p1 === 'CON_OBSERVACIONES' },          { id: 'cs_com_retro_pos_com', type: 'yesno', required: true, disableNA: true, label: '¿Se comunicó el resultado de la retroalimentación positiva al colaborador?', visibleWhen: (a) => a.cs_com_p1 === 'SIN_OBSERVACIONES' },
           { id: 'cs_com_retro_pos_desc', type: 'text', required: true, label: 'Describa la retroalimentación POSITIVA realizada al colaborador:', placeholder: 'Escriba aquí la retroalimentación positiva entregada', visibleWhen: (a) => a.cs_com_retro_pos_com === 'si' },
+        ],
+      },
+      {
+        id: 'com_cierre',
+        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
+        visibleWhen: (a) => a.cs_com_p1 === 'SIN_OBSERVACIONES' || a.cs_com_p1 === 'CON_OBSERVACIONES',
+        questions: [
+          { id: 'cs_com_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
+          { id: 'cs_com_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
         ],
       },
       {
@@ -826,18 +925,6 @@ export const formDefinitions = {
         ],
       },
 
-
-      // ── CIERRE DE OBSERVACIÓN DE CONDUCTA ────────────────────────────────
-      // Visible cuando se completó cualquier sección de conducta (SIN o CON).
-      {
-        id: 'cierre_cond',
-        title: 'CIERRE DE OBSERVACIÓN DE CONDUCTA',
-        visibleWhen: (a) => Object.keys(a).some(k => k.endsWith('_p1') && (a[k] === 'SIN_OBSERVACIONES' || a[k] === 'CON_OBSERVACIONES')),
-        questions: [
-          { id: 'cs_cierre_nombre', type: 'text', required: true, label: 'Nombre y Apellido del Colaborador Observado:', placeholder: 'Escriba el nombre completo del colaborador', inputType: 'single-line' },
-          { id: 'cs_cierre_rut', type: 'rut', required: true, label: 'RUT del colaborador observado', placeholder: 'Ej: 12.345.678-9' },
-        ],
-      },
 
     ], // fin sections
   },

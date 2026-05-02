@@ -25,6 +25,25 @@ const STYLES = {
 export default function QuestionRadio({ question, value, onChange }) {
   return (
     <div>
+      {/* Label (shown when there is no conductasList to act as title) */}
+      {!question._noLabel && question.label && !question.conductasList?.length && (
+        <p
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--color-text-secondary)',
+            lineHeight: 1.45,
+            margin: '0 0 12px',
+          }}
+        >
+          {question.label}
+          {question.required && (
+            <span style={{ color: 'var(--color-orange)', marginLeft: 4 }}>*</span>
+          )}
+        </p>
+      )}
+
       {/* Conduct list — things to observe before answering */}
       {question.conductasList?.length > 0 && (
         <div
