@@ -202,6 +202,7 @@ export function useKPIs(unitType, filters = {}) {
 // data: { [branchName]: { pautas:{M,T,N,ADM}, cam:number, dif:{M,T,N,ADM} } }
 
 export function useKPIsAllBranches() {
+  const [weekOffset,   setWeekOffset]   = useState(0)
   const [data,         setData]         = useState({})
   const [loading,      setLoading]      = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -211,7 +212,7 @@ export function useKPIsAllBranches() {
     setLoading(true)
     setAccessDenied(false)
     try {
-      const result = await fetchTodayKPIsAllBranches()
+      const result = await fetchTodayKPIsAllBranches(weekOffset)
       if (result?.accessDenied) {
         setAccessDenied(true)
         setData({})
@@ -224,13 +225,18 @@ export function useKPIsAllBranches() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [weekOffset])
 
   useEffect(() => {
     fetchData()
+    if (weekOffset !== 0) return  // sin auto-refresh para semanas pasadas
     const iv = setInterval(fetchData, AUTO_REFRESH_MS)
     return () => clearInterval(iv)
-  }, [fetchData])
+  }, [fetchData, weekOffset])
 
-  return { data, loading, accessDenied, lastUpdated, refresh: fetchData }
+  const goToPrevWeek = useCallback(() => setWeekOffset(o => o - 1), [])
+  const goToNextWeek = useCallback(() => setWeekOffset(o => Math.min(0, o + 1)), [])
+  const canGoNext = weekOffset < 0
+
+  return { data, loading, accessDenied, lastUpdated, refresh: fetchData, weekOffset, goToPrevWeek, goToNextWeek, canGoNext }
 }

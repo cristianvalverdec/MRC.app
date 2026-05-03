@@ -80,11 +80,20 @@ function todayISO() {
   return d.toISOString()
 }
 
-// Inicio de la semana actual (lunes 00:00) para KPIs semanales
-function weekStartISO() {
+// Inicio de la semana (lunes 00:00). weekOffset=0 → semana actual, -1 → semana pasada, etc.
+function weekStartISO(weekOffset = 0) {
   const d = new Date()
   const day = d.getDay() || 7  // domingo=0 → 7, lunes=1
-  d.setDate(d.getDate() - (day - 1))
+  d.setDate(d.getDate() - (day - 1) + weekOffset * 7)
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
+// Fin exclusivo de la semana (lunes 00:00 de la semana siguiente)
+function weekEndISO(weekOffset = 0) {
+  const d = new Date()
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() - (day - 1) + weekOffset * 7 + 7)
   d.setHours(0, 0, 0, 0)
   return d.toISOString()
 }
@@ -1117,9 +1126,9 @@ function v2MockSeed(seed, max) {
   return Math.max(0, Math.floor((x - Math.floor(x)) * (max + 1)))
 }
 
-export async function fetchTodayKPIsAllBranches() {
+export async function fetchTodayKPIsAllBranches(weekOffset = 0) {
   if (IS_DEV_MODE) {
-    const day = Math.floor(Date.now() / 86400000)
+    const day = Math.floor(Date.now() / 86400000) + weekOffset * 7
     const result = {}
     V2_BRANCHES.forEach((name, bi) => {
       const b = bi * 19 + day * 3
@@ -1134,7 +1143,8 @@ export async function fetchTodayKPIsAllBranches() {
 
   const token        = await getGraphToken()
   const siteUrl      = getSiteUrl()
-  const weekStartMs  = new Date(weekStartISO()).getTime()
+  const weekStartMs  = new Date(weekStartISO(weekOffset)).getTime()
+  const weekEndMs    = new Date(weekEndISO(weekOffset)).getTime()
   const headers      = { Authorization: `Bearer ${token}` }
 
   const branchLookup = {}
@@ -1165,7 +1175,8 @@ export async function fetchTodayKPIsAllBranches() {
       }
       const { value = [] } = await res.json()
       value.forEach(item => {
-        if (new Date(item.createdDateTime).getTime() < weekStartMs) return
+        const t = new Date(item.createdDateTime).getTime()
+        if (t < weekStartMs || t >= weekEndMs) return
         cb(item.fields || {})
       })
     } catch (e) { console.warn('[MRC V2]', e.message) }

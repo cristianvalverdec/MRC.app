@@ -110,12 +110,26 @@ function statusColor(pct) {
   if (pct >= 30) return C.warning
   return C.danger
 }
-function getWeekNumber() {
+function getWeekNumber(weekOffset = 0) {
   const d    = new Date()
+  d.setDate(d.getDate() + weekOffset * 7)
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
+}
+
+// Rango legible de la semana: "22 abr – 28 abr"
+function getWeekDateRange(weekOffset = 0) {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const mon = new Date(now)
+  mon.setDate(now.getDate() - (day - 1) + weekOffset * 7)
+  mon.setHours(0, 0, 0, 0)
+  const sun = new Date(mon)
+  sun.setDate(mon.getDate() + 6)
+  const fmt = d => d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }).replace(/\./g, '')
+  return `${fmt(mon)} – ${fmt(sun)}`
 }
 
 // Porcentaje global de cumplimiento de una sucursal (pautas + cam + dif) tope 120%
@@ -564,10 +578,10 @@ function KPITurnoCard({ title, accent, turnos, icon: Icon, delay = 0 }) {
 }
 
 // ── Modal de descarga ──────────────────────────────────────────────────────
-function DownloadModal({ onClose, branchData }) {
+function DownloadModal({ onClose, branchData, weekOffset = 0 }) {
   const [dlTheme, setDlTheme]         = useState('dark')
   const [downloading, setDownloading] = useState(false)
-  const week = getWeekNumber()
+  const week = getWeekNumber(weekOffset)
 
   const handleDownload = useCallback(async () => {
     setDownloading(true)
@@ -632,11 +646,11 @@ function DownloadModal({ onClose, branchData }) {
 }
 
 // ── Vista "Todas las sucursales" ───────────────────────────────────────────
-function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
+function VistaTodas({ onSelectCD, isOnline, branchData, loading, weekOffset, goToPrevWeek, goToNextWeek, canGoNext }) {
   const role              = useUserStore(s => s.role)
   const [showDL, setShowDL] = useState(false)
   const globals = getGlobals(branchData)
-  const week    = getWeekNumber()
+  const week    = getWeekNumber(weekOffset)
   const { goBack } = useNavigation()
 
   return (
@@ -669,7 +683,10 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
                 </div>
               </div>
               <div style={{ fontFamily: FB, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>
-                {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+                {weekOffset === 0
+                  ? new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\w/, c => c.toUpperCase())
+                  : getWeekDateRange(weekOffset)
+                }
               </div>
             </div>
           </div>
@@ -685,6 +702,31 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Navegador de semanas */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px 4px', flexShrink: 0, gap: 2 }}>
+        <button
+          onClick={goToPrevWeek}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', color: C.orange }}
+        >
+          <ChevronLeft size={16} strokeWidth={2.5} />
+        </button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 800, color: weekOffset === 0 ? C.orange : 'var(--color-text-secondary)' }}>
+            SEM {week}
+          </span>
+          <span style={{ fontFamily: FB, fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 5 }}>
+            {weekOffset === 0 ? '· Semana actual' : `· ${getWeekDateRange(weekOffset)}`}
+          </span>
+        </div>
+        <button
+          onClick={goToNextWeek}
+          disabled={!canGoNext}
+          style={{ background: 'none', border: 'none', cursor: canGoNext ? 'pointer' : 'default', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', color: canGoNext ? C.orange : 'var(--color-text-muted)', opacity: canGoNext ? 1 : 0.3 }}
+        >
+          <ChevronRight size={16} strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* KPI pills globales */}
@@ -754,7 +796,7 @@ function VistaTodas({ onSelectCD, isOnline, branchData, loading }) {
 
       {/* Modal descarga */}
       <AnimatePresence>
-        {showDL && <DownloadModal onClose={() => setShowDL(false)} branchData={branchData} />}
+        {showDL && <DownloadModal onClose={() => setShowDL(false)} branchData={branchData} weekOffset={weekOffset} />}
       </AnimatePresence>
     </div>
   )
@@ -915,10 +957,10 @@ function VistaCD({ cdId, onBack, branchData }) {
 
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function DailyStatusScreenV2() {
-  const { isOnline }                     = useNetworkStatus()
-  const { data, loading, accessDenied }  = useKPIsAllBranches()
-  const [view, setView]                  = useState('todas')
-  const [cdId, setCdId]                  = useState(null)
+  const { isOnline }                                                         = useNetworkStatus()
+  const { data, loading, accessDenied, weekOffset, goToPrevWeek, goToNextWeek, canGoNext } = useKPIsAllBranches()
+  const [view, setView]                                                      = useState('todas')
+  const [cdId, setCdId]                                                      = useState(null)
 
   // Normalizar keys del hook → nombre canónico de SUCURSALES
   const branchData = data
@@ -968,7 +1010,8 @@ export default function DailyStatusScreenV2() {
               initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.18 }} style={{ height: '100%' }}>
               <VistaTodas isOnline={isOnline} branchData={branchData} loading={loading}
-                onSelectCD={id => { setCdId(id); setView('cd') }} />
+                onSelectCD={id => { setCdId(id); setView('cd') }}
+                weekOffset={weekOffset} goToPrevWeek={goToPrevWeek} goToNextWeek={goToNextWeek} canGoNext={canGoNext} />
             </motion.div>
           ) : (
             <motion.div key="cd"

@@ -5,6 +5,27 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.26] — 2026-05-03
+
+### Navegador de semanas en Estatus Diario V2
+
+Permite al equipo de prevención revisar el estatus de semanas anteriores directamente desde la pantalla `DailyStatusScreenV2`, sin salir de la pantalla ni necesitar SharePoint.
+
+#### Cambios funcionales
+
+- **Barra de navegación semanal** en la vista "Todas las sucursales": flechas `←` `→` para retroceder o avanzar entre semanas. El botón `→` queda deshabilitado cuando se está en la semana actual. El badge "SEM N" y la etiqueta de fecha se actualizan en tiempo real al cambiar de semana.
+- **Rango de fechas legible** en el header: cuando se visualiza una semana pasada, la fecha del encabezado muestra el rango "22 abr – 28 abr" en lugar de "Hoy".
+- **Sin auto-refresh para semanas pasadas**: el intervalo de actualización automática (2 min) solo se activa cuando se está en la semana actual (`weekOffset === 0`). Semanas históricas se cargan una sola vez.
+- **Generador de imagen PNG** (botón Descargar) usa el número de semana correcto en el nombre del archivo y en el título de la imagen.
+
+#### Cambios técnicos
+
+- `sharepointData.js` — `weekStartISO(weekOffset)` y nueva `weekEndISO(weekOffset)`: calculan el rango lunes-a-lunes de cualquier semana pasada o presente. `fetchTodayKPIsAllBranches(weekOffset)` filtra items por rango `[weekStart, weekEnd)` en lugar de solo límite inferior; el mock varía su seed por semana para simular datos históricos distintos.
+- `useKPIs.js` — `useKPIsAllBranches()` gestiona estado `weekOffset` internamente y expone `goToPrevWeek`, `goToNextWeek`, `canGoNext`.
+- `DailyStatusScreenV2.jsx` — `getWeekNumber(weekOffset)` y nueva `getWeekDateRange(weekOffset)` calculan número ISO y rango legible de cualquier semana relativa a hoy.
+
+---
+
 ## [1.9.25] — 2026-05-03
 
 ### Fix — Pautas ADM: lector de KPIs ahora usa columna Área como fallback

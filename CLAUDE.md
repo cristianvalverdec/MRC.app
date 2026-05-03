@@ -382,4 +382,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-02 — v1.9.23 — Caminata: fix CIERRE conducta por temática, fix label carta de amonestación, colores carta NO=verde/SÍ=rojo, fix CIERRE no aparece si retro no comunicada; QuestionPhoto: rediseño con preview full-width y badge verde*
+*Última actualización: 2026-05-03 — v1.9.26 — Navegador de semanas en DailyStatusScreenV2: flechas ← → para revisar semanas históricas, rango de fechas en header, sin auto-refresh en semanas pasadas*
