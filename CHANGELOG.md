@@ -5,6 +5,16 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.25] — 2026-05-03
+
+### Fix — Pautas ADM: lector de KPIs ahora usa columna Área como fallback
+
+- **Problema:** registros existentes en SharePoint con `Turno` vacío y `Área = "Área Administrativa Sucursal"` no eran contabilizados en `pautas.ADM` de `DailyStatusScreenV2`.
+- **Fix:** `fetchTodayKPIsAllBranches` ahora solicita también el campo `_x00c1_rea` (Área). Cuando `Turno` está vacío, si el Área es administrativa se clasifica el registro como ADM. Aplica a todos los datos históricos existentes en SharePoint.
+- La corrección v1.9.24 (mapper) sigue vigente para que nuevos envíos ya lleguen con `Turno: 'Administración'`.
+
+---
+
 ## [1.9.24] — 2026-05-03
 
 ### Fix — Pautas área administrativa no contabilizadas en Estatus Diario

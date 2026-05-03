@@ -1172,9 +1172,10 @@ export async function fetchTodayKPIsAllBranches() {
   }
 
   await Promise.allSettled([
-    fetchList(LIST_IDS.reglasOroSucursales, ['Instalaci_x00f3_n','Turno'], f => {
+    fetchList(LIST_IDS.reglasOroSucursales, ['Instalaci_x00f3_n','Turno','_x00c1_rea'], f => {
       const b = branchLookup[normBranch(f.Instalaci_x00f3_n || '')]
       const k = TURNO_KEY[f.Turno || '']
+        || (f['_x00c1_rea'] === 'Área Administrativa Sucursal' ? 'ADM' : null)
       if (b && k) result[b].pautas[k]++
     }),
     fetchList(LIST_IDS.caminataSeguridad, ['Instalaci_x00f3_n'], f => {
