@@ -310,21 +310,30 @@ function mapCondicionDesdeCaminata(sub) {
 function mapInspeccionSimple(sub) {
   const d = sub.answers || sub.data || {}
 
-  // Código de reporte único: IS-{3 letras sucursal}-{timestamp 6 dígitos}
-  const prefix  = (sub.branch || 'XX').replace(/\s+/g, '').substring(0, 3).toUpperCase()
-  const ts      = Date.now().toString().slice(-6)
-  const codigo  = `IS-${prefix}-${ts}`
+  const instalacion = d.is_instalacion || sub.branch || ''
+  const prefix = instalacion.replace(/\s+/g, '').substring(0, 3).toUpperCase() || 'XX'
+  const ts     = Date.now().toString().slice(-6)
+  const codigo = `IS-${prefix}-${ts}`
+
+  const incidentesRaw = d.is_cond_incidentes
+  const incidentesStr = incidentesRaw
+    ? (Array.isArray(incidentesRaw) ? incidentesRaw : [String(incidentesRaw)]).filter(Boolean).join(' | ')
+    : ''
 
   return {
     Title:                               codigo,
-    Instalaci_x00f3_n:                   sub.branch    || '',
+    Instalaci_x00f3_n:                   instalacion,
     Nombre:                              sub.userName   || '',
-    Categor_x00ed_a:                     d.is_1 || '',
-    Lugar_x0020_Especifico:              d.is_2 || '',
-    '_x00bf_Se_x0020_detecta_x0020_Co': d.is_6 === 'Si' ? 'Sí' : 'No',
-    Condici_x00f3_n_x0020_Insegura:     d.is_8 || '',
-    Incidentes_x0020_Posibles:           d.is_8 || '',
-    Medida_x0020_de_x0020_Control:       d.is_8 || '',
+    Categor_x00ed_a:                     'Inspección Simple',
+    Lugar_x0020_Especifico:              d.is_cond_lugar      || '',
+    '_x00bf_Se_x0020_detecta_x0020_Co':  d.is_condicion === 'si' ? 'Sí' : 'No',
+    Condici_x00f3_n_x0020_Insegura:      d.is_cond_desc        || '',
+    Incidentes_x0020_Posibles:           incidentesStr,
+    Medida_x0020_de_x0020_Control:       d.is_cond_medida      || '',
+    _x00c1_rea_x0020_Responsable:        d.is_cond_area_resp   || '',
+    Nombre_x0020_Responsable:            d.is_cond_nombre_resp || '',
+    Correo_x0020_Responsable:            d.is_cond_correo_resp || '',
+    Fecha_x0020_Compromiso:              d.is_cond_fecha       || '',
     C_x00f3_digo_x0020_de_x0020_Repo:    codigo,
     Correo_x0020_Remitente:              sub.userEmail || '',
   }
@@ -718,7 +727,7 @@ export async function submitFormToSharePoint(submission) {
   // o desde el branch almacenado en el submission. Los líderes provienen
   // del módulo "Gestión de Líderes" y son la fuente de verdad para el
   // enrutamiento de notificaciones vía Power Automate.
-  const branch = submission.answers?.Q1 || submission.branch || ''
+  const branch = submission.answers?.Q1 || submission.answers?.cs_instalacion || submission.answers?.is_instalacion || submission.branch || ''
   const lideresMap = await fetchLideresEmailMap(branch)
   applyLideresEmails(fields, lideresMap)
 

@@ -559,33 +559,94 @@ export const formDefinitions = {
   'inspeccion-simple': {
     id: 'inspeccion-simple',
     title: 'Inspección Simple',
-    description: 'Revisión de equipos y espacios',
+    description: 'Registro de condiciones inseguras en instalaciones',
+    // Secciones del formulario anterior (v1) — se ignoran aunque aparezcan en override sincronizado
+    supersededSections: ['s1', 's2', 's3'],
     sections: [
+
+      // ── S1: DATOS GENERALES ──────────────────────────────────────────────
       {
-        id: 's1',
-        title: 'Elemento Inspeccionado',
+        id: 'dg',
+        title: 'DATOS GENERALES',
         questions: [
-          { id: 'is_1', type: 'select', label: 'Tipo de elemento', required: true, options: ['Equipo mecánico', 'Equipo eléctrico', 'Vehículo / Grúa', 'Instalación civil', 'Área de trabajo', 'Herramienta manual'] },
-          { id: 'is_2', type: 'text',   label: 'Identificación del elemento inspeccionado', required: true, placeholder: 'Ej: Grúa horquilla N°3, Tablero eléctrico bodega A…' },
+          {
+            id: 'is_instalacion', type: 'select', required: true,
+            label: 'Instalación donde se realizará la inspección',
+            placeholder: 'Selecciona la instalación',
+            options: ['Arica','Iquique','Calama','Antofagasta','Copiapó','Coquimbo','Hijuelas','San Antonio','Viña del Mar','Miraflores','Huechuraba','Lo Espejo','Rancagua','Curicó','Talca','Chillán','Los Ángeles','Concepción','Temuco','Valdivia','Osorno','Puerto Montt','Castro','Coyhaique','Punta Arenas','San Felipe','Oficina Central','Oficina Vespucio'],
+          },
+          {
+            id: 'is_condicion', type: 'yesno', required: true, disableNA: true,
+            label: '¿Identifica alguna condición insegura en las instalaciones?',
+          },
         ],
       },
+
+      // ── S2: CONDICIÓN INSEGURA (solo si respondió SÍ) ───────────────────
       {
-        id: 's2',
-        title: 'Estado y Condiciones',
+        id: 'condicion',
+        title: 'CONDICIÓN INSEGURA',
+        visibleWhen: (a) => a.is_condicion === 'si',
         questions: [
-          { id: 'is_3', type: 'yesno', label: 'El elemento se encuentra en buen estado general', required: true },
-          { id: 'is_4', type: 'yesno', label: 'Cuenta con los sistemas de seguridad operativos', required: true },
-          { id: 'is_5', type: 'yesno', label: 'Requiere mantenimiento o reparación', required: true },
-          { id: 'is_6', type: 'yesno', label: 'Existe riesgo inmediato que impide su uso', required: true },
-        ],
-      },
-      {
-        id: 's3',
-        title: 'Evaluación y Acciones',
-        questions: [
-          { id: 'is_7', type: 'rating', label: 'Calificación del estado del elemento', required: true },
-          { id: 'is_8', type: 'text',   label: 'Descripción del estado y acción correctiva requerida', required: false, placeholder: 'Detalla el estado encontrado y las acciones a tomar…' },
-          { id: 'is_photo', type: 'photo', label: 'Evidencia fotográfica de condiciones detectadas', required: false, maxPhotos: 3 },
+          {
+            id: 'is_cond_lugar', type: 'text', required: true,
+            label: 'Lugar específico donde se identificó la condición insegura',
+            placeholder: 'Ej: Pasillo norte, andén 2, zona de carga...',
+          },
+          {
+            id: 'is_cond_desc', type: 'text', required: true,
+            label: 'Describa la condición insegura detectada',
+            placeholder: 'Descripción detallada de lo observado',
+          },
+          {
+            id: 'is_cond_foto', type: 'photo', required: true, maxPhotos: 1,
+            label: '📷 FOTOGRAFÍA DE LA CONDICIÓN INSEGURA',
+            subtitle: 'Evite fotografiar directamente el rostro de personal Agrosuper',
+          },
+          {
+            id: 'is_cond_incidentes', type: 'checkbox', required: true,
+            label: 'Incidentes que podría ocasionar la condición insegura detectada',
+            options: [
+              { value: 'atrapamiento',    label: 'Atrapamientos' },
+              { value: 'atricion',        label: 'Atriciones' },
+              { value: 'atropello',       label: 'Atropellos' },
+              { value: 'caida_altura',    label: 'Caídas a diferente nivel (Desde Altura sobre 1,8 metros)' },
+              { value: 'caida_piso',      label: 'Caídas al mismo nivel (Nivel de Piso)' },
+              { value: 'choque',          label: 'Choques' },
+              { value: 'contacto_fuego',  label: 'Contactos con fuego u objetos calientes' },
+              { value: 'contacto_cortante', label: 'Contactos con objetos cortantes y/o punzantes' },
+              { value: 'contacto_quimico',  label: 'Contactos con sustancias químicas' },
+              { value: 'contacto_electrico', label: 'Contactos eléctricos' },
+              { value: 'dolencia',        label: 'Dolencias' },
+              { value: 'golpe',           label: 'Golpes' },
+              { value: 'proyeccion',      label: 'Proyección de partículas solidas y/o líquidas' },
+              { value: 'sobretension',    label: 'Sobre Tensión Física (Torsión de tobillo)' },
+            ],
+          },
+          {
+            id: 'is_cond_medida', type: 'text', required: true,
+            label: 'Medida de control a implementar',
+            placeholder: 'Describa la acción correctiva que se debe ejecutar',
+          },
+          {
+            id: 'is_cond_area_resp', type: 'text', required: true,
+            label: 'Área responsable de ejecutar la medida de control',
+            placeholder: 'Ej: Mantención, Operaciones, SSO...',
+          },
+          {
+            id: 'is_cond_nombre_resp', type: 'text', required: true,
+            label: 'Nombre del responsable de gestionar la medida de control',
+            placeholder: 'Nombre completo',
+          },
+          {
+            id: 'is_cond_correo_resp', type: 'text', required: true,
+            label: 'Correo electrónico (Agrosuper) del responsable',
+            placeholder: 'nombre@agrosuper.com',
+          },
+          {
+            id: 'is_cond_fecha', type: 'text', inputType: 'date', required: true,
+            label: 'Fecha de compromiso de ejecución de la medida de control',
+          },
         ],
       },
     ],

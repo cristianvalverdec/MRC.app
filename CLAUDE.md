@@ -186,7 +186,7 @@ Al enviar cualquier formulario, `submitFormToSharePoint` (en `sharepointData.js`
 - Correo 7 → Jefe de Zona
 - Correo 8 → Subgerente de Zona
 
-**Detección de instalación:** `submission.answers?.Q1 || submission.branch`. Q1 tiene prioridad porque el usuario puede verificar una sucursal distinta a la de su perfil. Para Inspección Simple (sin pregunta de instalación) se usa `submission.branch`. Caminata de Seguridad usa `d.cs_instalacion || sub.branch` (tiene su propia pregunta de instalación desde v1.9.18).
+**Detección de instalación:** `submission.answers?.Q1 || submission.answers?.cs_instalacion || submission.answers?.is_instalacion || submission.branch`. Q1 tiene prioridad (Pauta de Verificación). Caminata de Seguridad usa `cs_instalacion`. Inspección Simple usa `is_instalacion` (pregunta agregada en v1.9.27). El fallback final es `submission.branch`.
 
 **Tolerancia a fallos:** si `getLideres()` falla (offline, sin permisos), Correo 1-8 quedan vacíos pero el envío del formulario continúa sin bloquearse.
 

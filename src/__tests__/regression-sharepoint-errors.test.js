@@ -520,7 +520,10 @@ describe('sharepointData — Enriquecimiento Correo 1-8 desde líderes', () => {
   })
 
   it('prioriza answers.Q1 sobre submission.branch para detectar la instalación', () => {
-    // Q1 es la instalación seleccionada en el formulario (puede diferir del perfil del usuario)
-    expect(sharepointDataSrc).toContain('submission.answers?.Q1 || submission.branch')
+    // Q1 (Pauta), cs_instalacion (Caminata) e is_instalacion (Inspección Simple) tienen prioridad sobre submission.branch
+    expect(sharepointDataSrc).toContain('submission.answers?.Q1')
+    expect(sharepointDataSrc).toContain('submission.answers?.cs_instalacion')
+    expect(sharepointDataSrc).toContain('submission.answers?.is_instalacion')
+    expect(sharepointDataSrc).toContain('submission.branch')
   })
 })
