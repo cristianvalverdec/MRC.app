@@ -5,6 +5,16 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.24] — 2026-05-03
+
+### Fix — Pautas área administrativa no contabilizadas en Estatus Diario
+
+- **Bug:** el KPI `pautas.ADM` en `DailyStatusScreenV2` siempre marcaba cero aunque existieran envíos del área administrativa.
+- **Causa:** al seleccionar "Área Administrativa Sucursal" en Q18, la pregunta Q19 (Turno) queda oculta → el mapper guardaba `Turno: ''` en SharePoint. El contador de KPIs busca `'Administración'` en ese campo; al llegar vacío, nunca incrementaba el acumulador ADM.
+- **Fix:** en `mapReglasOroSucursales` (`sharepointData.js`), cuando Q19 está vacío y Q18 es administrativa, se persiste `Turno: 'Administración'` → el reader de KPIs lo contabiliza correctamente en `pautas.ADM`.
+
+---
+
 ## [1.9.23] — 2026-05-02
 
 ### Caminata de Seguridad — Correcciones de CIERRE, etiquetas y colores de carta

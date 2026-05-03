@@ -138,7 +138,7 @@ function mapReglasOroSucursales(sub) {
     Cargo:                               sub.userJobTitle || '',
     Nombre:                              sub.userName || '',
     _x00c1_rea:                          d.Q18 || '',
-    Turno:                               d.Q19 || '',
+    Turno:                               d.Q19 || (d.Q18 === 'Área Administrativa Sucursal' ? 'Administración' : ''),
     Regla_x0020_de_x0020_Oro:           d.Q20 || d.Q21 || '',
     Conducta_x0020_Observada:            conductas,
     '_x00bf_Existe_x0020_Desviaci_x00': hasDeviation ? 'Sí' : 'No',
