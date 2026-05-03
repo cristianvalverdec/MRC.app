@@ -7,6 +7,33 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ## [1.9.26] — 2026-05-03
 
+### Inspección Simple — reescritura completa del formulario
+
+El formulario de Inspección Simple fue rediseñado desde cero para registrar directamente condiciones inseguras en instalaciones, alineando su estructura con el bloque de condición insegura de la Caminata de Seguridad.
+
+#### Cambios funcionales
+
+- **Sección DATOS GENERALES:**
+  - `is_instalacion` — selector desplegable con las 28 instalaciones (misma lista que la Pauta de Verificación Reglas de Oro).
+  - `is_condicion` — pregunta SÍ / NO "¿Identifica alguna condición insegura en las instalaciones?". Si la respuesta es **NO**, el formulario finaliza aquí.
+- **Sección CONDICIÓN INSEGURA** (visible solo si respuesta = SÍ):
+  - Lugar específico donde se identificó la condición.
+  - Descripción detallada de la condición insegura.
+  - Fotografía obligatoria (máx. 1).
+  - Checkbox de incidentes posibles (14 opciones: atrapamientos, caídas, contactos eléctricos, golpes, etc.).
+  - Medida de control a implementar.
+  - Área responsable, nombre y correo electrónico del responsable.
+  - Fecha de compromiso de ejecución.
+
+#### Cambios técnicos
+
+- `formDefinitions.js` — `inspeccion-simple` reescrito. `supersededSections: ['s1','s2','s3']` previene que overrides del formulario v1 contaminen la nueva estructura tras sync de nube.
+- `sharepointData.js` — `mapInspeccionSimple` actualizado: usa `is_instalacion || sub.branch` para `Instalaci_x00f3_n` y mapea los nuevos campos a las mismas columnas SharePoint que `mapCondicionDesdeCaminata` (`Lugar_x0020_Especifico`, `Condici_x00f3_n_x0020_Insegura`, `Incidentes_x0020_Posibles`, `Medida_x0020_de_x0020_Control`, `_x00c1_rea_x0020_Responsable`, `Nombre_x0020_Responsable`, `Correo_x0020_Responsable`, `Fecha_x0020_Compromiso`). El código de reporte pasa de `IS-XX-` a `IS-{3 letras instalación}-`.
+- `sharepointData.js` — detección de branch para enriquecimiento de líderes (Correo 1-8) ampliada: `Q1 || cs_instalacion || is_instalacion || branch`.
+- Test centinela `regression-sharepoint-errors.test.js` actualizado para reflejar la nueva cadena de detección.
+
+---
+
 ### Navegador de semanas en Estatus Diario V2
 
 Permite al equipo de prevención revisar el estatus de semanas anteriores directamente desde la pantalla `DailyStatusScreenV2`, sin salir de la pantalla ni necesitar SharePoint.

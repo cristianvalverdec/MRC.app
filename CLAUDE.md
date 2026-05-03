@@ -152,6 +152,7 @@ src/
 - **Archive:** `editedForms[formId].archived === true` oculta el formulario de `ToolsMenuScreen` sin destruir el override. Reversible desde la pestaña "CONEXIÓN SP" del editor.
 - **Caminata de Seguridad (`caminata-seguridad`):** formulario reconstruido en v1.9.18. 26 secciones, preguntas en expansión. Ramificación área → temática → conducta → condiciones. Mapper dinámico en `sharepointData.js`: usa pattern matching sobre sufijos de clave (`_p1`, `_desvio`, `_carta`, `_nombre`, `_rut`, `_obs`, `_p2`) — funciona automáticamente con temáticas nuevas creadas desde el Editor sin cambiar código.
 - **Doble cola Caminata (v1.9.19, Option C):** al enviar con condición insegura detectada (`_p2 === 'CON_OBSERVACIONES'`), `FormScreen` encola DOS ítems independientes. El primero (`formType: 'caminata-seguridad'`) va a la lista Caminata. El segundo (`formType: 'caminata-seguridad-condicion'`) va a la lista Inspección Simple vía `mapCondicionDesdeCaminata`, con `linkedTo: firstId` para agrupación. Cada ítem tiene reintento offline independiente. El segundo item solo existe si hay condición insegura.
+- **Inspección Simple (`inspeccion-simple`) v1.9.26:** reescrito desde cero. Sección `dg` (DATOS GENERALES): `is_instalacion` (selector de 28 instalaciones) + `is_condicion` (yesno sin N/A). Sección `condicion` (visible si `is_condicion === 'si'`): `is_cond_lugar`, `is_cond_desc`, `is_cond_foto`, `is_cond_incidentes`, `is_cond_medida`, `is_cond_area_resp`, `is_cond_nombre_resp`, `is_cond_correo_resp`, `is_cond_fecha` — estructura idéntica al bloque de condición insegura de Caminata. `supersededSections: ['s1','s2','s3']` evita que overrides del formulario v1 contaminen la nueva estructura. El mapper `mapInspeccionSimple` reutiliza las mismas columnas SharePoint que `mapCondicionDesdeCaminata`.
 - **`supersededSections`:** el bloque de append en `FormScreen` verifica `!supersededSecs.has(s.id)` ANTES del fallback `|| s`. Sin esto, secciones del override antiguo (s1–s4) reaparecen como secciones independientes aunque no existan en `mergedSectionMap`.
 
 ### 5.3 Sync cloud (formEditorStore)
@@ -186,7 +187,7 @@ Al enviar cualquier formulario, `submitFormToSharePoint` (en `sharepointData.js`
 - Correo 7 → Jefe de Zona
 - Correo 8 → Subgerente de Zona
 
-**Detección de instalación:** `submission.answers?.Q1 || submission.answers?.cs_instalacion || submission.answers?.is_instalacion || submission.branch`. Q1 tiene prioridad (Pauta de Verificación). Caminata de Seguridad usa `cs_instalacion`. Inspección Simple usa `is_instalacion` (pregunta agregada en v1.9.27). El fallback final es `submission.branch`.
+**Detección de instalación:** `submission.answers?.Q1 || submission.answers?.cs_instalacion || submission.answers?.is_instalacion || submission.branch`. Q1 tiene prioridad (Pauta de Verificación). Caminata de Seguridad usa `cs_instalacion`. Inspección Simple usa `is_instalacion` (pregunta agregada en v1.9.26). El fallback final es `submission.branch`.
 
 **Tolerancia a fallos:** si `getLideres()` falla (offline, sin permisos), Correo 1-8 quedan vacíos pero el envío del formulario continúa sin bloquearse.
 
@@ -382,4 +383,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-03 — v1.9.26 — Navegador de semanas en DailyStatusScreenV2: flechas ← → para revisar semanas históricas, rango de fechas en header, sin auto-refresh en semanas pasadas*
+*Última actualización: 2026-05-03 — v1.9.26 — Inspección Simple reescrita: selector de instalación + pregunta yesno de condición insegura → ciclo completo lugar/desc/foto/incidentes/medida/responsable/fecha (misma estructura que Caminata de Seguridad)*
