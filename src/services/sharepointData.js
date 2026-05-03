@@ -248,15 +248,17 @@ function mapCaminataSeguridad(sub) {
   return {
     Title:                                sub.userName || '',
     Instalaci_x00f3_n:                    d.cs_instalacion || sub.branch || '',
+    Cargo:                                sub.userJobTitle || '',
     Nombre:                               sub.userName  || '',
     _x00c1_rea:                           area,
     Tem_x00e1_tica:                       tematica,
     '_x00bf_Existe_x0020_Desviaci_x00':   hayDesvioConducta    ? 'Sí' : 'No',
-    Conducta_x0020_Observada:             conductaObs,
-    Carta_x0020_Amonestaci_x00f3_n:       keyCarta  ? (d[keyCarta]  === 'SI' ? 'Sí' : 'No') : '',
+    Desviaci_x00f3_n_x0020_de_x0020_:     conductaObs,
+    Carta_x0020_de_x0020_Amonestaci_:     keyCarta  ? (d[keyCarta]  === 'SI' ? 'Sí' : 'No') : '',
     Nombre_x0020_Colaborador:             keyNombre ? d[keyNombre] || '' : '',
-    RUT_x0020_Colaborador:                keyRut    ? d[keyRut]    || '' : '',
+    ...(keyRut && d[keyRut] ? { RUT_x0020_COLABORADOR: Number(String(d[keyRut]).replace(/\D/g, '')) || 0 } : {}),
     '_x00bf_Existe_x0020_Desviaci_x000':  hayDesvioCondiciones ? 'Sí' : 'No',
+    '_x00bf_Realiz_x00f3__x0020_el_x0':   hayDesvioCondiciones ? 'Sí' : 'No',
     Observaciones:                         keyObs ? d[keyObs] || '' : '',
     Correo_x0020_Remitente:               sub.userEmail || '',
   }
@@ -291,16 +293,18 @@ function mapCondicionDesdeCaminata(sub) {
   return {
     Title:                               codigo,
     Instalaci_x00f3_n:                   d.cs_instalacion || sub.branch || '',
+    Cargo:                               sub.userJobTitle || '',
     Nombre:                              sub.userName   || '',
     Categor_x00ed_a:                     `Caminata — ${d.cs_area || ''}`,
+    '_x00bf_Se_x0020_detecta_x0020_Co':  'Sí',
     Lugar_x0020_Especifico:              keyCondLugar      ? d[keyCondLugar]      || '' : '',
     Condici_x00f3_n_x0020_Insegura:      keyCondDesc       ? d[keyCondDesc]       || '' : '',
     Incidentes_x0020_Posibles:           incidentesStr,
     Medida_x0020_de_x0020_Control:       keyCondMedida     ? d[keyCondMedida]     || '' : '',
     _x00c1_rea_x0020_Responsable:        keyCondAreaResp   ? d[keyCondAreaResp]   || '' : '',
-    Nombre_x0020_Responsable:            keyCondNombreResp ? d[keyCondNombreResp] || '' : '',
-    Correo_x0020_Responsable:            keyCondCorreoResp ? d[keyCondCorreoResp] || '' : '',
-    Fecha_x0020_Compromiso:              keyCondFecha      ? d[keyCondFecha]      || '' : '',
+    Nombre_x0020_del_x0020_Responsab:    keyCondNombreResp ? d[keyCondNombreResp] || '' : '',
+    Correo_x0020_Responsable_x0020_M:    keyCondCorreoResp ? d[keyCondCorreoResp] || '' : '',
+    Fecha_x0020_de_x0020_Compromiso:     keyCondFecha      ? d[keyCondFecha]      || '' : '',
     C_x00f3_digo_x0020_de_x0020_Repo:    codigo,
     Correo_x0020_Remitente:              sub.userEmail || '',
   }
@@ -323,17 +327,18 @@ function mapInspeccionSimple(sub) {
   return {
     Title:                               codigo,
     Instalaci_x00f3_n:                   instalacion,
+    Cargo:                               sub.userJobTitle || '',
     Nombre:                              sub.userName   || '',
     Categor_x00ed_a:                     'Inspección Simple',
-    Lugar_x0020_Especifico:              d.is_cond_lugar      || '',
     '_x00bf_Se_x0020_detecta_x0020_Co':  d.is_condicion === 'si' ? 'Sí' : 'No',
+    Lugar_x0020_Especifico:              d.is_cond_lugar      || '',
     Condici_x00f3_n_x0020_Insegura:      d.is_cond_desc        || '',
     Incidentes_x0020_Posibles:           incidentesStr,
     Medida_x0020_de_x0020_Control:       d.is_cond_medida      || '',
     _x00c1_rea_x0020_Responsable:        d.is_cond_area_resp   || '',
-    Nombre_x0020_Responsable:            d.is_cond_nombre_resp || '',
-    Correo_x0020_Responsable:            d.is_cond_correo_resp || '',
-    Fecha_x0020_Compromiso:              d.is_cond_fecha       || '',
+    Nombre_x0020_del_x0020_Responsab:    d.is_cond_nombre_resp || '',
+    Correo_x0020_Responsable_x0020_M:    d.is_cond_correo_resp || '',
+    Fecha_x0020_de_x0020_Compromiso:     d.is_cond_fecha       || '',
     C_x00f3_digo_x0020_de_x0020_Repo:    codigo,
     Correo_x0020_Remitente:              sub.userEmail || '',
   }
@@ -531,27 +536,37 @@ export const SP_COLUMN_CATALOG = {
   ],
   'caminata-seguridad': [
     { internal: 'Instalaci_x00f3_n',                         label: 'Instalación' },
-    { internal: '_x00c1_rea',                                 label: 'Área' },
-    { internal: 'Tem_x00e1_tica',                             label: 'Temática' },
-    { internal: "'x00bf_Existe_x0020_Desviaci_x00'",          label: '¿Desviación de conducta?' },
-    { internal: 'Conducta_x0020_Observada',                   label: 'Conducta Observada' },
-    { internal: 'Carta_x0020_Amonestaci_x00f3_n',             label: 'Carta de Amonestación' },
-    { internal: 'Nombre_x0020_Colaborador',                   label: 'Nombre Colaborador' },
-    { internal: 'RUT_x0020_Colaborador',                      label: 'RUT Colaborador' },
-    { internal: "'x00bf_Existe_x0020_Desviaci_x000'",         label: '¿Desviación de condiciones?' },
-    { internal: 'Observaciones',                              label: 'Observaciones' },
-    { internal: 'Nombre',                                     label: 'Nombre (responsable)' },
-    { internal: 'Correo_x0020_Remitente',                     label: 'Correo Remitente' },
+    { internal: 'Cargo',                                     label: 'Cargo' },
+    { internal: '_x00c1_rea',                                label: 'Área' },
+    { internal: 'Tem_x00e1_tica',                            label: 'Temática' },
+    { internal: '_x00bf_Existe_x0020_Desviaci_x00',          label: '¿Desviación de conducta?' },
+    { internal: 'Desviaci_x00f3_n_x0020_de_x0020_',          label: 'Desviación de Conducta' },
+    { internal: 'Carta_x0020_de_x0020_Amonestaci_',          label: 'Carta de Amonestación' },
+    { internal: 'Nombre_x0020_Colaborador',                  label: 'Nombre Colaborador' },
+    { internal: 'RUT_x0020_COLABORADOR',                     label: 'RUT Colaborador' },
+    { internal: '_x00bf_Existe_x0020_Desviaci_x000',         label: '¿Desviación de condiciones?' },
+    { internal: '_x00bf_Realiz_x00f3__x0020_el_x0',          label: '¿Realizó Reporte de Inspección?' },
+    { internal: 'Observaciones',                             label: 'Observaciones' },
+    { internal: 'Nombre',                                    label: 'Nombre (responsable)' },
+    { internal: 'Correo_x0020_Remitente',                    label: 'Correo Remitente' },
   ],
   'inspeccion-simple': [
-    { internal: 'Categor_x00ed_a',                     label: 'Categoría' },
-    { internal: 'Lugar_x0020_Especifico',              label: 'Lugar específico' },
-    { internal: 'Condici_x00f3_n_x0020_Insegura',      label: 'Condición insegura' },
-    { internal: 'Medida_x0020_de_x0020_Control',       label: 'Medida de control' },
-    { internal: 'Observaciones',                       label: 'Observaciones' },
-    { internal: 'Instalaci_x00f3_n',                   label: 'Instalación' },
-    { internal: 'Nombre',                              label: 'Nombre (responsable)' },
-    { internal: 'Correo_x0020_Remitente',              label: 'Correo Remitente' },
+    { internal: 'Categor_x00ed_a',                      label: 'Categoría' },
+    { internal: 'Cargo',                                 label: 'Cargo' },
+    { internal: '_x00bf_Se_x0020_detecta_x0020_Co',     label: '¿Se detecta condición insegura?' },
+    { internal: 'Lugar_x0020_Especifico',               label: 'Lugar específico' },
+    { internal: 'Condici_x00f3_n_x0020_Insegura',       label: 'Condición insegura' },
+    { internal: 'Imagen_x0020_Condici_x00f3_n',         label: 'Imagen Condición (URL)' },
+    { internal: 'Incidentes_x0020_Posibles',             label: 'Incidentes Posibles' },
+    { internal: 'Medida_x0020_de_x0020_Control',        label: 'Medida de control' },
+    { internal: '_x00c1_rea_x0020_Responsable',         label: 'Área Responsable' },
+    { internal: 'Nombre_x0020_del_x0020_Responsab',     label: 'Nombre del Responsable' },
+    { internal: 'Correo_x0020_Responsable_x0020_M',     label: 'Correo Responsable Medida' },
+    { internal: 'Fecha_x0020_de_x0020_Compromiso',      label: 'Fecha de Compromiso' },
+    { internal: 'C_x00f3_digo_x0020_de_x0020_Repo',     label: 'Código de Reporte' },
+    { internal: 'Instalaci_x00f3_n',                    label: 'Instalación' },
+    { internal: 'Nombre',                               label: 'Nombre (responsable)' },
+    { internal: 'Correo_x0020_Remitente',               label: 'Correo Remitente' },
   ],
   'difusiones-sso': [
     { internal: 'Sucursal',                            label: 'Sucursal' },
@@ -668,26 +683,27 @@ function base64ToBytes(dataUrl) {
   return bytes
 }
 
-// Sube una foto como adjunto al ítem SharePoint recién creado
-async function uploadPhotoAttachment(listId, itemId, photoBase64, fileName, token) {
-  const siteBase = import.meta.env.VITE_SHAREPOINT_SITE_URL
-  if (!siteBase) return
-  // SharePoint REST API para adjuntos de ítems de lista
-  const url = `${siteBase}/_api/web/lists(guid'${listId}')/items(${itemId})/AttachmentFiles/add(FileName='${fileName}')`
-  const res = await fetch(url, {
-    method: 'POST',
+// Sube una foto a la carpeta MRC-Fotos del drive del sitio (Graph API).
+// Devuelve la URL pública del archivo o null si falla.
+// Usa el mismo token Graph que el POST principal — sin cambio de audiencia.
+async function uploadPhotoToDrive(siteUrl, listId, itemId, photoBase64, fileName, token) {
+  const uploadUrl = `${siteUrl}/drive/root:/MRC-Fotos/${listId}/${itemId}/${fileName}:/content`
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
     headers: {
       Authorization:  `Bearer ${token}`,
-      'Content-Type': 'application/octet-stream',
+      'Content-Type': 'image/jpeg',
     },
     body: base64ToBytes(photoBase64),
   })
   if (!res.ok) {
     const txt = await res.text().catch(() => '')
-    console.warn(`[MRC] Adjunto ${fileName} falló ${res.status}:`, txt)
-  } else {
-    console.info(`[MRC] Adjunto ${fileName} subido OK`)
+    console.warn(`[MRC] Foto ${fileName} falló ${res.status}:`, txt)
+    return null
   }
+  const data = await res.json().catch(() => ({}))
+  console.info(`[MRC] Foto ${fileName} subida OK →`, data.webUrl)
+  return data.webUrl || null
 }
 
 export async function submitFormToSharePoint(submission) {
@@ -758,24 +774,37 @@ export async function submitFormToSharePoint(submission) {
   const result = await res.json().catch(() => ({}))
   console.info('[MRC] Registro creado OK →', result?.id)
 
-  // Subir fotos adjuntas si las hay (Inspección Simple o condición desde Caminata)
-  let photos = submission.answers?.is_photo
+  // Subir fotos al drive (Graph API) y guardar URL en Imagen_x0020_Condici_x00f3_n
+  // Aplica a Inspección Simple (is_cond_foto) y condición desde Caminata (*_cond_foto)
+  let photos = submission.answers?.is_cond_foto
   if (!photos?.length) {
     const condFotoKey = Object.keys(submission.answers || {}).find(k => k.endsWith('_cond_foto'))
     if (condFotoKey) photos = submission.answers[condFotoKey]
   }
   if (Array.isArray(photos) && photos.length > 0 && result?.id) {
-    await Promise.allSettled(
+    const ts = Date.now()
+    const uploadResults = await Promise.allSettled(
       photos.map((photoBase64, idx) =>
-        uploadPhotoAttachment(
+        uploadPhotoToDrive(
+          siteUrl,
           config.listId,
           result.id,
           photoBase64,
-          `foto_${idx + 1}_${Date.now()}.jpg`,
+          `foto_${idx + 1}_${ts}.jpg`,
           token
         )
       )
     )
+    // Si al menos una foto subió exitosamente, guardar la primera URL en el ítem
+    const firstUrl = uploadResults.find(r => r.status === 'fulfilled' && r.value)?.value
+    if (firstUrl) {
+      const patchUrl = `${siteUrl}/lists/${config.listId}/items/${result.id}/fields`
+      await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Imagen_x0020_Condici_x00f3_n: firstUrl }),
+      }).catch(e => console.warn('[MRC] PATCH imagen falló:', e.message))
+    }
   }
 
   return { success: true }
