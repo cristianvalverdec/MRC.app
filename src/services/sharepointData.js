@@ -14,6 +14,7 @@
 import { getGraphToken } from '../config/msalInstance'
 import { SHAREPOINT_LIST_BY_KEY } from './sharepointLists'
 import { getLideres } from './lideresService'
+import { resolveSiteId } from './sharepointSiteResolver'
 
 export const IS_DEV_MODE =
   !import.meta.env.VITE_AZURE_CLIENT_ID ||
@@ -690,9 +691,9 @@ function base64ToBytes(dataUrl) {
 
 // Sube una foto a la carpeta MRC-Fotos del drive del sitio (Graph API).
 // Devuelve la URL pública del archivo o null si falla.
-// Usa el mismo token Graph que el POST principal — sin cambio de audiencia.
-async function uploadPhotoToDrive(siteUrl, listId, itemId, photoBase64, fileName, token) {
-  const uploadUrl = `${siteUrl}/drive/root:/MRC-Fotos/${listId}/${itemId}/${fileName}:/content`
+// Usa siteId resuelto — el formato path-based no funciona para operaciones de drive.
+async function uploadPhotoToDrive(siteId, listId, itemId, photoBase64, fileName, token) {
+  const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/MRC-Fotos/${listId}/${itemId}/${fileName}:/content`
   const res = await fetch(uploadUrl, {
     method: 'PUT',
     headers: {
@@ -731,6 +732,7 @@ export async function submitFormToSharePoint(submission) {
 
   const token   = await getGraphToken()
   const siteUrl = getSiteUrl()
+  const siteId  = await resolveSiteId(token)
   const url     = `${siteUrl}/lists/${config.listId}/items`
   const fields  = config.mapFields(submission)
 
@@ -791,7 +793,7 @@ export async function submitFormToSharePoint(submission) {
     const uploadResults = await Promise.allSettled(
       photos.map((photoBase64, idx) =>
         uploadPhotoToDrive(
-          siteUrl,
+          siteId,
           config.listId,
           result.id,
           photoBase64,
