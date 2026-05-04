@@ -6,7 +6,7 @@ import reactPlugin from 'eslint-plugin-react'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules_old']),
+  globalIgnores(['dist', 'node_modules_old', '.claude/']),
   {
     files: ['**/*.{js,jsx}'],
     plugins: {

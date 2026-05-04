@@ -673,6 +673,11 @@ function applyLideresEmails(fields, lideresMap) {
   fields.Correo_x0020_8 = subgerente[0]  || ''
 }
 
+// Nombre interno de la columna "Imagen Condición" en Inspección Simple.
+// Aplica tanto a envíos directos como a condiciones detectadas desde Caminata.
+// Si el PATCH devuelve 400, usar fetchListColumns('inspeccion-simple') para verificar.
+const IMAGE_COLUMN = 'Imagen_x0020_Condici_x00f3_n'
+
 // ── Enviar un registro a SharePoint ──────────────────────────────────────
 // Convierte base64 dataURL a Uint8Array binario
 function base64ToBytes(dataUrl) {
@@ -799,11 +804,20 @@ export async function submitFormToSharePoint(submission) {
     const firstUrl = uploadResults.find(r => r.status === 'fulfilled' && r.value)?.value
     if (firstUrl) {
       const patchUrl = `${siteUrl}/lists/${config.listId}/items/${result.id}/fields`
-      await fetch(patchUrl, {
+      const patchRes = await fetch(patchUrl, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Imagen_x0020_Condici_x00f3_n: firstUrl }),
-      }).catch(e => console.warn('[MRC] PATCH imagen falló:', e.message))
+        body: JSON.stringify({ [IMAGE_COLUMN]: firstUrl }),
+      }).catch(e => { console.warn('[MRC] PATCH imagen (red):', e.message); return null })
+      if (!patchRes) {
+        // error de red — ya logueado arriba
+      } else if (!patchRes.ok) {
+        const errBody = await patchRes.text().catch(() => '')
+        console.warn('[MRC] PATCH imagen falló', patchRes.status, errBody)
+        console.info('[MRC] Columna usada:', IMAGE_COLUMN, '— ejecutar fetchListColumns() para verificar nombre real')
+      } else {
+        console.info('[MRC] URL imagen guardada OK →', firstUrl)
+      }
     }
   }
 
