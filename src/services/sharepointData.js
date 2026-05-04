@@ -752,7 +752,13 @@ export async function submitFormToSharePoint(submission) {
   // enrutamiento de notificaciones vía Power Automate.
   const branch = submission.answers?.Q1 || submission.answers?.cs_instalacion || submission.answers?.is_instalacion || submission.branch || ''
   const lideresMap = await fetchLideresEmailMap(branch)
+  console.info('[MRC] lideresMap branch:', branch, '— líderes encontrados:', Object.keys(lideresMap).length, lideresMap)
   applyLideresEmails(fields, lideresMap)
+  console.info('[MRC] correos 1-8 aplicados:', {
+    1: fields.Correo_x0020_1, 2: fields.Correo_x0020_2, 3: fields.Correo_x0020_3,
+    4: fields.Correo_x0020_4, 5: fields.Correo_x0020_5, 6: fields.Correo_x0020_6,
+    7: fields.Correo_x0020_7, 8: fields.Correo_x0020_8,
+  })
 
   console.info('[MRC] POST →', url)
   console.info('[MRC] fields →', fields)
@@ -780,6 +786,14 @@ export async function submitFormToSharePoint(submission) {
 
   const result = await res.json().catch(() => ({}))
   console.info('[MRC] Registro creado OK →', result?.id)
+
+  // Diagnóstico temporal: muestra nombres internos reales de columnas de la lista
+  if (submission.formType === 'inspeccion-simple' || submission.formType === 'caminata-seguridad-condicion') {
+    fetchListColumns(submission.formType).then(cols => {
+      const correoCols = (cols || []).filter(c => c.internal.toLowerCase().includes('correo') || c.label.toLowerCase().includes('correo'))
+      console.info('[MRC] Columnas "correo" en lista', submission.formType, '→', correoCols)
+    })
+  }
 
   // Subir fotos al drive (Graph API) y guardar URL en Imagen_x0020_Condici_x00f3_n
   // Aplica a Inspección Simple (is_cond_foto) y condición desde Caminata (*_cond_foto)
