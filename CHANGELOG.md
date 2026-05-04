@@ -7,6 +7,15 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ## [1.9.26] — 2026-05-03
 
+### Fix — Categoría 'Nuevo Reporte' en lista Inspección Simple
+
+- `sharepointData.js` — `mapCondicionDesdeCaminata`: columna `Categor_x00ed_a` cambia de `` `Caminata — {área}` `` a `'Nuevo Reporte'`.
+- `sharepointData.js` — `mapInspeccionSimple`: columna `Categor_x00ed_a` cambia de `'Inspección Simple'` a `'Nuevo Reporte'`.
+- El valor `'Nuevo Reporte'` es el disparador del flujo Power Automate que genera el documento codificado y lo envía a los líderes. Aplica a todos los registros que ingresan a la lista Inspección Simple, tanto desde el formulario directo como desde condición insegura detectada en Caminata de Seguridad.
+- El sistema de correos Correo 1-8 (enriquecimiento desde Gestión de Líderes) ya se aplicaba a ambos formularios vía `applyLideresEmails`. Requiere que las columnas `Correo_x0020_1` a `Correo_x0020_8` existan en las listas SharePoint correspondientes.
+
+---
+
 ### Inspección Simple — reescritura completa del formulario
 
 El formulario de Inspección Simple fue rediseñado desde cero para registrar directamente condiciones inseguras en instalaciones, alineando su estructura con el bloque de condición insegura de la Caminata de Seguridad.
