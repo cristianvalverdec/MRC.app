@@ -204,10 +204,20 @@ El módulo `urlLinksService.js` permite que el equipo SSO actualice desde la pro
 
 **Clave localStorage:** `mrc-url-links` (separada de `mrc-sp-connections-override` que es para GUIDs de listas).
 
+**Sync bidireccional con SharePoint (v1.9.27):** los links viajan dentro de `mrc-forms-config.json`. `formEditorStore._syncToCloud` incluye `urlLinks: getAllLinks()` en el payload. `pullFromCloud` llama `restoreLinks(data.urlLinks)` cuando el cloud es más nuevo. Esto garantiza que todos los dispositivos reciban los enlaces configurados por el admin sin necesidad de redeploy.
+
+**Historial semanal automático:** `saveLink(id, newUrl)` archiva el valor anterior bajo la clave `{id}-{YYYY-WNN}` (ej. `semana-op-2026-W18`) antes de sobreescribir. Esto permite que `DifusionesSSOScreen` navegue hacia semanas pasadas. `getLinkForWeekOffset(id, -1)` recupera el link de la semana anterior.
+
 **Para consumir un enlace configurable en cualquier componente:**
 ```js
 import { getLink } from '../services/urlLinksService'
 const url = getLink('semana-op')  // null si no configurado
+```
+
+**Para acceder al historial semanal (en DifusionesSSOScreen):**
+```js
+import { getLinkForWeekOffset } from '../services/urlLinksService'
+const url = getLinkForWeekOffset('semana-op', -2)  // hace 2 semanas
 ```
 
 **Para agregar un nuevo enlace gestionable desde la app:**
@@ -347,6 +357,8 @@ Retrocompatibilidad: valor `true` legacy (v1 binaria) se interpreta como `'all'`
 ### Sync con SharePoint
 `disabledScreens` viaja dentro de `mrc-forms-config.json` (mismo pipeline que formularios). `_syncToCloud` lo lee desde `screenVisibilityStore.getState()`. `pullFromCloud` llama a `setDisabledScreens(data.disabledScreens)`.
 
+> **Nota:** a partir de v1.9.27, `urlLinks` también viaja en el mismo JSON. El payload completo es `{ editedForms, customForms, disabledScreens, urlLinks, savedAt }`.
+
 ### Regla obligatoria
 Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.js` con `key`, `label` y `menu`, (2) envolver su ruta en `App.jsx` con `<ScreenGuard screenKey="...">`. Sin esto la pantalla no es controlable desde el panel de admin.
 
@@ -384,4 +396,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-03 — v1.9.26 — Categoría 'Nuevo Reporte' forzada en mappers de Inspección Simple y condición desde Caminata (dispara flujo Power Automate)*
+*Última actualización: 2026-05-05 — v1.9.27 — Difusiones SSO: 7 ajustes previos a producción (sync URLs cross-device, selector instalación, equipo jerárquico, fecha max, adjuntos MRC-Fotos, navegación semanal histórica)*

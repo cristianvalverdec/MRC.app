@@ -5,6 +5,35 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.27] — 2026-05-05
+
+### Difusiones SSO — ajustes previos a producción (7 mejoras)
+
+#### Fix crítico
+- **URLs sincronizadas entre dispositivos:** las URLs de material semanal y biblioteca ahora viajan dentro de `mrc-forms-config.json` en SharePoint. `formEditorStore._syncToCloud` incluye `urlLinks: getAllLinks()` en el payload; `pullFromCloud` restaura los links via `restoreLinks(data.urlLinks)`. Cualquier dispositivo que abra la app después de que el admin configure los enlaces los recibirá automáticamente.
+
+#### Correcciones
+- **Semana completa en encabezado:** el rango de fechas ahora muestra lunes → domingo (era lunes → viernes). Corregido en `getWeekInfo()` usando `sunday = monday + 6`.
+- **Fecha no futura:** el selector de fecha en el formulario de registro tiene `max={todayISO()}`. El dispositivo bloquea la selección de fechas futuras a nivel nativo.
+- **Adjuntos alineados con Inspección Simple:** el servicio `difusionesService.js` usa `resolveSiteId()` y sube archivos a `/MRC-Fotos/difusiones/{YYYY-MM}/`. La `webUrl` de SharePoint se guarda en `ArchivosAdjuntos`, mismo formato que las fotos de Inspección Simple.
+
+#### Funcionalidades nuevas
+- **Instalación como selector desplegable:** reemplaza el campo de texto libre. Lista las 26 instalaciones del catálogo `INSTALACIONES_MRC` agrupadas en Sucursales y Distribuidoras.
+- **Selección jerárquica de Equipo:** flujo de 3 niveles con animación:
+  1. Tipo: Sucursales | Distribuidoras
+  2. Área: Operaciones | Administración *(Sucursales)* — Operaciones | Administración | Ventas *(Distribuidoras)*
+  3. Turno *(solo Operaciones)*: Mañana | Tarde | Noche
+  Se guarda en SharePoint como `"Sucursal - Operaciones"`, `"Distribuidora - Ventas"`, etc.
+- **Navegación entre semanas pasadas:** flechas ‹ › en la tarjeta de Material de Difusión para revisar material histórico (hasta 12 semanas atrás). El historial se construye automáticamente: al actualizar un enlace en Conexiones SharePoint, el valor anterior queda archivado bajo su clave de semana (`semana-op-2026-W18`).
+
+#### Archivos modificados
+- `src/screens/DifusionesSSOScreen.jsx` — reescritura completa de la pantalla
+- `src/services/difusionesService.js` — resolveSiteId + ruta MRC-Fotos
+- `src/services/urlLinksService.js` — `restoreLinks()`, `getWeekKey()`, `getLinkForWeekOffset()`, archivado automático en `saveLink()`
+- `src/store/formEditorStore.js` — incluye `urlLinks` en sync bidireccional
+
+---
+
 ## [1.9.26] — 2026-05-03
 
 ### Fix — Categoría 'Nuevo Reporte' en lista Inspección Simple
