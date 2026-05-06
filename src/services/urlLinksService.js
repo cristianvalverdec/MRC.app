@@ -64,6 +64,19 @@ function readStore() {
   }
 }
 
+// Devuelve la clave de semana ISO para una fecha dada: "YYYY-WNN"
+// Usa lunes como inicio de semana (ISO 8601 compatible).
+export function getWeekKey(date = new Date()) {
+  const d = new Date(date)
+  const day = d.getDay() || 7           // 1=lunes … 7=domingo
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - day + 1)
+  const year = monday.getFullYear()
+  const start = new Date(year, 0, 1)
+  const week = Math.ceil(((monday - start) / 86400000 + start.getDay() + 1) / 7)
+  return `${year}-W${String(week).padStart(2, '0')}`
+}
+
 // Leer URL: override local → env var de fallback → null
 export function getLink(linkId) {
   try {
@@ -74,6 +87,17 @@ export function getLink(linkId) {
   } catch {
     return null
   }
+}
+
+// Devuelve la URL de un linkId para un desplazamiento semanal dado.
+// weekOffset=0 → semana actual, weekOffset=-1 → semana pasada, etc.
+export function getLinkForWeekOffset(linkId, weekOffset) {
+  if (weekOffset === 0) return getLink(linkId)
+  const store = readStore()
+  const target = new Date()
+  target.setDate(target.getDate() + weekOffset * 7)
+  const archiveKey = `${linkId}-${getWeekKey(target)}`
+  return store[archiveKey]?.url || null
 }
 
 // Retorna el origen de una URL para un link: 'override' | 'env' | 'none'
@@ -89,9 +113,22 @@ export function getLinkSource(linkId) {
   }
 }
 
+// Guarda una URL para un linkId.
+// Antes de sobreescribir archiva el valor anterior bajo su clave de semana
+// para que la navegación histórica en Difusiones SSO encuentre el material previo.
 export function saveLink(linkId, url) {
   try {
     const store = readStore()
+    const existing = store[linkId]
+    if (existing?.url) {
+      // Archivar el valor anterior bajo la semana en que fue guardado
+      const savedAt = existing.savedAt ? new Date(existing.savedAt) : new Date()
+      const archiveKey = `${linkId}-${getWeekKey(savedAt)}`
+      // Solo archivar si no existe ya una entrada para esa semana (primera escritura gana)
+      if (!store[archiveKey]) {
+        store[archiveKey] = existing
+      }
+    }
     store[linkId] = { url: url.trim(), savedAt: new Date().toISOString() }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
   } catch (e) {
@@ -111,4 +148,21 @@ export function clearLink(linkId) {
 
 export function getAllLinks() {
   return readStore()
+}
+
+// Restaura el mapa completo de URLs desde un payload cloud (mrc-forms-config.json).
+// Hace merge con los valores locales: cloud gana para la misma clave.
+// Llamado por formEditorStore.pullFromCloud cuando cloudIsNewer.
+export function restoreLinks(linksMap) {
+  try {
+    if (!linksMap || typeof linksMap !== 'object') return
+    const store = readStore()
+    Object.entries(linksMap).forEach(([k, v]) => {
+      store[k] = v
+    })
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+    console.info('[MRC] URL links restaurados desde cloud ✓')
+  } catch (e) {
+    console.warn('[MRC] Error restaurando URL links desde cloud:', e)
+  }
 }

@@ -4,24 +4,29 @@ import {
   BookOpen, Download, ChevronRight, Users, Calendar,
   MapPin, Clock, CheckCircle, X, Paperclip, Camera,
   AlertCircle, Loader, Megaphone, ClipboardCheck,
+  ChevronLeft,
 } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import { submitDifusion } from '../services/difusionesService'
-import { getLink } from '../services/urlLinksService'
+import { getLink, getLinkForWeekOffset, getWeekKey } from '../services/urlLinksService'
+import { INSTALACIONES_MRC } from '../config/mrcCatalog'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-function getWeekInfo() {
+// Devuelve info de semana para un desplazamiento dado (0 = actual, -1 = anterior…)
+// Rango: lunes a domingo (semana completa ISO).
+function getWeekInfo(weekOffset = 0) {
   const now = new Date()
-  const day = now.getDay() || 7
+  now.setDate(now.getDate() + weekOffset * 7)
+  const day = now.getDay() || 7          // 1=lunes … 7=domingo
   const monday = new Date(now)
   monday.setDate(now.getDate() - day + 1)
-  const friday = new Date(monday)
-  friday.setDate(monday.getDate() + 4)
-  const start = new Date(now.getFullYear(), 0, 1)
-  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
-  const fmt = (d) => d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
-  return { week, range: `${fmt(monday)} – ${fmt(friday)}` }
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const start = new Date(monday.getFullYear(), 0, 1)
+  const week  = Math.ceil(((monday - start) / 86400000 + start.getDay() + 1) / 7)
+  const fmt   = (d) => d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+  return { week, range: `${fmt(monday)} – ${fmt(sunday)}`, weekKey: getWeekKey(monday) }
 }
 
 function todayISO() {
@@ -39,13 +44,32 @@ const EQUIPOS_BASE = [
   { id: 'administracion', label: 'Administración', color: '#27AE60', linkId: 'semana-adm' },
   { id: 'distribuidoras', label: 'Distribuidoras', color: '#F57C20', linkId: 'semana-dist' },
 ]
+
 const TURNOS = ['Mañana', 'Tarde', 'Noche']
 const MAX_FILES = 5
+const MAX_WEEK_BACK = 12   // máximo de semanas hacia atrás en navegación histórica
+
+// Áreas disponibles según tipo de unidad
+const AREAS_POR_TIPO = {
+  Sucursales:    ['Operaciones', 'Administración'],
+  Distribuidoras: ['Operaciones', 'Administración', 'Ventas'],
+}
+
+// Instalaciones agrupadas por tipo para el selector
+const INSTALACIONES_SUCURSALES    = INSTALACIONES_MRC.filter(i => i.tipo === 'Sucursal').map(i => i.nombre).sort()
+const INSTALACIONES_DISTRIBUIDORAS = INSTALACIONES_MRC.filter(i => i.tipo === 'Distribuidora').map(i => i.nombre).sort()
+const TODAS_INSTALACIONES = INSTALACIONES_MRC.map(i => i.nombre).sort()
 
 // ── Sección 1: Material de la Semana ─────────────────────────────────────
-function WeekMaterialCard() {
-  const { week, range } = getWeekInfo()
-  const equipos = EQUIPOS_BASE.map((e) => ({ ...e, spUrl: getLink(e.linkId) }))
+function WeekMaterialCard({ weekOffset, onPrev, onNext }) {
+  const { week, range } = getWeekInfo(weekOffset)
+  const isCurrentWeek   = weekOffset === 0
+
+  const equipos = EQUIPOS_BASE.map((e) => ({
+    ...e,
+    spUrl: getLinkForWeekOffset(e.linkId, weekOffset),
+  }))
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, #1A3A8F 0%, #0d2b72 100%)',
@@ -53,7 +77,7 @@ function WeekMaterialCard() {
       boxShadow: '0 8px 32px rgba(26,58,143,0.45)',
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Círculo decorativo */}
+      {/* Círculos decorativos */}
       <div style={{
         position: 'absolute', top: -50, right: -50,
         width: 180, height: 180, borderRadius: '50%',
@@ -65,17 +89,50 @@ function WeekMaterialCard() {
         background: 'rgba(255,255,255,0.04)', pointerEvents: 'none',
       }} />
 
-      {/* Badge semana */}
-      <div style={{ marginBottom: 12 }}>
-        <span style={{
-          background: 'rgba(255,255,255,0.15)',
-          borderRadius: 999, padding: '3px 12px',
-          fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
-          color: 'rgba(255,255,255,0.9)', letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-        }}>
-          Semana {week} · {range}
-        </span>
+      {/* Encabezado con navegación semanal */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        {/* Flecha atrás */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={onPrev}
+          disabled={weekOffset <= -MAX_WEEK_BACK}
+          style={{
+            background: 'rgba(255,255,255,0.10)', border: 'none', borderRadius: 8,
+            width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: weekOffset <= -MAX_WEEK_BACK ? 'default' : 'pointer', flexShrink: 0,
+            opacity: weekOffset <= -MAX_WEEK_BACK ? 0.3 : 0.8,
+          }}
+        >
+          <ChevronLeft size={16} color="#fff" />
+        </motion.button>
+
+        {/* Badge semana */}
+        <div style={{ flex: 1 }}>
+          <span style={{
+            background: isCurrentWeek ? 'rgba(255,255,255,0.18)' : 'rgba(245,124,32,0.30)',
+            borderRadius: 999, padding: '3px 12px',
+            fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700,
+            color: 'rgba(255,255,255,0.9)', letterSpacing: '0.08em',
+            textTransform: 'uppercase', display: 'inline-block',
+          }}>
+            Semana {week} · {range}
+          </span>
+        </div>
+
+        {/* Flecha adelante (solo cuando estamos en semana pasada) */}
+        <motion.button
+          whileTap={{ scale: weekOffset < 0 ? 0.88 : 1 }}
+          onClick={onNext}
+          disabled={isCurrentWeek}
+          style={{
+            background: 'rgba(255,255,255,0.10)', border: 'none', borderRadius: 8,
+            width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: isCurrentWeek ? 'default' : 'pointer', flexShrink: 0,
+            opacity: isCurrentWeek ? 0.25 : 0.8,
+          }}
+        >
+          <ChevronRight size={16} color="#fff" />
+        </motion.button>
       </div>
 
       <div style={{
@@ -89,7 +146,9 @@ function WeekMaterialCard() {
         fontFamily: 'var(--font-body)', fontSize: 12,
         color: 'rgba(255,255,255,0.65)', marginBottom: 18,
       }}>
-        Descarga las presentaciones y fichas para tu equipo
+        {isCurrentWeek
+          ? 'Descarga las presentaciones y fichas para tu equipo'
+          : 'Material de semanas anteriores — solo lectura'}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -122,7 +181,7 @@ function WeekMaterialCard() {
               <Download size={14} color="rgba(255,255,255,0.7)" />
             ) : (
               <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-                Por configurar
+                {isCurrentWeek ? 'Por configurar' : 'Sin material'}
               </span>
             )}
           </motion.button>
@@ -224,25 +283,6 @@ function FormField({ icon, label, children }) {
   )
 }
 
-function TextInput({ value, onChange, placeholder, type = 'text' }) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      style={{
-        width: '100%', background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)', borderRadius: 10,
-        padding: '10px 14px', outline: 'none',
-        fontFamily: 'var(--font-body)', fontSize: 15,
-        color: 'var(--color-text-primary)',
-        boxSizing: 'border-box',
-      }}
-    />
-  )
-}
-
 function FileItem({ file, onRemove }) {
   const isImage = file.type.startsWith('image/')
   return (
@@ -292,19 +332,75 @@ function FileItem({ file, onRemove }) {
   )
 }
 
+// Selector nativo de instalación con estilos consistentes
+function InstalacionSelect({ value, onChange }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: '100%', background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)', borderRadius: 10,
+        padding: '10px 14px', outline: 'none',
+        fontFamily: 'var(--font-body)', fontSize: 15,
+        color: value ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+        boxSizing: 'border-box', appearance: 'none',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
+        paddingRight: 36,
+      }}
+    >
+      <option value="">Selecciona una instalación…</option>
+      <optgroup label="Sucursales">
+        {INSTALACIONES_SUCURSALES.map(n => <option key={n} value={n}>{n}</option>)}
+      </optgroup>
+      <optgroup label="Distribuidoras">
+        {INSTALACIONES_DISTRIBUIDORAS.map(n => <option key={n} value={n}>{n}</option>)}
+      </optgroup>
+    </select>
+  )
+}
+
 function RegistroForm() {
   const branch = useUserStore((s) => s.branch)
   const email  = useUserStore((s) => s.email)
 
   const [instalacion,   setInstalacion]   = useState(branch || '')
-  const [equipo,        setEquipo]        = useState('')
-  const [turno,         setTurno]         = useState('')
+  // Selección jerárquica de equipo
+  const [tipoEquipo,    setTipoEquipo]    = useState('')   // 'Sucursales' | 'Distribuidoras'
+  const [areaEquipo,    setAreaEquipo]    = useState('')   // 'Operaciones' | 'Administración' | 'Ventas'
+  const [turno,         setTurno]         = useState('')   // 'Mañana' | 'Tarde' | 'Noche' (solo para Operaciones)
   const [fecha,         setFecha]         = useState(todayISO())
   const [participantes, setParticipantes] = useState('')
   const [files,         setFiles]         = useState([])
   const [status,        setStatus]        = useState('idle') // idle | uploading | success | error
   const [errorMsg,      setErrorMsg]      = useState('')
   const fileInputRef = useRef(null)
+
+  const turnoRequerido = areaEquipo === 'Operaciones'
+  const equipoLabel    = tipoEquipo && areaEquipo
+    ? `${tipoEquipo === 'Sucursales' ? 'Sucursal' : 'Distribuidora'} - ${areaEquipo}`
+    : ''
+
+  const isValid = (
+    instalacion.trim() &&
+    tipoEquipo &&
+    areaEquipo &&
+    (!turnoRequerido || turno) &&
+    fecha &&
+    participantes
+  )
+
+  const handleTipoEquipo = (tipo) => {
+    setTipoEquipo(tipo)
+    setAreaEquipo('')
+    setTurno('')
+  }
+
+  const handleAreaEquipo = (area) => {
+    setAreaEquipo(area)
+    setTurno('')
+  }
 
   const addFiles = (newFiles) => {
     const combined = [...files, ...Array.from(newFiles)]
@@ -313,14 +409,20 @@ function RegistroForm() {
 
   const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx))
 
-  const isValid = instalacion.trim() && equipo && turno && fecha && participantes
-
   const handleSubmit = async () => {
     if (!isValid) return
     setStatus('uploading')
     setErrorMsg('')
     try {
-      await submitDifusion({ instalacion, equipo, turno, fecha, participantes, files, userEmail: email })
+      await submitDifusion({
+        instalacion,
+        equipo: equipoLabel,
+        turno: turno || '',
+        fecha,
+        participantes,
+        files,
+        userEmail: email,
+      })
       setStatus('success')
     } catch (err) {
       setErrorMsg(err.message || 'Error al enviar el registro')
@@ -330,7 +432,8 @@ function RegistroForm() {
 
   const handleReset = () => {
     setInstalacion(branch || '')
-    setEquipo('')
+    setTipoEquipo('')
+    setAreaEquipo('')
     setTurno('')
     setFecha(todayISO())
     setParticipantes('')
@@ -370,10 +473,9 @@ function RegistroForm() {
           lineHeight: 1.5,
         }}>
           El registro de la charla en <strong>{instalacion}</strong> fue enviado
-          exitosamente. {files.length > 0 && `Se adjuntaron ${files.length} archivo${files.length > 1 ? 's' : ''}.`}
+          exitosamente.{files.length > 0 && ` Se adjuntaron ${files.length} archivo${files.length > 1 ? 's' : ''}.`}
         </div>
 
-        {/* Aviso de validación pendiente */}
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: 10,
           background: 'rgba(245,124,32,0.08)',
@@ -438,34 +540,80 @@ function RegistroForm() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* Instalación */}
+        {/* Instalación — selector desplegable */}
         <FormField icon={<MapPin size={14} />} label="Instalación">
-          <TextInput
-            value={instalacion}
-            onChange={setInstalacion}
-            placeholder="Ej: CD Santiago, Planta Rancagua…"
-          />
+          <InstalacionSelect value={instalacion} onChange={setInstalacion} />
         </FormField>
 
-        {/* Equipo */}
+        {/* Equipo — nivel 1: Sucursales o Distribuidoras */}
         <FormField icon={<Users size={14} />} label="Equipo">
           <PillSelector
-            options={['Operaciones', 'Administración', 'Distribuidoras']}
-            value={equipo}
-            onChange={setEquipo}
+            options={['Sucursales', 'Distribuidoras']}
+            value={tipoEquipo}
+            onChange={handleTipoEquipo}
             color="#1A52B8"
           />
         </FormField>
 
-        {/* Turno */}
-        <FormField icon={<Clock size={14} />} label="Turno">
-          <PillSelector
-            options={TURNOS}
-            value={turno}
-            onChange={setTurno}
-            color="#F57C20"
-          />
-        </FormField>
+        {/* Equipo — nivel 2: Área (visible al seleccionar tipo) */}
+        <AnimatePresence>
+          {tipoEquipo && (
+            <motion.div
+              key={tipoEquipo}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <FormField icon={<span style={{ width: 14 }} />} label="Área">
+                <PillSelector
+                  options={AREAS_POR_TIPO[tipoEquipo]}
+                  value={areaEquipo}
+                  onChange={handleAreaEquipo}
+                  color="#27AE60"
+                />
+              </FormField>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Turno — solo para Operaciones */}
+        <AnimatePresence>
+          {turnoRequerido && areaEquipo && (
+            <motion.div
+              key="turno"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <FormField icon={<Clock size={14} />} label="Turno">
+                <PillSelector
+                  options={TURNOS}
+                  value={turno}
+                  onChange={setTurno}
+                  color="#F57C20"
+                />
+              </FormField>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Resumen de selección de equipo */}
+        {equipoLabel && (
+          <div style={{
+            fontFamily: 'var(--font-body)', fontSize: 11,
+            color: 'var(--color-text-muted)',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8, padding: '7px 12px',
+          }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Equipo seleccionado: </span>
+            <strong style={{ color: 'var(--color-text-primary)' }}>
+              {equipoLabel}{turno ? ` · ${turno}` : ''}
+            </strong>
+          </div>
+        )}
 
         {/* Fecha y participantes en fila */}
         <div style={{ display: 'flex', gap: 12 }}>
@@ -474,6 +622,7 @@ function RegistroForm() {
               <input
                 type="date"
                 value={fecha}
+                max={todayISO()}
                 onChange={(e) => setFecha(e.target.value)}
                 style={{
                   width: '100%', background: 'var(--color-surface)',
@@ -527,7 +676,6 @@ function RegistroForm() {
                 onChange={(e) => addFiles(e.target.files)}
               />
               <div style={{ display: 'flex', gap: 8 }}>
-                {/* Tomar foto con cámara */}
                 <motion.button
                   whileTap={{ scale: 0.96 }}
                   onClick={() => {
@@ -553,7 +701,6 @@ function RegistroForm() {
                   </span>
                 </motion.button>
 
-                {/* Adjuntar desde archivos */}
                 <motion.button
                   whileTap={{ scale: 0.96 }}
                   onClick={() => fileInputRef.current?.click()}
@@ -647,7 +794,7 @@ function RegistroForm() {
             fontFamily: 'var(--font-body)', fontSize: 11,
             color: 'var(--color-text-muted)', textAlign: 'center', marginTop: -8,
           }}>
-            Completa instalación, equipo, turno, fecha y participantes para continuar
+            Completa instalación, equipo{turnoRequerido ? ', turno' : ''}, fecha y participantes para continuar
           </div>
         )}
       </div>
@@ -657,6 +804,8 @@ function RegistroForm() {
 
 // ── Pantalla principal ─────────────────────────────────────────────────────
 export default function DifusionesSSOScreen() {
+  const [weekOffset, setWeekOffset] = useState(0)
+
   return (
     <div style={{
       minHeight: '100dvh',
@@ -673,13 +822,17 @@ export default function DifusionesSSOScreen() {
         maxWidth: 600, width: '100%', margin: '0 auto', boxSizing: 'border-box',
       }}>
 
-        {/* ── 1. Material de la semana ─────────────────────────────── */}
+        {/* ── 1. Material de la semana (con navegación semanal) ─────── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <WeekMaterialCard />
+          <WeekMaterialCard
+            weekOffset={weekOffset}
+            onPrev={() => setWeekOffset((w) => Math.max(w - 1, -MAX_WEEK_BACK))}
+            onNext={() => setWeekOffset((w) => Math.min(w + 1, 0))}
+          />
         </motion.div>
 
         {/* ── 2. Biblioteca ────────────────────────────────────────── */}
@@ -692,9 +845,7 @@ export default function DifusionesSSOScreen() {
         </motion.div>
 
         {/* Divisor */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
           <span style={{
             fontFamily: 'var(--font-body)', fontSize: 10,

@@ -12,6 +12,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { syncFormsToSharePoint, loadFormsFromSharePoint } from '../services/sharepointSync'
 import useScreenVisibilityStore from './screenVisibilityStore'
+import { getAllLinks, restoreLinks } from '../services/urlLinksService'
 
 const useFormEditorStore = create(
   persist(
@@ -135,13 +136,14 @@ const useFormEditorStore = create(
       _syncToCloud: async () => {
         const { editedForms, customForms } = get()
         const disabledScreens = useScreenVisibilityStore.getState().disabledScreens
+        const urlLinks = getAllLinks()
         const savedAt = new Date().toISOString()
         // Grabar lastSyncedAt ANTES del upload: protege los datos locales
         // aunque la subida a SharePoint falle. pullFromCloud compara contra
         // este timestamp y no sobrescribirá datos locales más nuevos.
         set({ syncStatus: 'syncing', lastSyncedAt: savedAt, lastSyncError: null })
         try {
-          await syncFormsToSharePoint({ editedForms, customForms, disabledScreens, savedAt })
+          await syncFormsToSharePoint({ editedForms, customForms, disabledScreens, urlLinks, savedAt })
           set({ syncStatus: 'success', lastSyncError: null })
         } catch (err) {
           const message = err?.message || 'Error desconocido al sincronizar'
@@ -209,6 +211,9 @@ const useFormEditorStore = create(
               })
               if (data.disabledScreens) {
                 useScreenVisibilityStore.getState().setDisabledScreens(data.disabledScreens)
+              }
+              if (data.urlLinks) {
+                restoreLinks(data.urlLinks)
               }
               console.info('[MRC Sync] Store actualizado desde SharePoint ✓')
             } else {
