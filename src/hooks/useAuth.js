@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useMsal } from '@azure/msal-react'
-import { loginRequest } from '../config/msalConfig'
+import { loginRequest, MAINTENANCE_MODE } from '../config/msalConfig'
 import useUserStore from '../store/userStore'
 
 const IS_DEV_MODE =
@@ -14,6 +14,10 @@ export function useAuth() {
   const isAuthenticated = useUserStore((s) => s.isAuthenticated)
 
   const login = useCallback(async () => {
+    if (MAINTENANCE_MODE && !IS_DEV_MODE) {
+      return { success: false, maintenance: true }
+    }
+
     if (IS_DEV_MODE) {
       // Modo desarrollo: simula usuario admin autenticado
       setUser({

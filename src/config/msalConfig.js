@@ -1,3 +1,8 @@
+// ── Modo mantenimiento ────────────────────────────────────────────────────
+// Cuando es true, bloquea toda autenticación Azure AD y muestra pantalla
+// de mantenimiento. Cambiar a false para rehabilitar el acceso.
+export const MAINTENANCE_MODE = true
+
 export const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID || 'YOUR_CLIENT_ID',

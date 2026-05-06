@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import useUserStore from '../store/userStore'
+import { MAINTENANCE_MODE } from '../config/msalConfig'
 
 // ── Agrosuper Logo — blanco en dark (relación 3.1:1), color en light (relación 1.5:1)
 // Para que ambos logos aparezcan del mismo tamaño visual usamos ancho fijo
@@ -87,11 +88,125 @@ function NetworkDot() {
   )
 }
 
+// ── Pantalla de mantenimiento ──────────────────────────────────────────
+function MaintenanceScreen() {
+  return (
+    <div style={{
+      minHeight: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      overflow: 'hidden',
+      background: 'var(--bg-splash-gradient)',
+      padding: '32px 24px',
+    }}>
+      <div className="noise-overlay" />
+      <FloatingParticles />
+
+      {/* Glow superior */}
+      <div style={{
+        position: 'absolute', top: -80, left: '50%',
+        transform: 'translateX(-50%)',
+        width: 300, height: 200,
+        background: 'var(--bg-splash-glow)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Logo Agrosuper */}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{ position: 'absolute', top: 0, right: 0, padding: '16px 16px 0 0',
+          paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))', zIndex: 10 }}
+      >
+        <AgrosuperShield height={32} />
+      </motion.div>
+
+      {/* Icono + mensaje */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        style={{
+          position: 'relative', zIndex: 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          textAlign: 'center', maxWidth: 380,
+        }}
+      >
+        {/* Candado SVG */}
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'rgba(245,124,32,0.12)',
+          border: '2px solid rgba(245,124,32,0.35)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 28,
+          boxShadow: '0 0 32px rgba(245,124,32,0.15)',
+        }}>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F57C20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+
+        <h1 style={{
+          fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700,
+          color: '#fff', letterSpacing: '0.04em', textTransform: 'uppercase',
+          marginBottom: 12, lineHeight: 1.2,
+        }}>
+          Sistema en mantenimiento
+        </h1>
+
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 15, color: 'rgba(255,255,255,0.65)',
+          lineHeight: 1.6, marginBottom: 32,
+        }}>
+          La aplicación MRC se encuentra temporalmente fuera de servicio mientras se completan
+          las validaciones necesarias para su uso en producción.
+        </p>
+
+        <div style={{
+          background: 'rgba(245,124,32,0.08)',
+          border: '1px solid rgba(245,124,32,0.25)',
+          borderRadius: 12, padding: '14px 18px',
+          width: '100%',
+        }}>
+          <p style={{
+            fontFamily: 'var(--font-body)', fontSize: 13,
+            color: 'rgba(255,255,255,0.5)', margin: 0, lineHeight: 1.5,
+          }}>
+            Para consultas, contactar al equipo SST de Agrosuper Comercial.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Versión */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        style={{
+          position: 'absolute', bottom: 0,
+          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+          fontFamily: 'var(--font-body)', fontSize: 11,
+          color: 'var(--color-text-muted)', letterSpacing: '0.04em',
+        }}
+      >
+        v{__APP_VERSION__} · {__BUILD_DATE__}
+      </motion.p>
+    </div>
+  )
+}
+
 // ── Pantalla principal ─────────────────────────────────────────────────
 export default function SplashScreen() {
   const navigate = useNavigate()
   const { login, isDevMode } = useAuth()
   const [loading, setLoading] = useState(false)
+
+  if (MAINTENANCE_MODE && !isDevMode) return <MaintenanceScreen />
 
   const handleIngresar = async () => {
     setLoading(true)
