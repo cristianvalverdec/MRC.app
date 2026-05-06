@@ -396,4 +396,4 @@ Al agregar una pantalla nueva al menú: (1) agregar entrada en `screenRegistry.j
 
 ---
 
-*Última actualización: 2026-05-05 — v1.9.27 — Difusiones SSO: 7 ajustes previos a producción (sync URLs cross-device, selector instalación, equipo jerárquico, fecha max, adjuntos MRC-Fotos, navegación semanal histórica)*
+*Última actualización: 2026-05-06 — v1.9.28 — Actualización de app: detección proactiva vía visibilitychange + tarjeta "Verificar actualización" en Mi Perfil*

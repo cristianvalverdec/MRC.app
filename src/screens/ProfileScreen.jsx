@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell, ClipboardCheck, FileText, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { LogOut, User, Mail, Building2, Shield, Clock, AlertCircle, UserPlus, Trash2, Users, ChevronDown, ChevronUp, Loader, Sun, Moon, Bell, ClipboardCheck, FileText, RefreshCw, CheckCircle2, Smartphone, Download, ArrowUpCircle } from 'lucide-react'
 import AppHeader from '../components/layout/AppHeader'
 import useUserStore from '../store/userStore'
 import useFormStore from '../store/formStore'
@@ -12,6 +12,7 @@ import { IS_DEV_MODE } from '../services/sharepointData'
 import { getAdmins, addAdmin, removeAdmin, isAdmin, refreshAdmins, SUPER_ADMIN } from '../services/adminService'
 import useFormEditorStore from '../store/formEditorStore'
 import AccessRequestCTA from '../components/ui/AccessRequestCTA'
+import { getSharedRegistration } from '../services/appUpdateService'
 
 const ROLE_META = {
   admin: { label: 'Administrador', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
@@ -269,6 +270,159 @@ function AdminPanel({ currentEmail }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </motion.div>
+  )
+}
+
+// ── Tarjeta: versión de la app + chequeo manual de actualizaciones ─────────
+function AppVersionCard() {
+  const [checking, setChecking]   = useState(false)
+  const [applying, setApplying]   = useState(false)
+  const [status, setStatus]       = useState(null) // null | 'up-to-date' | 'update-available'
+  const waitingWorkerRef          = useRef(null)
+
+  // Al montar: detectar si ya hay un SW esperando (caso más común en usuarios que regresan)
+  useEffect(() => {
+    const reg = getSharedRegistration()
+    if (reg?.waiting) {
+      waitingWorkerRef.current = reg.waiting
+      setStatus('update-available')
+    }
+  }, [])
+
+  const handleCheck = async () => {
+    if (checking || !('serviceWorker' in navigator)) return
+    setChecking(true)
+    setStatus(null)
+    try {
+      const reg = getSharedRegistration() || await navigator.serviceWorker.ready
+      // Forzar descarga del nuevo SW si existe en el servidor
+      await reg.update()
+      // Pequeña pausa para que el SW transite a 'installed'
+      await new Promise(r => setTimeout(r, 600))
+      if (reg.waiting) {
+        waitingWorkerRef.current = reg.waiting
+        setStatus('update-available')
+      } else {
+        setStatus('up-to-date')
+      }
+    } catch {
+      setStatus('up-to-date')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const handleApply = () => {
+    if (applying) return
+    setApplying(true)
+    if (waitingWorkerRef.current) {
+      waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' })
+    } else {
+      window.location.reload()
+    }
+  }
+
+  const swAvailable = 'serviceWorker' in navigator
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.09 }}
+      style={{
+        background: status === 'update-available'
+          ? 'rgba(26,82,184,0.10)'
+          : 'var(--color-navy-mid)',
+        border: `1px solid ${status === 'update-available' ? 'rgba(96,165,250,0.4)' : 'var(--color-border)'}`,
+        borderRadius: 12,
+        padding: '14px 16px',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      {/* Cabecera */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+          background: status === 'update-available'
+            ? 'rgba(96,165,250,0.18)'
+            : 'rgba(255,255,255,0.06)',
+          border: `1px solid ${status === 'update-available' ? 'rgba(96,165,250,0.35)' : 'transparent'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {status === 'update-available'
+            ? <ArrowUpCircle size={17} color="#60A5FA" />
+            : <Smartphone size={17} color="var(--color-text-secondary)" />
+          }
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            Versión de la aplicación
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>
+            {status === 'update-available'
+              ? 'Hay una nueva versión lista para instalar'
+              : status === 'up-to-date'
+              ? `v${__APP_VERSION__} — estás al día`
+              : `v${__APP_VERSION__} — verifica si hay cambios disponibles`
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* Botón principal — cambia según el estado */}
+      {status === 'update-available' ? (
+        <motion.button
+          whileTap={{ scale: applying ? 1 : 0.97 }}
+          onClick={handleApply}
+          disabled={applying}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '11px', borderRadius: 8, cursor: applying ? 'wait' : 'pointer',
+            background: applying ? 'rgba(26,82,184,0.3)' : 'rgba(26,82,184,0.85)',
+            border: '1px solid rgba(96,165,250,0.5)',
+            color: applying ? 'rgba(255,255,255,0.6)' : '#FFFFFF',
+            fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.06em',
+            boxShadow: applying ? 'none' : '0 0 14px rgba(96,165,250,0.25)',
+            transition: 'all 0.2s',
+          }}
+        >
+          {applying
+            ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
+            : <Download size={13} />
+          }
+          {applying ? 'APLICANDO ACTUALIZACIÓN…' : 'ACTUALIZAR AHORA'}
+        </motion.button>
+      ) : (
+        <button
+          onClick={handleCheck}
+          disabled={checking || !swAvailable}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '10px', borderRadius: 8,
+            cursor: (checking || !swAvailable) ? 'wait' : 'pointer',
+            background: checking ? 'rgba(255,255,255,0.05)' : 'rgba(96,165,250,0.10)',
+            border: '1px solid rgba(96,165,250,0.25)',
+            color: '#60A5FA', fontFamily: 'var(--font-display)', fontSize: 12,
+            fontWeight: 700, letterSpacing: '0.06em',
+            opacity: !swAvailable ? 0.4 : 1,
+          }}
+        >
+          {checking
+            ? <Loader size={13} style={{ animation: 'spin 1s linear infinite' }} />
+            : <RefreshCw size={13} />
+          }
+          {checking ? 'VERIFICANDO…' : 'VERIFICAR ACTUALIZACIÓN'}
+        </button>
+      )}
+
+      {/* Resultado */}
+      {status === 'up-to-date' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, color: '#27AE60' }}>
+          <CheckCircle2 size={14} /> La aplicación está al día.
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -775,6 +929,9 @@ export default function ProfileScreen() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Versión de la app + chequeo manual de actualización ── */}
+        {!IS_DEV_MODE && <AppVersionCard />}
 
         {/* ── Actualizar rol + pull formularios (todos los usuarios) ── */}
         {!IS_DEV_MODE && <RefreshRoleCard currentEmail={email} />}

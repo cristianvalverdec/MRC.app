@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, Download, Loader } from 'lucide-react'
+import { setSharedRegistration, getSharedRegistration } from '../../services/appUpdateService'
 
 /**
  * UpdateBanner — detecta via Service Worker cuando hay una nueva versión.
@@ -14,6 +15,7 @@ import { RefreshCw, Download, Loader } from 'lucide-react'
  * onTouchStart previene el primer-tap sordo en iOS (elementos fixed no reciben
  * el primer click en Safari; touchstart sí llega siempre).
  */
+
 export default function UpdateBanner() {
   const [needRefresh, setNeedRefresh] = useState(false)
   const [updating, setUpdating] = useState(false)
@@ -29,6 +31,8 @@ export default function UpdateBanner() {
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange)
 
     const watchRegistration = (registration) => {
+      setSharedRegistration(registration)
+
       if (registration.waiting) {
         waitingWorkerRef.current = registration.waiting
         setNeedRefresh(true)
@@ -52,8 +56,18 @@ export default function UpdateBanner() {
 
     navigator.serviceWorker.ready.then(watchRegistration)
 
+    // Chequeo inmediato cuando la app vuelve al frente (usuarios que regresan tras días)
+    const handleVisibilityChange = () => {
+      const reg = getSharedRegistration()
+      if (document.visibilityState === 'visible' && reg) {
+        reg.update().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [])

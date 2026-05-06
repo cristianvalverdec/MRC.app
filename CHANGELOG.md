@@ -5,6 +5,23 @@ Formato: `[versión] — YYYY-MM-DD`
 
 ---
 
+## [1.9.28] — 2026-05-06
+
+### Actualización de la app — detección proactiva y verificación manual
+
+#### Mejora de fiabilidad (UpdateBanner)
+- **Chequeo al volver al frente:** `UpdateBanner` ahora escucha `visibilitychange` y llama a `registration.update()` cada vez que la app pasa de oculta a visible. Resuelve el caso principal del piloto: usuarios que no abrían la app durante días y no veían el banner porque el SW nuevo ya estaba en `waiting` pero nunca se detectaba al "despertar" la PWA.
+- **Registro compartido del SW:** se exporta `getSharedRegistration()` desde `UpdateBanner.jsx` para que otros componentes accedan al registro sin duplicar la suscripción a `navigator.serviceWorker.ready`.
+
+#### Nueva funcionalidad (ProfileScreen)
+- **Tarjeta "Versión de la aplicación":** nueva sección en Mi Perfil con tres estados: *verificar*, *al día*, *actualización disponible*. El botón **VERIFICAR ACTUALIZACIÓN** fuerza `registration.update()` y aguarda 600ms para que el SW transite a `installed`. Si se detecta una versión nueva, la tarjeta cambia a estado azul con botón **ACTUALIZAR AHORA** que aplica `SKIP_WAITING` directamente — sin necesitar el banner flotante. Visible para todos los usuarios en producción (oculto en dev mode).
+
+#### Archivos modificados
+- `src/components/ui/UpdateBanner.jsx` — visibilitychange + export `getSharedRegistration`
+- `src/screens/ProfileScreen.jsx` — componente `AppVersionCard`
+
+---
+
 ## [1.9.27] — 2026-05-05
 
 ### Difusiones SSO — ajustes previos a producción (7 mejoras)
