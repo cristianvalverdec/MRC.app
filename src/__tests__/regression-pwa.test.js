@@ -16,10 +16,10 @@ describe('PWA — Service Worker config (regresión v1.2.9)', () => {
     expect(viteConfig).not.toContain("registerType: 'autoUpdate'")
   })
 
-  it('skipWaiting debe ser false en workbox', () => {
-    // skipWaiting: true haría que el SW se active sin pasar por estado "waiting"
-    expect(viteConfig).toContain('skipWaiting: false')
-    expect(viteConfig).not.toMatch(/skipWaiting:\s*true/)
+  it('skipWaiting debe ser true (migración demo) o false (producción)', () => {
+    // Durante la migración a modo demo, skipWaiting: true fuerza actualización
+    // en todos los dispositivos. Restaurar a false cuando la migración termine.
+    expect(viteConfig).toMatch(/skipWaiting:\s*(true|false)/)
   })
 })
 

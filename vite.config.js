@@ -48,9 +48,12 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Fuerza activación inmediata del SW nuevo — sin esto, el SW viejo
-        // sigue sirviendo HTML/manifest obsoletos hasta que el usuario cierre TODAS las pestañas.
-        skipWaiting: false,
+        // skipWaiting: true (temporal) — fuerza que el SW nuevo tome control
+        // inmediatamente en TODOS los dispositivos sin esperar interacción.
+        // Necesario para la migración a modo demo: los dispositivos con el build
+        // antiguo (Azure) recibirán el nuevo SW y se recargarán automáticamente.
+        // Restaurar a false cuando todos los dispositivos estén actualizados.
+        skipWaiting: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,woff2,webmanifest}'],
